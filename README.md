@@ -45,7 +45,7 @@ WakeUp 课程表的非官方精简版本，专注高校教务课表导入与本�
 2. 按 Release 提供的校验信息确认文件完整性。
 3. 安装前备份课表及其他重要数据，再安装 APK。
 
-应用包名为 `io.github.wakeupnoads`，可与官方 App 同时安装，不会覆盖官方 App，数据也互不共享。早期沿用官方包名 `com.suda.yzune.wakeupschedule` 的版本同样作为独立应用存在。各版本使用同一签名，可直接覆盖升级。系统版本要求以对应 Release 说明为准。
+应用包名为 `io.github.wakeupnoads`，可与官方 App 同时安装，不会覆盖官方 App，数据也互不共享。
 
 ## 免责声明
 
