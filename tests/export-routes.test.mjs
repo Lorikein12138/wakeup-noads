@@ -45,6 +45,8 @@ test('removed share routes return before online helper or viewmodel calls while 
   const route = await readSmaliMethod(root, files[2], 'Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;', 'public static final o00Ooo0o(Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;Landroid/content/Context;Ljava/lang/Integer;)Lkotlin/o0ooOOo;');
   const guard = route.slice(0, route.indexOf('sget-object v0, Lkotlin/LazyThreadSafetyMode;'));
   assert.match(guard, /0x7f0908fa[\s\S]*0x7f0908fb[\s\S]*return-object p0/);
+  assert.match(guard, /if-eqz p2, :slim_removed_route_continue\s+invoke-virtual \{p2\}, Ljava\/lang\/Integer;->intValue\(\)I/, 'the guard reads the Integer menu id parameter');
+  assert.doesNotMatch(guard, /\bp1\b/, 'the guard never treats the Context parameter as the menu id');
   assert.match(route, /0x7f09027b[\s\S]*o00OooO\(Lkotlin\/OooOOO0;\)Ljava\/lang\/String;[\s\S]*o00O0o0O\(Ljava\/lang\/String;\)V/);
   assert.match(route, /o000O0;->OooOOo\(Landroidx\/fragment\/app\/FragmentActivity;\)V/);
   assert.match(route, /ScheduleViewModel;->o00000O0\(Landroid\/content\/Context;\)Lkotlinx\/coroutines\/o00O0OOO;/);

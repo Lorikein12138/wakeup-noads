@@ -974,7 +974,7 @@
         "methodDescriptor": "public static final o00Ooo0o(Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;Landroid/content/Context;Ljava/lang/Integer;)Lkotlin/o0ooOOo;"
       },
       "expectedMethodSha256": "430732AED5A331DFDD7E386967024DF297401A790E5E02DD0ABC0BE7EB626E38",
-      "replacementBody": "    .locals 2\n\n    if-eqz p1, :slim_removed_route_continue\n    invoke-virtual {p1}, Ljava/lang/Integer;->intValue()I\n    move-result v0\n    const v1, 0x7f0908fa\n    if-eq v0, v1, :slim_removed_route_return\n    const v1, 0x7f0908fb\n    if-eq v0, v1, :slim_removed_route_return\n    goto :slim_removed_route_continue\n\n    :slim_removed_route_return\n    sget-object p0, Lkotlin/o0ooOOo;->OooO00o:Lkotlin/o0ooOOo;\n    return-object p0\n\n    :slim_removed_route_continue\n\n    .line 1\n    sget-object v0, Lkotlin/LazyThreadSafetyMode;->NONE:Lkotlin/LazyThreadSafetyMode;\n\n    .line 2\n    .line 3\n    new-instance v1, Lcom/suda/yzune/wakeupschedule/schedule/o0OO0o;\n\n    .line 4\n    .line 5\n    invoke-direct {v1, p0, p1}, Lcom/suda/yzune/wakeupschedule/schedule/o0OO0o;-><init>(Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;Landroid/content/Context;)V\n\n    .line 6\n    .line 7\n    .line 8\n    invoke-static {v0, v1}, Lkotlin/OooOOO;->OooO00o(Lkotlin/LazyThreadSafetyMode;Lkotlin/jvm/functions/Function0;)Lkotlin/OooOOO0;\n\n    .line 9\n    .line 10\n    .line 11\n    move-result-object p1\n\n    .line 12\n    if-nez p2, :cond_0\n\n    .line 13\n    .line 14\n    goto :goto_0\n\n    .line 15\n    :cond_0\n    invoke-virtual {p2}, Ljava/lang/Integer;->intValue()I\n\n    .line 16\n    .line 17\n    .line 18\n    move-result v0\n\n    .line 19\n    const v1, 0x7f09027b\n\n    .line 20\n    .line 21\n    .line 22\n    if-ne v0, v1, :cond_1\n\n    .line 23\n    .line 24\n    const-string p2, \"JEO_024\"\n\n    .line 25\n    .line 26\n    invoke-static {p2}, Lo000OOO/OooO;->OooOOOo(Ljava/lang/String;)V\n\n    .line 27\n    .line 28\n    .line 29\n    invoke-static {p1}, Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;->o00OooO(Lkotlin/OooOOO0;)Ljava/lang/String;\n\n    .line 30\n    .line 31\n    .line 32\n    move-result-object p1\n\n    .line 33\n    invoke-virtual {p0, p1}, Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;->o00O0o0O(Ljava/lang/String;)V\n\n    .line 34\n    .line 35\n    .line 36\n    goto :goto_2\n\n    .line 37\n    :cond_1\n    :goto_0\n    if-nez p2, :cond_2\n\n    .line 38\n    .line 39\n    goto :goto_1\n\n    .line 40\n    :cond_2\n    invoke-virtual {p2}, Ljava/lang/Integer;->intValue()I\n\n    .line 41\n    .line 42\n    .line 43\n    move-result p1\n\n    .line 44\n    const v0, 0x7f0908fa\n\n    .line 45\n    .line 46\n    .line 47\n    if-ne p1, v0, :cond_3\n\n    .line 48\n    .line 49\n    const-string p1, \"JEO_026\"\n\n    .line 50\n    .line 51\n    invoke-static {p1}, Lo000OOO/OooO;->OooOOOo(Ljava/lang/String;)V\n\n    .line 52\n    .line 53\n    .line 54\n    sget-object p1, Lcom/suda/yzune/wakeupschedule/utils/o000O0;->OooO00o:Lcom/suda/yzune/wakeupschedule/utils/o000O0;\n\n    .line 55\n    .line 56\n    invoke-virtual {p0}, Landroidx/fragment/app/Fragment;->getActivity()Landroidx/fragment/app/FragmentActivity;\n\n    .line 57\n    .line 58\n    .line 59\n    move-result-object p0\n\n    .line 60\n    invoke-virtual {p1, p0}, Lcom/suda/yzune/wakeupschedule/utils/o000O0;->OooOOo(Landroidx/fragment/app/FragmentActivity;)V\n\n    .line 61\n    .line 62\n    .line 63\n    goto :goto_2\n\n    .line 64\n    :cond_3\n    :goto_1\n    if-nez p2, :cond_4\n\n    .line 65\n    .line 66\n    goto :goto_2\n\n    .line 67\n    :cond_4\n    invoke-virtual {p2}, Ljava/lang/Integer;->intValue()I\n\n    .line 68\n    .line 69\n    .line 70\n    move-result p1\n\n    .line 71\n    const p2, 0x7f0908fb\n\n    .line 72\n    .line 73\n    .line 74\n    if-ne p1, p2, :cond_5\n\n    .line 75\n    .line 76\n    const-string p1, \"JEO_023\"\n\n    .line 77\n    .line 78\n    invoke-static {p1}, Lo000OOO/OooO;->OooOOOo(Ljava/lang/String;)V\n\n    .line 79\n    .line 80\n    .line 81\n    invoke-virtual {p0}, Landroidx/fragment/app/Fragment;->getContext()Landroid/content/Context;\n\n    .line 82\n    .line 83\n    .line 84\n    move-result-object p1\n\n    .line 85\n    if-eqz p1, :cond_5\n\n    .line 86\n    .line 87\n    invoke-direct {p0}, Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;->o00OOOO0()Lcom/suda/yzune/wakeupschedule/schedule/ScheduleViewModel;\n\n    .line 88\n    .line 89\n    .line 90\n    move-result-object p0\n\n    .line 91\n    invoke-virtual {p0, p1}, Lcom/suda/yzune/wakeupschedule/schedule/ScheduleViewModel;->o00000O0(Landroid/content/Context;)Lkotlinx/coroutines/o00O0OOO;\n\n    .line 92\n    .line 93\n    .line 94\n    :cond_5\n    :goto_2\n    sget-object p0, Lkotlin/o0ooOOo;->OooO00o:Lkotlin/o0ooOOo;\n\n    .line 95\n    .line 96\n    return-object p0",
+      "replacementBody": "    .locals 2\n\n    if-eqz p2, :slim_removed_route_continue\n    invoke-virtual {p2}, Ljava/lang/Integer;->intValue()I\n    move-result v0\n    const v1, 0x7f0908fa\n    if-eq v0, v1, :slim_removed_route_return\n    const v1, 0x7f0908fb\n    if-eq v0, v1, :slim_removed_route_return\n    goto :slim_removed_route_continue\n\n    :slim_removed_route_return\n    sget-object p0, Lkotlin/o0ooOOo;->OooO00o:Lkotlin/o0ooOOo;\n    return-object p0\n\n    :slim_removed_route_continue\n\n    .line 1\n    sget-object v0, Lkotlin/LazyThreadSafetyMode;->NONE:Lkotlin/LazyThreadSafetyMode;\n\n    .line 2\n    .line 3\n    new-instance v1, Lcom/suda/yzune/wakeupschedule/schedule/o0OO0o;\n\n    .line 4\n    .line 5\n    invoke-direct {v1, p0, p1}, Lcom/suda/yzune/wakeupschedule/schedule/o0OO0o;-><init>(Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;Landroid/content/Context;)V\n\n    .line 6\n    .line 7\n    .line 8\n    invoke-static {v0, v1}, Lkotlin/OooOOO;->OooO00o(Lkotlin/LazyThreadSafetyMode;Lkotlin/jvm/functions/Function0;)Lkotlin/OooOOO0;\n\n    .line 9\n    .line 10\n    .line 11\n    move-result-object p1\n\n    .line 12\n    if-nez p2, :cond_0\n\n    .line 13\n    .line 14\n    goto :goto_0\n\n    .line 15\n    :cond_0\n    invoke-virtual {p2}, Ljava/lang/Integer;->intValue()I\n\n    .line 16\n    .line 17\n    .line 18\n    move-result v0\n\n    .line 19\n    const v1, 0x7f09027b\n\n    .line 20\n    .line 21\n    .line 22\n    if-ne v0, v1, :cond_1\n\n    .line 23\n    .line 24\n    const-string p2, \"JEO_024\"\n\n    .line 25\n    .line 26\n    invoke-static {p2}, Lo000OOO/OooO;->OooOOOo(Ljava/lang/String;)V\n\n    .line 27\n    .line 28\n    .line 29\n    invoke-static {p1}, Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;->o00OooO(Lkotlin/OooOOO0;)Ljava/lang/String;\n\n    .line 30\n    .line 31\n    .line 32\n    move-result-object p1\n\n    .line 33\n    invoke-virtual {p0, p1}, Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;->o00O0o0O(Ljava/lang/String;)V\n\n    .line 34\n    .line 35\n    .line 36\n    goto :goto_2\n\n    .line 37\n    :cond_1\n    :goto_0\n    if-nez p2, :cond_2\n\n    .line 38\n    .line 39\n    goto :goto_1\n\n    .line 40\n    :cond_2\n    invoke-virtual {p2}, Ljava/lang/Integer;->intValue()I\n\n    .line 41\n    .line 42\n    .line 43\n    move-result p1\n\n    .line 44\n    const v0, 0x7f0908fa\n\n    .line 45\n    .line 46\n    .line 47\n    if-ne p1, v0, :cond_3\n\n    .line 48\n    .line 49\n    const-string p1, \"JEO_026\"\n\n    .line 50\n    .line 51\n    invoke-static {p1}, Lo000OOO/OooO;->OooOOOo(Ljava/lang/String;)V\n\n    .line 52\n    .line 53\n    .line 54\n    sget-object p1, Lcom/suda/yzune/wakeupschedule/utils/o000O0;->OooO00o:Lcom/suda/yzune/wakeupschedule/utils/o000O0;\n\n    .line 55\n    .line 56\n    invoke-virtual {p0}, Landroidx/fragment/app/Fragment;->getActivity()Landroidx/fragment/app/FragmentActivity;\n\n    .line 57\n    .line 58\n    .line 59\n    move-result-object p0\n\n    .line 60\n    invoke-virtual {p1, p0}, Lcom/suda/yzune/wakeupschedule/utils/o000O0;->OooOOo(Landroidx/fragment/app/FragmentActivity;)V\n\n    .line 61\n    .line 62\n    .line 63\n    goto :goto_2\n\n    .line 64\n    :cond_3\n    :goto_1\n    if-nez p2, :cond_4\n\n    .line 65\n    .line 66\n    goto :goto_2\n\n    .line 67\n    :cond_4\n    invoke-virtual {p2}, Ljava/lang/Integer;->intValue()I\n\n    .line 68\n    .line 69\n    .line 70\n    move-result p1\n\n    .line 71\n    const p2, 0x7f0908fb\n\n    .line 72\n    .line 73\n    .line 74\n    if-ne p1, p2, :cond_5\n\n    .line 75\n    .line 76\n    const-string p1, \"JEO_023\"\n\n    .line 77\n    .line 78\n    invoke-static {p1}, Lo000OOO/OooO;->OooOOOo(Ljava/lang/String;)V\n\n    .line 79\n    .line 80\n    .line 81\n    invoke-virtual {p0}, Landroidx/fragment/app/Fragment;->getContext()Landroid/content/Context;\n\n    .line 82\n    .line 83\n    .line 84\n    move-result-object p1\n\n    .line 85\n    if-eqz p1, :cond_5\n\n    .line 86\n    .line 87\n    invoke-direct {p0}, Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;->o00OOOO0()Lcom/suda/yzune/wakeupschedule/schedule/ScheduleViewModel;\n\n    .line 88\n    .line 89\n    .line 90\n    move-result-object p0\n\n    .line 91\n    invoke-virtual {p0, p1}, Lcom/suda/yzune/wakeupschedule/schedule/ScheduleViewModel;->o00000O0(Landroid/content/Context;)Lkotlinx/coroutines/o00O0OOO;\n\n    .line 92\n    .line 93\n    .line 94\n    :cond_5\n    :goto_2\n    sget-object p0, Lkotlin/o0ooOOo;->OooO00o:Lkotlin/o0ooOOo;\n\n    .line 95\n    .line 96\n    return-object p0",
       "finalAssertions": [
         {
           "text": "Lkotlin/o0ooOOo;->OooO00o:Lkotlin/o0ooOOo;",
@@ -1559,13 +1559,17 @@
         "methodDescriptor": "public final invoke(Ljava/lang/Object;)Ljava/lang/Object;"
       },
       "expectedOriginal": "    check-cast p1, Lcom/suda/yzune/wakeupschedule/aaa/v1/HttpCurrencyRequest$OooO00o;",
-      "replacement": "    instance-of v0, p1, Ljava/lang/Throwable;\n    if-eqz v0, :slim_encrypt_success_callback\n    iget-object v0, p0, Lcom/suda/yzune/wakeupschedule/aaa/utils/o000OOo;->o00OOOO0:Lcom/baidu/homework/common/net/OooOo00$OooOo00;\n    invoke-static {v0, p1}, Lcom/suda/yzune/wakeupschedule/slim/TeachingBootstrap;->reportNetworkFailure(Ljava/lang/Object;Ljava/lang/Throwable;)V\n    sget-object p1, Lkotlin/o0ooOOo;->OooO00o:Lkotlin/o0ooOOo;\n    return-object p1\n    :slim_encrypt_success_callback\n    check-cast p1, Lcom/suda/yzune/wakeupschedule/aaa/v1/HttpCurrencyRequest$OooO00o;",
+      "replacement": "    instance-of v0, p1, Ljava/lang/Throwable;\n    if-eqz v0, :slim_encrypt_success_callback\n    iget-object v0, p0, Lcom/suda/yzune/wakeupschedule/aaa/utils/o000OOo;->o00OOOO0:Lcom/baidu/homework/common/net/OooOo00$OooOo00;\n    invoke-static {v0, p1}, Lcom/suda/yzune/wakeupschedule/slim/TeachingBootstrap;->reportNetworkFailure(Ljava/lang/Object;Ljava/lang/Throwable;)V\n    sget-object p1, Lkotlin/o0ooOOo;->OooO00o:Lkotlin/o0ooOOo;\n    return-object p1\n    :slim_encrypt_success_callback\n    iget-object v0, p0, Lcom/suda/yzune/wakeupschedule/aaa/utils/o000OOo;->o00OOO0O:Landroid/content/Context;\n    check-cast p1, Lcom/suda/yzune/wakeupschedule/aaa/v1/HttpCurrencyRequest$OooO00o;",
       "finalAssertions": [
         {
           "text": "TeachingBootstrap;->reportNetworkFailure(Ljava/lang/Object;Ljava/lang/Throwable;)V"
         },
         {
           "text": "->OooO00o(Landroid/content/Context;Lo000OO0o/OooO0O0;Lcom/baidu/homework/common/net/OooOo00$Oooo0;Lcom/baidu/homework/common/net/OooOo00$OooOo00;Lcom/suda/yzune/wakeupschedule/aaa/v1/HttpCurrencyRequest$OooO00o;)Lkotlin/o0ooOOo;"
+        },
+        {
+          "text": "o000OOo;->o00OOO0O:Landroid/content/Context;",
+          "hits": 2
         }
       ],
       "expectedHits": 1
@@ -1596,10 +1600,19 @@
         "methodDescriptor": "public bridge synthetic invoke(Ljava/lang/Object;)Ljava/lang/Object;"
       },
       "expectedOriginal": "    check-cast p1, Lcom/suda/yzune/wakeupschedule/aaa/v1/HttpCurrencyRequest$OooO00o;",
-      "replacement": "    instance-of v0, p1, Ljava/lang/Throwable;\n    if-eqz v0, :slim_encrypt_resume_success\n    iget-object v0, p0, Lcom/suda/yzune/wakeupschedule/aaa/utils/EncryptNet$OooO0O0;->o00OOO:Lkotlinx/coroutines/Oooo000;\n    invoke-static {p1}, Lkotlin/OooOo00;->OooO00o(Ljava/lang/Throwable;)Ljava/lang/Object;\n    move-result-object v1\n    invoke-interface {v0, v1}, Lkotlin/coroutines/OooO;->resumeWith(Ljava/lang/Object;)V\n    sget-object p1, Lkotlin/o0ooOOo;->OooO00o:Lkotlin/o0ooOOo;\n    return-object p1\n    :slim_encrypt_resume_success\n    check-cast p1, Lcom/suda/yzune/wakeupschedule/aaa/v1/HttpCurrencyRequest$OooO00o;",
+      "replacement": "    instance-of v0, p1, Ljava/lang/Throwable;\n    if-eqz v0, :slim_encrypt_resume_success\n    iget-object v0, p0, Lcom/suda/yzune/wakeupschedule/aaa/utils/EncryptNet$OooO0O0;->o00OOO:Lkotlinx/coroutines/Oooo000;\n    invoke-static {p1}, Lkotlin/OooOo00;->OooO00o(Ljava/lang/Throwable;)Ljava/lang/Object;\n    move-result-object v1\n    invoke-static {v1}, Lkotlin/Result;->constructor-impl(Ljava/lang/Object;)Ljava/lang/Object;\n    move-result-object v1\n    invoke-static {v1}, Lkotlin/Result;->box-impl(Ljava/lang/Object;)Lkotlin/Result;\n    move-result-object v1\n    const/4 p1, 0x0\n    invoke-interface {v0, v1, p1}, Lkotlinx/coroutines/Oooo000;->OooOO0o(Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)V\n    sget-object p1, Lkotlin/o0ooOOo;->OooO00o:Lkotlin/o0ooOOo;\n    return-object p1\n    :slim_encrypt_resume_success\n    check-cast p1, Lcom/suda/yzune/wakeupschedule/aaa/v1/HttpCurrencyRequest$OooO00o;",
       "finalAssertions": [
         {
-          "text": "resumeWith(Ljava/lang/Object;)V"
+          "text": "Lkotlin/Result;->box-impl(Ljava/lang/Object;)Lkotlin/Result;",
+          "hits": 1
+        },
+        {
+          "text": "Lkotlinx/coroutines/Oooo000;->OooOO0o(Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)V",
+          "hits": 1
+        },
+        {
+          "text": "resumeWith(Ljava/lang/Object;)V",
+          "present": false
         }
       ],
       "expectedHits": 1
@@ -1630,8 +1643,8 @@
         "methodDescriptor": "public final o000ooo(Landroid/content/Context;ZLo000OO0o/OooO0O0;Lcom/baidu/homework/common/net/OooOo00$Oooo0;Lcom/baidu/homework/common/net/OooOo00$OooOo00;)Lcom/android/volley/Request;"
       },
       "expectedHits": 1,
-      "expectedOriginal": "    invoke-virtual {p0, p4}, Lcom/suda/yzune/wakeupschedule/schedule_import/DXParserLoginFragment;->o000OOo0(Lcom/baidu/homework/common/net/OooOo00$Oooo0;)Lcom/suda/yzune/wakeupschedule/schedule_import/DXParserLoginFragment$OooO0O0;\n\n    .line 43",
-      "replacement": "    invoke-static {p3, p2}, Lcom/suda/yzune/wakeupschedule/slim/SlimNetworkPolicy;->transfer(Ljava/lang/Object;Ljava/lang/Object;)Z\n    move-result v1\n    if-nez v1, :slim_dx_wrapper_transferred\n    new-instance v0, Ljava/lang/IllegalStateException;\n    const-string v1, \"teaching request ownership transfer failed\"\n    invoke-direct {v0, v1}, Ljava/lang/IllegalStateException;-><init>(Ljava/lang/String;)V\n    invoke-static {p5, v0}, Lcom/suda/yzune/wakeupschedule/slim/TeachingBootstrap;->reportNetworkFailure(Ljava/lang/Object;Ljava/lang/Throwable;)V\n    const/4 p1, 0x0\n    return-object p1\n    :slim_dx_wrapper_transferred\n    invoke-virtual {p0, p4}, Lcom/suda/yzune/wakeupschedule/schedule_import/DXParserLoginFragment;->o000OOo0(Lcom/baidu/homework/common/net/OooOo00$Oooo0;)Lcom/suda/yzune/wakeupschedule/schedule_import/DXParserLoginFragment$OooO0O0;\n\n    .line 43",
+      "expectedOriginal": "    iget p3, p3, Lo000OO0o/OooO0O0;->__method:I",
+      "replacement": "    invoke-static {p3, p2}, Lcom/suda/yzune/wakeupschedule/slim/SlimNetworkPolicy;->transfer(Ljava/lang/Object;Ljava/lang/Object;)Z\n    move-result v1\n    if-nez v1, :slim_dx_wrapper_transferred\n    new-instance v0, Ljava/lang/IllegalStateException;\n    const-string v1, \"teaching request ownership transfer failed\"\n    invoke-direct {v0, v1}, Ljava/lang/IllegalStateException;-><init>(Ljava/lang/String;)V\n    invoke-static {p5, v0}, Lcom/suda/yzune/wakeupschedule/slim/TeachingBootstrap;->reportNetworkFailure(Ljava/lang/Object;Ljava/lang/Throwable;)V\n    const/4 p1, 0x0\n    return-object p1\n    :slim_dx_wrapper_transferred\n    iget p3, p3, Lo000OO0o/OooO0O0;->__method:I",
       "finalAssertions": [
         {
           "text": "SlimNetworkPolicy;->transfer(Ljava/lang/Object;Ljava/lang/Object;)Z"
@@ -1891,7 +1904,7 @@
         "methodDescriptor": "public final o00ooo()V"
       },
       "expectedOriginal": "    invoke-static {}, Lcom/suda/yzune/wakeupschedule/aaa/utils/OooOOOO;->OooO0OO()Z\r\n\r\n    .line 67\r\n    .line 68\r\n    .line 69\r\n    move-result v0\r\n\r\n    .line 70\r\n    const-string v2, \"InitActivity\"\r\n\r\n    .line 71\r\n    .line 72\r\n    if-eqz v0, :cond_2\r\n\r\n    .line 73\r\n    .line 74\r\n    iput-boolean v1, p0, Lcom/suda/yzune/wakeupschedule/SplashActivity;->o00OOOO:Z\r\n\r\n    .line 75\r\n    .line 76\r\n    const-string v0, \"showAd\"\r\n\r\n    .line 77\r\n    .line 78\r\n    invoke-static {v2, v0}, Lcom/suda/yzune/wakeupschedule/aaa/utils/o000O0;->OooO0OO(Ljava/lang/String;Ljava/lang/String;)V\r\n\r\n    .line 79\r\n    .line 80\r\n    .line 81\r\n    sget-object v1, Lcom/suda/yzune/wakeupschedule/o00oO0o;->OooO00o:Lcom/suda/yzune/wakeupschedule/o00oO0o;\r\n\r\n    .line 82\r\n    .line 83\r\n    const-string v2, \"fetchAD\"\r\n\r\n    .line 84\r\n    .line 85\r\n    invoke-virtual {v1, v2}, Lcom/suda/yzune/wakeupschedule/o00oO0o;->OooO0OO(Ljava/lang/String;)V\r\n\r\n    .line 86\r\n    .line 87\r\n    .line 88\r\n    invoke-static {}, Lo0OO00OO/OooO0O0;->OooO00o()Lo0OO00OO/OooO00o;\r\n\r\n    .line 89\r\n    .line 90\r\n    .line 91\r\n    move-result-object v1\r\n\r\n    .line 92\r\n    invoke-interface {v1, v0}, Lo0OO00OO/OooO00o;->addTag(Ljava/lang/String;)V\r\n\r\n    .line 93\r\n    .line 94\r\n    .line 95\r\n    invoke-static {}, Lo0OO00OO/OooO0O0;->OooO00o()Lo0OO00OO/OooO00o;\r\n\r\n    .line 96\r\n    .line 97\r\n    .line 98\r\n    move-result-object v0\r\n\r\n    .line 99\r\n    invoke-interface {v0}, Lo0OO00OO/OooO00o;->reportAppFullLaunch()V\r\n\r\n    .line 100\r\n    .line 101\r\n    .line 102\r\n    invoke-virtual {p0}, Landroidx/activity/ComponentActivity;->getLifecycle()Landroidx/lifecycle/Lifecycle;\r\n\r\n    .line 103\r\n    .line 104\r\n    .line 105\r\n    move-result-object v0\r\n\r\n    .line 106\r\n    new-instance v1, Lcom/suda/yzune/wakeupschedule/SplashActivity$OooO0OO;\r\n\r\n    .line 107\r\n    .line 108\r\n    invoke-direct {v1, p0}, Lcom/suda/yzune/wakeupschedule/SplashActivity$OooO0OO;-><init>(Lcom/suda/yzune/wakeupschedule/SplashActivity;)V\r\n\r\n    .line 109\r\n    .line 110\r\n    .line 111\r\n    invoke-static {p0, v0, v1}, Lo0O0OO/OooO0O0;->OooO00o(Landroid/app/Activity;Landroidx/lifecycle/Lifecycle;Lo0OOOOO0/OooO00o;)V\r\n\r\n    .line 112\r\n    .line 113\r\n    .line 114\r\n    goto :goto_1\r\n\r\n    .line 115\r\n",
-      "replacement": "",
+      "replacement": "    const-string v2, \"InitActivity\"\r\n\r\n",
       "expectedHits": 1,
       "finalAssertions": [
         {
@@ -1913,6 +1926,10 @@
         {
           "text": "SplashActivity;->o00Oo0()V",
           "hits": 2
+        },
+        {
+          "text": "const-string v2, \"InitActivity\"",
+          "hits": 1
         }
       ]
     },
@@ -1994,7 +2011,7 @@
         "methodDescriptor": "private final oo000o()V"
       },
       "expectedMethodSha256": "6ED540AD06BFC7492B753A437481AF2708A26A60CAAF8CF3FAC192E290B1EE37",
-      "replacementBody": "    .locals 0\n\n    invoke-virtual {p0}, Lcom/suda/yzune/wakeupschedule/aaa/fragment/MineFragment;->OoooOo0()Landroid/view/View;\n    move-result-object v0\n    invoke-virtual {v0, p0}, Landroid/view/View;->setOnClickListener(Landroid/view/View$OnClickListener;)V\n    invoke-virtual {p0}, Lcom/suda/yzune/wakeupschedule/aaa/fragment/MineFragment;->OoooOoO()Landroid/view/View;\n    move-result-object v0\n    invoke-virtual {v0, p0}, Landroid/view/View;->setOnClickListener(Landroid/view/View$OnClickListener;)V\n    return-void",
+      "replacementBody": "    .locals 1\n\n    invoke-virtual {p0}, Lcom/suda/yzune/wakeupschedule/aaa/fragment/MineFragment;->OoooOo0()Landroid/view/View;\n    move-result-object v0\n    invoke-virtual {v0, p0}, Landroid/view/View;->setOnClickListener(Landroid/view/View$OnClickListener;)V\n    invoke-virtual {p0}, Lcom/suda/yzune/wakeupschedule/aaa/fragment/MineFragment;->OoooOoO()Landroid/view/View;\n    move-result-object v0\n    invoke-virtual {v0, p0}, Landroid/view/View;->setOnClickListener(Landroid/view/View$OnClickListener;)V\n    return-void",
       "finalAssertions": [
         {
           "text": "OoooOo0()",
@@ -2011,6 +2028,10 @@
         {
           "text": "ComposeView;",
           "present": false
+        },
+        {
+          "text": ".locals 1",
+          "hits": 1
         }
       ]
     },
@@ -2465,7 +2486,7 @@
         "methodDescriptor": "private final oo0o0Oo(Ljava/util/List;)V"
       },
       "expectedOriginal": "    new-instance v3, Lcom/suda/yzune/wakeupschedule/settings/items/OooOO0;\n\n    .line 316\n    .line 317\n    invoke-static {v0, v6, v5, v6}, Lcom/suda/yzune/wakeupschedule/utils/Oooo000;->OooO0O0(Landroid/content/Context;Ljava/lang/String;ILjava/lang/Object;)Landroid/content/SharedPreferences;\n\n    .line 318\n    .line 319\n    .line 320\n    move-result-object v4\n\n    .line 321\n    const-string v7, \"s_update\"\n\n    .line 322\n    .line 323\n    invoke-interface {v4, v7, v5}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z\n\n    .line 324\n    .line 325\n    .line 326\n    move-result v16\n\n    .line 327\n    const/16 v19, 0xc\n\n    .line 328\n    .line 329\n    const/16 v20, 0x0\n\n    .line 330\n    .line 331\n    const v15, 0x7f13033d\n\n    .line 332\n    .line 333\n    .line 334\n    const/16 v17, 0x0\n\n    .line 335\n    .line 336\n    const/16 v18, 0x0\n\n    .line 337\n    .line 338\n    move-object v14, v3\n\n    .line 339\n    invoke-direct/range {v14 .. v20}, Lcom/suda/yzune/wakeupschedule/settings/items/OooOO0;-><init>(IZLjava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/Oooo0;)V\n\n    .line 340\n    .line 341\n    .line 342\n    invoke-interface {v2, v3}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n",
-      "replacement": "",
+      "replacement": "    const/16 v17, 0x0\n    const/16 v18, 0x0\n    const/16 v19, 0xc\n    const/16 v20, 0x0\n",
       "expectedHits": 1,
       "finalAssertions": [
         {
@@ -5500,7 +5521,7 @@
         "methodDescriptor": "public static Oooo(Landroid/content/Context;Lo000OO0o/OooO0O0;Ljava/util/List;Ljava/util/List;Ljava/util/List;Lcom/baidu/homework/common/net/OooOo00$Oooo0;Lcom/baidu/homework/common/net/OooOo00$OooOo00;)Lcom/android/volley/Request;"
       },
       "expectedOriginal": "    :goto_0\n    if-eqz v0, :cond_3",
-      "replacement": "    :goto_0\n    invoke-virtual {p2}, Lcom/android/volley/Request;->OooOoo()Ljava/lang/String;\n    move-result-object v1\n    invoke-static {p1, v1}, Lcom/suda/yzune/wakeupschedule/slim/SlimNetworkPolicy;->consumeForQueue(Ljava/lang/Object;Ljava/lang/String;)Z\n    move-result v2\n    if-eqz v2, :slim_network_queue_rejected\n    iget-boolean v2, p1, Lo000OO0o/OooO0O0;->__needCache:Z\n    if-eqz v2, :slim_network_cache_done\n    new-instance v2, Lcom/baidu/homework/common/net/OooOo00$OooOOOO;\n    invoke-direct {v2, p1}, Lcom/baidu/homework/common/net/OooOo00$OooOOOO;-><init>(Lo000OO0o/OooO0O0;)V\n    invoke-virtual {v2}, Lcom/baidu/homework/common/net/OooOo00$OooOOOO;->OooO0o0()Ljava/lang/Object;\n    move-result-object v2\n    if-eqz v2, :slim_network_cache_done\n    invoke-virtual {v0, v2}, Lcom/baidu/homework/common/net/OooOo00$Oooo0;->onCacheResponse(Ljava/lang/Object;)V\n    :slim_network_cache_done\n    if-eqz v0, :cond_3\n    goto :slim_network_queue_allowed\n    :slim_network_queue_rejected\n    new-instance v2, Lcom/baidu/homework/common/net/NetError;\n    sget-object v1, Lcom/baidu/homework/common/net/OooO0OO;->o0000o0O:Lcom/baidu/homework/common/net/OooO0OO;\n    const-string p3, \"\\u6b64\\u5728\\u7ebf\\u529f\\u80fd\\u5df2\\u79fb\\u9664\"\n    invoke-direct {v2, v1, p3}, Lcom/baidu/homework/common/net/NetError;-><init>(Lcom/baidu/homework/common/net/OooO0OO;Ljava/lang/String;)V\n    if-eqz p5, :slim_network_queue_no_error\n    invoke-virtual {p5, v2}, Lcom/baidu/homework/common/net/OooOo00$OooOo00;->onErrorResponse(Lcom/baidu/homework/common/net/NetError;)V\n    :slim_network_queue_no_error\n    invoke-virtual {p2}, Lcom/android/volley/Request;->cancel()V\n    return-object p2\n    :slim_network_queue_allowed",
+      "replacement": "    :goto_0\n    invoke-virtual {p2}, Lcom/android/volley/Request;->OooOoo()Ljava/lang/String;\n    move-result-object p3\n    invoke-static {p1, p3}, Lcom/suda/yzune/wakeupschedule/slim/SlimNetworkPolicy;->consumeForQueue(Ljava/lang/Object;Ljava/lang/String;)Z\n    move-result v2\n    if-eqz v2, :slim_network_queue_rejected\n    iget-boolean v2, p1, Lo000OO0o/OooO0O0;->__needCache:Z\n    if-eqz v2, :slim_network_cache_done\n    new-instance v2, Lcom/baidu/homework/common/net/OooOo00$OooOOOO;\n    invoke-direct {v2, p1}, Lcom/baidu/homework/common/net/OooOo00$OooOOOO;-><init>(Lo000OO0o/OooO0O0;)V\n    invoke-virtual {v2}, Lcom/baidu/homework/common/net/OooOo00$OooOOOO;->OooO0o0()Ljava/lang/Object;\n    move-result-object v2\n    if-eqz v2, :slim_network_cache_done\n    invoke-virtual {v0, v2}, Lcom/baidu/homework/common/net/OooOo00$Oooo0;->onCacheResponse(Ljava/lang/Object;)V\n    :slim_network_cache_done\n    if-eqz v0, :cond_3\n    goto :slim_network_queue_allowed\n    :slim_network_queue_rejected\n    new-instance v2, Lcom/baidu/homework/common/net/NetError;\n    sget-object v1, Lcom/baidu/homework/common/net/OooO0OO;->o0000o0O:Lcom/baidu/homework/common/net/OooO0OO;\n    const-string p3, \"\\u6b64\\u5728\\u7ebf\\u529f\\u80fd\\u5df2\\u79fb\\u9664\"\n    invoke-direct {v2, v1, p3}, Lcom/baidu/homework/common/net/NetError;-><init>(Lcom/baidu/homework/common/net/OooO0OO;Ljava/lang/String;)V\n    if-eqz p5, :slim_network_queue_no_error\n    invoke-virtual {p5, v2}, Lcom/baidu/homework/common/net/OooOo00$OooOo00;->onErrorResponse(Lcom/baidu/homework/common/net/NetError;)V\n    :slim_network_queue_no_error\n    invoke-virtual {p2}, Lcom/android/volley/Request;->cancel()V\n    return-object p2\n    :slim_network_queue_allowed",
       "expectedHits": 1,
       "finalAssertions": [
         {
@@ -5511,6 +5532,10 @@
         },
         {
           "text": "Request;->cancel()V"
+        },
+        {
+          "text": "invoke-static {p1, p3}, Lcom/suda/yzune/wakeupschedule/slim/SlimNetworkPolicy;->consumeForQueue",
+          "hits": 1
         }
       ]
     },
@@ -5563,7 +5588,7 @@
         "methodDescriptor": "public OooO0O0(Ljava/lang/String;)Ljava/lang/String;"
       },
       "expectedOriginal": ":cond_2\n    monitor-exit v0",
-      "replacement": ":cond_2\n    iget-object v0, p0, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO0O0:Ljava/lang/String;\n\n    invoke-static {v0}, Lcom/suda/yzune/wakeupschedule/slim/TeachingBootstrap;->requireUsableVersionKey(Ljava/lang/Object;)V\n\n    monitor-exit v0",
+      "replacement": ":cond_2\n    iget-object v1, p0, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO0O0:Ljava/lang/String;\n\n    invoke-static {v1}, Lcom/suda/yzune/wakeupschedule/slim/TeachingBootstrap;->requireUsableVersionKey(Ljava/lang/Object;)V\n\n    monitor-exit v0",
       "expectedHits": 1,
       "finalAssertions": [
         {
@@ -5653,7 +5678,7 @@
         "methodDescriptor": "public OooO0OO(Ljava/lang/String;)Ljava/lang/String;"
       },
       "expectedOriginal": ":cond_2\n    monitor-exit v0",
-      "replacement": ":cond_2\n    iget-object v0, p0, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO0O0:Ljava/lang/String;\n\n    invoke-static {v0}, Lcom/suda/yzune/wakeupschedule/slim/TeachingBootstrap;->requireUsableVersionKey(Ljava/lang/Object;)V\n\n    monitor-exit v0",
+      "replacement": ":cond_2\n    iget-object v1, p0, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO0O0:Ljava/lang/String;\n\n    invoke-static {v1}, Lcom/suda/yzune/wakeupschedule/slim/TeachingBootstrap;->requireUsableVersionKey(Ljava/lang/Object;)V\n\n    monitor-exit v0",
       "expectedHits": 1,
       "finalAssertions": [
         {
@@ -6011,6 +6036,45 @@
       ]
     },
     {
+      "id": "T28-E47-propagate-object-encrypt-failure",
+      "evidence": "E47",
+      "relativePath": "smali_classes5/com/suda/yzune/wakeupschedule/aaa/utils/oOO00O.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;",
+        "methodDescriptor": "public OooO0o0(Ljava/lang/Object;Z)Ljava/lang/Object;"
+      },
+      "expectedOriginal": ".locals 5",
+      "replacement": ".locals 6",
+      "expectedHits": 1,
+      "finalAssertions": []
+    },
+    {
+      "id": "T28-E47-initialize-object-encrypt-failure-state",
+      "evidence": "E47",
+      "relativePath": "smali_classes5/com/suda/yzune/wakeupschedule/aaa/utils/oOO00O.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;",
+        "methodDescriptor": "public OooO0o0(Ljava/lang/Object;Z)Ljava/lang/Object;"
+      },
+      "expectedOriginal": "    :try_start_1\n    iget-object v0, p0,",
+      "replacement": "    const/4 v5, 0x0\n\n    :try_start_1\n    iget-object v0, p0,",
+      "expectedHits": 1,
+      "finalAssertions": []
+    },
+    {
+      "id": "T28-E47-retain-object-encrypt-failure",
+      "evidence": "E47",
+      "relativePath": "smali_classes5/com/suda/yzune/wakeupschedule/aaa/utils/oOO00O.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;",
+        "methodDescriptor": "public OooO0o0(Ljava/lang/Object;Z)Ljava/lang/Object;"
+      },
+      "expectedOriginal": ":goto_4\n    :try_start_5",
+      "replacement": ":goto_4\n    move-object v5, p2\n\n    :try_start_5",
+      "expectedHits": 1,
+      "finalAssertions": []
+    },
+    {
       "id": "T28-E47-fail-encryption-instead-of-returning-input",
       "evidence": "E47",
       "relativePath": "smali_classes5/com/suda/yzune/wakeupschedule/aaa/utils/oOO00O.smali",
@@ -6019,12 +6083,16 @@
         "methodDescriptor": "public OooO0o0(Ljava/lang/Object;Z)Ljava/lang/Object;"
       },
       "expectedOriginal": ":cond_7\n    :goto_6\n    return-object p1",
-      "replacement": ":cond_7\n    :goto_6\n    if-eqz p2, :slim_rc4_input_success\n\n    throw p2\n\n    :slim_rc4_input_success\n    return-object p1",
+      "replacement": ":cond_7\n    :goto_6\n    if-eqz v5, :slim_rc4_input_success\n\n    throw v5\n\n    :slim_rc4_input_success\n    return-object p1",
       "expectedHits": 1,
       "finalAssertions": [
         {
-          "text": "throw p2",
+          "text": "throw v5",
           "hits": 1
+        },
+        {
+          "text": "throw p2",
+          "present": false
         }
       ]
     },
@@ -6042,6 +6110,45 @@
       "finalAssertions": []
     },
     {
+      "id": "T28-E47-propagate-object-decrypt-failure",
+      "evidence": "E47",
+      "relativePath": "smali_classes5/com/suda/yzune/wakeupschedule/aaa/utils/oOO00O.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;",
+        "methodDescriptor": "public OooO0oO(Ljava/lang/Object;Z)Ljava/lang/Object;"
+      },
+      "expectedOriginal": ".locals 2",
+      "replacement": ".locals 3",
+      "expectedHits": 1,
+      "finalAssertions": []
+    },
+    {
+      "id": "T28-E47-initialize-object-decrypt-failure-state",
+      "evidence": "E47",
+      "relativePath": "smali_classes5/com/suda/yzune/wakeupschedule/aaa/utils/oOO00O.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;",
+        "methodDescriptor": "public OooO0oO(Ljava/lang/Object;Z)Ljava/lang/Object;"
+      },
+      "expectedOriginal": "    :try_start_1\n    iget-object p2, p0,",
+      "replacement": "    const/4 v2, 0x0\n\n    :try_start_1\n    iget-object p2, p0,",
+      "expectedHits": 1,
+      "finalAssertions": []
+    },
+    {
+      "id": "T28-E47-retain-object-decrypt-failure",
+      "evidence": "E47",
+      "relativePath": "smali_classes5/com/suda/yzune/wakeupschedule/aaa/utils/oOO00O.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;",
+        "methodDescriptor": "public OooO0oO(Ljava/lang/Object;Z)Ljava/lang/Object;"
+      },
+      "expectedOriginal": ":goto_3\n    invoke-virtual {p2}, Ljava/lang/Throwable;->printStackTrace()V",
+      "replacement": ":goto_3\n    move-object v2, p2\n\n    invoke-virtual {p2}, Ljava/lang/Throwable;->printStackTrace()V",
+      "expectedHits": 1,
+      "finalAssertions": []
+    },
+    {
       "id": "T28-E47-fail-decrypt-instead-of-returning-input",
       "evidence": "E47",
       "relativePath": "smali_classes5/com/suda/yzune/wakeupschedule/aaa/utils/oOO00O.smali",
@@ -6050,12 +6157,16 @@
         "methodDescriptor": "public OooO0oO(Ljava/lang/Object;Z)Ljava/lang/Object;"
       },
       "expectedOriginal": ":cond_2\n    :goto_4\n    return-object p1",
-      "replacement": ":cond_2\n    :goto_4\n    if-eqz p2, :slim_rc4_decrypt_success\n\n    throw p2\n\n    :slim_rc4_decrypt_success\n    return-object p1",
+      "replacement": ":cond_2\n    :goto_4\n    if-eqz v2, :slim_rc4_decrypt_success\n\n    throw v2\n\n    :slim_rc4_decrypt_success\n    return-object p1",
       "expectedHits": 1,
       "finalAssertions": [
         {
-          "text": "throw p2",
+          "text": "throw v2",
           "hits": 1
+        },
+        {
+          "text": "throw p2",
+          "present": false
         }
       ]
     },
@@ -6154,11 +6265,15 @@
       "relativePath": "smali_classes5/com/suda/yzune/wakeupschedule/aaa/utils/EncryptNet.smali",
       "fileScope": true,
       "expectedOriginal": "\n.method public final OooO0o0(Lo000OO0o/OooO0O0;)Lcom/suda/yzune/wakeupschedule/aaa/v1/HttpCurrencyRequest$OooO00o;",
-      "replacement": "\n.method private final OooO0oV(Lo000OO0o/OooO0O0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V\n    .locals 7\n    const-string v0, \"inputBase\"\n    invoke-static {p1, v0}, Lkotlin/jvm/internal/o00oO0o;->OooO0oO(Ljava/lang/Object;Ljava/lang/String;)V\n    const-string v0, \"successCallback\"\n    invoke-static {p2, v0}, Lkotlin/jvm/internal/o00oO0o;->OooO0oO(Ljava/lang/Object;Ljava/lang/String;)V\n    sget-object v1, Lkotlinx/coroutines/o00O0;->o00OOO0O:Lkotlinx/coroutines/o00O0;\n    invoke-static {}, Lkotlinx/coroutines/o000O0O0;->OooO00o()Lkotlinx/coroutines/o0000;\n    move-result-object v2\n    new-instance v4, Lcom/suda/yzune/wakeupschedule/aaa/utils/EncryptNet$buildEncryptInput$1;\n    const/4 v0, 0x0\n    invoke-direct {v4, p1, p2, p3, v0}, Lcom/suda/yzune/wakeupschedule/aaa/utils/EncryptNet$buildEncryptInput$1;-><init>(Lo000OO0o/OooO0O0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/OooO;)V\n    const/4 v5, 0x2\n    const/4 v6, 0x0\n    const/4 v3, 0x0\n    invoke-static/range {v1 .. v6}, Lkotlinx/coroutines/OooOOO0;->OooO0Oo(Lkotlinx/coroutines/o000OO;Lkotlinx/coroutines/OooOOO;Lkotlinx/coroutines/CoroutineStart;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lkotlinx/coroutines/o00O0OOO;\n    return-void\n.end method\n\n.method public final OooO0o0(Lo000OO0o/OooO0O0;)Lcom/suda/yzune/wakeupschedule/aaa/v1/HttpCurrencyRequest$OooO00o;",
+      "replacement": "\n.method private final OooO0oV(Lo000OO0o/OooO0O0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V\n    .locals 7\n    const-string v0, \"inputBase\"\n    invoke-static {p1, v0}, Lkotlin/jvm/internal/o00oO0o;->OooO0oO(Ljava/lang/Object;Ljava/lang/String;)V\n    const-string v0, \"successCallback\"\n    invoke-static {p2, v0}, Lkotlin/jvm/internal/o00oO0o;->OooO0oO(Ljava/lang/Object;Ljava/lang/String;)V\n    sget-object v1, Lkotlinx/coroutines/o00O0;->o00OOO0O:Lkotlinx/coroutines/o00O0;\n    invoke-static {}, Lkotlinx/coroutines/o000O0O0;->OooO00o()Lkotlinx/coroutines/o0000;\n    move-result-object v2\n    new-instance v4, Lcom/suda/yzune/wakeupschedule/aaa/utils/EncryptNet$buildEncryptInput$1;\n    const/4 v0, 0x0\n    invoke-direct {v4, p1, p2, p3, v0}, Lcom/suda/yzune/wakeupschedule/aaa/utils/EncryptNet$buildEncryptInput$1;-><init>(Lo000OO0o/OooO0O0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/OooO;)V\n    const/4 v5, 0x2\n    const/4 v6, 0x0\n    const/4 v3, 0x0\n    invoke-static/range {v1 .. v6}, Lkotlinx/coroutines/OooOOO0;->OooO0Oo(Lkotlinx/coroutines/o000OO;Lkotlin/coroutines/OooOOO;Lkotlinx/coroutines/CoroutineStart;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lkotlinx/coroutines/o00O0OOO;\n    return-void\n.end method\n\n.method public final OooO0o0(Lo000OO0o/OooO0O0;)Lcom/suda/yzune/wakeupschedule/aaa/v1/HttpCurrencyRequest$OooO00o;",
       "expectedHits": 1,
       "finalAssertions": [
         {
           "text": "->OooO0oV(Lo000OO0o/OooO0O0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V"
+        },
+        {
+          "text": "Lkotlinx/coroutines/OooOOO;",
+          "present": false
         }
       ]
     },
@@ -6315,6 +6430,257 @@
         "classDescriptor": "Lcom/suda/yzune/wakeupschedule/settings/o00O000o;",
         "methodDescriptor": "public final oo0o0Oo(I)I"
       }
+    },
+    {
+      "id": "T33-E56-install-crash-log",
+      "evidence": "E56",
+      "relativePath": "smali_classes5/com/suda/yzune/wakeupschedule/BaseApplication.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/BaseApplication;",
+        "methodDescriptor": "public attachBaseContext(Landroid/content/Context;)V"
+      },
+      "expectedOriginal": "    invoke-super {p0, p1}, Landroid/content/ContextWrapper;->attachBaseContext(Landroid/content/Context;)V\n",
+      "replacement": "    invoke-static {p1}, Lcom/suda/yzune/wakeupschedule/slim/CrashLog;->install(Ljava/lang/Object;)V\n\n    invoke-super {p0, p1}, Landroid/content/ContextWrapper;->attachBaseContext(Landroid/content/Context;)V\n",
+      "finalAssertions": [
+        {
+          "text": "CrashLog;->install(Ljava/lang/Object;)V"
+        }
+      ],
+      "expectedHits": 1
+    },
+    {
+      "id": "T34-E57-keep-file-when-decrypt-fails",
+      "evidence": "E57",
+      "relativePath": "smali_classes2/com/android/volley/toolbox/OooOO0O.smali",
+      "method": {
+        "classDescriptor": "Lcom/android/volley/toolbox/OooOO0O;",
+        "methodDescriptor": "public final OooOO0(Ljava/io/File;)Ljava/io/File;"
+      },
+      "expectedMethodSha256": "7610E34180B631027CBCA48AF6A034A697518C593AEE763C89E784004B8C8919",
+      "replacementBody": "    .locals 0\n\n    .line 1\n    :try_start_slim0\n    invoke-static {p1}, Lo000O0Oo/OooOO0;->OooO0O0(Ljava/lang/Object;)Ljava/lang/Object;\n\n    .line 2\n    .line 3\n    .line 4\n    move-result-object p1\n    :try_end_slim0\n    .catch Ljava/lang/RuntimeException; {:try_start_slim0 .. :try_end_slim0} :catch_slim0\n\n    .line 5\n    check-cast p1, Ljava/io/File;\n\n    .line 6\n    .line 7\n    return-object p1\n\n    :catch_slim0\n    return-object p1",
+      "finalAssertions": [
+        {
+          "text": ".catch Ljava/lang/RuntimeException; {:try_start_slim0 .. :try_end_slim0} :catch_slim0"
+        },
+        {
+          "text": "check-cast p1, Ljava/io/File;"
+        }
+      ]
+    },
+    {
+      "id": "T34-E57-report-async-signature-failure",
+      "evidence": "E57",
+      "relativePath": "smali_classes2/com/baidu/homework/common/net/OooOo00$OooO0OO.smali",
+      "method": {
+        "classDescriptor": "Lcom/baidu/homework/common/net/OooOo00$OooO0OO;",
+        "methodDescriptor": "public OooO0o0()Ljava/lang/String;"
+      },
+      "expectedMethodSha256": "96B7CA341BB1429227402036152CD81D7B6157C5D7F9934435E0EF5FABB60A4F",
+      "replacementBody": "    .locals 2\n\n    .line 1\n    iget-object v0, p0, Lcom/baidu/homework/common/net/OooOo00$OooO0OO;->OooO00o:Lo000OO0o/OooO0O0;\n\n    .line 2\n    .line 3\n    invoke-virtual {v0}, Lo000OO0o/OooO0O0;->getConfigHelper()Lo000OO0o/OooO0OO;\n\n    .line 4\n    .line 5\n    .line 6\n    move-result-object v0\n\n    .line 7\n    invoke-virtual {v0}, Lo000OO0o/OooO0OO;->OooO0o0()Z\n\n    .line 8\n    .line 9\n    .line 10\n    move-result v0\n\n    .line 11\n    if-eqz v0, :cond_0\n\n    .line 12\n    .line 13\n    iget-object v0, p0, Lcom/baidu/homework/common/net/OooOo00$OooO0OO;->OooO00o:Lo000OO0o/OooO0O0;\n\n    .line 14\n    .line 15\n    invoke-virtual {v0}, Ljava/lang/Object;->toString()Ljava/lang/String;\n\n    .line 16\n    .line 17\n    .line 18\n    move-result-object v0\n\n    .line 19\n    return-object v0\n\n    .line 20\n    :cond_0\n    iget-object v0, p0, Lcom/baidu/homework/common/net/OooOo00$OooO0OO;->OooO00o:Lo000OO0o/OooO0O0;\n\n    .line 21\n    .line 22\n    :try_start_slim0\n    invoke-static {v0}, Lcom/baidu/homework/common/net/OooOo00;->OooO(Lo000OO0o/OooO0O0;)Ljava/lang/String;\n\n    .line 23\n    .line 24\n    .line 25\n    move-result-object v0\n    :try_end_slim0\n    .catch Ljava/lang/RuntimeException; {:try_start_slim0 .. :try_end_slim0} :catch_slim0\n\n    .line 26\n    return-object v0\n\n    :catch_slim0\n    move-exception v0\n    iget-object v1, p0, Lcom/baidu/homework/common/net/OooOo00$OooO0OO;->OooO0O0:Lo000O0o0/OooO0o;\n    iget-object v1, v1, Lcom/android/volley/Request;->o00OOOO:Lcom/android/volley/o0OoOo0$OooO00o;\n    invoke-static {v1, v0}, Lcom/suda/yzune/wakeupschedule/slim/TeachingBootstrap;->reportNetworkFailure(Ljava/lang/Object;Ljava/lang/Throwable;)V\n    const/4 v0, 0x0\n    return-object v0",
+      "finalAssertions": [
+        {
+          "text": "Lcom/suda/yzune/wakeupschedule/slim/TeachingBootstrap;->reportNetworkFailure(Ljava/lang/Object;Ljava/lang/Throwable;)V"
+        },
+        {
+          "text": ".catch Ljava/lang/RuntimeException; {:try_start_slim0 .. :try_end_slim0} :catch_slim0"
+        }
+      ]
+    },
+    {
+      "id": "T34-E57-skip-unsigned-async-request",
+      "evidence": "E57",
+      "relativePath": "smali_classes2/com/baidu/homework/common/net/OooOo00$OooO0OO.smali",
+      "method": {
+        "classDescriptor": "Lcom/baidu/homework/common/net/OooOo00$OooO0OO;",
+        "methodDescriptor": "public OooO0Oo(Ljava/lang/String;)V"
+      },
+      "expectedMethodSha256": "0BFDB192AEF1CC1E1ED75E0C865EFFEFC3CFA634E0BE743A46C7DCC7A2D2B9A7",
+      "replacementBody": "    .locals 1\n\n    if-nez p1, :cond_slim0\n\n    return-void\n\n    :cond_slim0\n    .line 1\n    iget-object v0, p0, Lcom/baidu/homework/common/net/OooOo00$OooO0OO;->OooO0O0:Lo000O0o0/OooO0o;\n\n    .line 2\n    .line 3\n    invoke-virtual {v0, p1}, Lo000O0o0/OooO0o;->OoooOOO(Ljava/lang/String;)V\n\n    .line 4\n    .line 5\n    .line 6\n    iget-object p1, p0, Lcom/baidu/homework/common/net/OooOo00$OooO0OO;->OooO0OO:Lcom/android/volley/o000oOoO;\n\n    .line 7\n    .line 8\n    iget-object v0, p0, Lcom/baidu/homework/common/net/OooOo00$OooO0OO;->OooO0O0:Lo000O0o0/OooO0o;\n\n    .line 9\n    .line 10\n    invoke-virtual {p1, v0}, Lcom/android/volley/o000oOoO;->OooO00o(Lcom/android/volley/Request;)Lcom/android/volley/Request;\n\n    .line 11\n    .line 12\n    .line 13\n    return-void",
+      "finalAssertions": [
+        {
+          "text": "    if-nez p1, :cond_slim0\n"
+        },
+        {
+          "text": "Lcom/android/volley/o000oOoO;->OooO00o(Lcom/android/volley/Request;)Lcom/android/volley/Request;"
+        }
+      ]
+    },
+    {
+      "id": "T34-E57-cancel-request-when-signature-fails",
+      "evidence": "E57",
+      "relativePath": "smali_classes2/o000O0o0.1/OooO0o.smali",
+      "method": {
+        "classDescriptor": "Lo000O0o0/OooO0o;",
+        "methodDescriptor": "public Oooo0()V"
+      },
+      "expectedMethodSha256": "5C625DA775F2AEF61B689EB3792D48AAB9A63941263F9985742DE6262E28B725",
+      "replacementBody": "    .locals 2\n\n    .line 1\n    invoke-super {p0}, Lcom/android/volley/OooO0OO;->Oooo0()V\n    :try_start_slim0\n\n    .line 2\n    .line 3\n    .line 4\n    iget-boolean v0, p0, Lo000O0o0/OooO0o;->o00OoO00:Z\n\n    .line 5\n    .line 6\n    if-nez v0, :cond_1\n\n    .line 7\n    .line 8\n    invoke-virtual {p0}, Lcom/android/volley/Request;->OooOOo0()I\n\n    .line 9\n    .line 10\n    .line 11\n    move-result v0\n\n    .line 12\n    const/4 v1, 0x1\n\n    .line 13\n    if-ne v0, v1, :cond_1\n\n    .line 14\n    .line 15\n    iget-object v0, p0, Lo000O0o0/OooO0o;->o00Oo:Lo000OO0o/OooO0O0;\n\n    .line 16\n    .line 17\n    if-eqz v0, :cond_1\n\n    .line 18\n    .line 19\n    invoke-virtual {v0}, Lo000OO0o/OooO0O0;->getConfigHelper()Lo000OO0o/OooO0OO;\n\n    .line 20\n    .line 21\n    .line 22\n    move-result-object v0\n\n    .line 23\n    invoke-virtual {v0}, Lo000OO0o/OooO0OO;->OooO0o0()Z\n\n    .line 24\n    .line 25\n    .line 26\n    move-result v0\n\n    .line 27\n    if-eqz v0, :cond_0\n\n    .line 28\n    .line 29\n    iget-object v0, p0, Lo000O0o0/OooO0o;->o00Oo:Lo000OO0o/OooO0O0;\n\n    .line 30\n    .line 31\n    invoke-virtual {v0}, Ljava/lang/Object;->toString()Ljava/lang/String;\n\n    .line 32\n    .line 33\n    .line 34\n    move-result-object v0\n\n    .line 35\n    invoke-virtual {p0, v0}, Lo000O0o0/OooO0o;->OoooOOO(Ljava/lang/String;)V\n\n    .line 36\n    .line 37\n    .line 38\n    goto :goto_0\n\n    .line 39\n    :cond_0\n    iget-object v0, p0, Lo000O0o0/OooO0o;->o00Oo:Lo000OO0o/OooO0O0;\n\n    .line 40\n    .line 41\n    invoke-static {v0}, Lcom/baidu/homework/common/net/OooOo00;->OooO(Lo000OO0o/OooO0O0;)Ljava/lang/String;\n\n    .line 42\n    .line 43\n    .line 44\n    move-result-object v0\n\n    .line 45\n    invoke-virtual {p0, v0}, Lo000O0o0/OooO0o;->OoooOOO(Ljava/lang/String;)V\n\n    .line 46\n    .line 47\n    :try_end_slim0\n    .catch Ljava/lang/RuntimeException; {:try_start_slim0 .. :try_end_slim0} :catch_slim0\n    .line 48\n    :cond_1\n    :goto_0\n    const-string v0, \"\"\n\n    .line 49\n    .line 50\n    iput-object v0, p0, Lo000O0o0/OooO0o;->o00OoO0:Ljava/lang/String;\n\n    .line 51\n    .line 52\n    return-void\n\n    :catch_slim0\n    move-exception v0\n    iget-object v1, p0, Lcom/android/volley/Request;->o00OOOO:Lcom/android/volley/o0OoOo0$OooO00o;\n    invoke-virtual {p0}, Lcom/android/volley/Request;->cancel()V\n    invoke-static {v1, v0}, Lcom/suda/yzune/wakeupschedule/slim/TeachingBootstrap;->reportNetworkFailure(Ljava/lang/Object;Ljava/lang/Throwable;)V\n    goto :goto_0",
+      "finalAssertions": [
+        {
+          "text": "Lcom/suda/yzune/wakeupschedule/slim/TeachingBootstrap;->reportNetworkFailure(Ljava/lang/Object;Ljava/lang/Throwable;)V"
+        },
+        {
+          "text": "Lcom/android/volley/Request;->cancel()V"
+        },
+        {
+          "text": ".catch Ljava/lang/RuntimeException; {:try_start_slim0 .. :try_end_slim0} :catch_slim0"
+        }
+      ]
+    },
+    {
+      "id": "T34-E57-signature-failure-as-io-exception",
+      "evidence": "E57",
+      "relativePath": "smali_classes4/o0OoOO00/o00000OO.smali",
+      "method": {
+        "classDescriptor": "Lo0OoOO00/o00000OO;",
+        "methodDescriptor": "public OooO00o(Lzyb/okhttp3/oo000o$OooO00o;)Lzyb/okhttp3/Response;"
+      },
+      "expectedMethodSha256": "2C912C1806DBE16B585B9CF521E4A004B66BD2D5A9D414A703E96A3909D92B5C",
+      "replacementBody": "    .locals 2\n\n    .line 1\n    invoke-interface {p1}, Lzyb/okhttp3/oo000o$OooO00o;->request()Lzyb/okhttp3/Request;\n\n    .line 2\n    .line 3\n    .line 4\n    move-result-object v0\n\n    .line 5\n    const-class v1, Lcom/zybang/net/v2/OooO0o;\n\n    .line 6\n    .line 7\n    invoke-virtual {v0, v1}, Lzyb/okhttp3/Request;->OooO(Ljava/lang/Class;)Ljava/lang/Object;\n\n    .line 8\n    .line 9\n    .line 10\n    move-result-object v1\n\n    .line 11\n    check-cast v1, Lcom/zybang/net/v2/OooO0o;\n\n    .line 12\n    .line 13\n    if-nez v1, :cond_0\n\n    .line 14\n    .line 15\n    invoke-interface {p1, v0}, Lzyb/okhttp3/oo000o$OooO00o;->OooO00o(Lzyb/okhttp3/Request;)Lzyb/okhttp3/Response;\n\n    .line 16\n    .line 17\n    .line 18\n    move-result-object p1\n\n    .line 19\n    return-object p1\n\n    .line 20\n    :cond_0\n    :try_start_slim0\n    invoke-interface {v1, v0}, Lcom/zybang/net/v2/OooO0o;->OooO00o(Lzyb/okhttp3/Request;)Lzyb/okhttp3/Request;\n\n    .line 21\n    .line 22\n    .line 23\n    move-result-object v0\n    :try_end_slim0\n    .catch Ljava/lang/RuntimeException; {:try_start_slim0 .. :try_end_slim0} :catch_slim0\n\n    .line 24\n    invoke-interface {p1, v0}, Lzyb/okhttp3/oo000o$OooO00o;->OooO00o(Lzyb/okhttp3/Request;)Lzyb/okhttp3/Response;\n\n    .line 25\n    .line 26\n    .line 27\n    move-result-object p1\n\n    .line 28\n    return-object p1\n\n    :catch_slim0\n    move-exception v0\n    new-instance v1, Ljava/io/IOException;\n    invoke-direct {v1, v0}, Ljava/io/IOException;-><init>(Ljava/lang/Throwable;)V\n    throw v1",
+      "finalAssertions": [
+        {
+          "text": "Ljava/io/IOException;-><init>(Ljava/lang/Throwable;)V"
+        },
+        {
+          "text": ".catch Ljava/lang/RuntimeException; {:try_start_slim0 .. :try_end_slim0} :catch_slim0"
+        }
+      ]
+    },
+    {
+      "id": "T34-E57-parse-failure-as-volley-error",
+      "evidence": "E57",
+      "relativePath": "smali_classes2/o000O0o0.1/OooOO0O.smali",
+      "method": {
+        "classDescriptor": "Lo000O0o0/OooOO0O;",
+        "methodDescriptor": "public static OooO0Oo(Ljava/lang/Object;Lcom/android/volley/OooO0o$OooO00o;)Lcom/android/volley/o0OoOo0;"
+      },
+      "expectedMethodSha256": "1E4428391E2365B395E9E9BBD92749D6B8E2CE70DE8279691D7D4F7DB88EE285",
+      "replacementBody": "    .locals 1\n\n    .line 1\n    instance-of v0, p0, Landroid/graphics/drawable/Drawable;\n\n    .line 2\n    .line 3\n    if-nez v0, :cond_1\n\n    .line 4\n    .line 5\n    instance-of v0, p0, Lcom/baidu/homework/common/net/o000oOoO;\n\n    .line 6\n    .line 7\n    if-eqz v0, :cond_0\n\n    .line 8\n    .line 9\n    goto :goto_0\n\n    .line 10\n    :cond_0\n    :try_start_slim0\n    invoke-static {p0}, Lo000O0Oo/OooOO0;->OooO0O0(Ljava/lang/Object;)Ljava/lang/Object;\n\n    .line 11\n    .line 12\n    .line 13\n    move-result-object p0\n    :try_end_slim0\n    .catch Ljava/lang/RuntimeException; {:try_start_slim0 .. :try_end_slim0} :catch_slim0\n\n    .line 14\n    invoke-static {p0, p1}, Lcom/android/volley/o0OoOo0;->OooO0OO(Ljava/lang/Object;Lcom/android/volley/OooO0o$OooO00o;)Lcom/android/volley/o0OoOo0;\n\n    .line 15\n    .line 16\n    .line 17\n    move-result-object p0\n\n    .line 18\n    return-object p0\n\n    .line 19\n    :cond_1\n    :goto_0\n    invoke-static {p0, p1}, Lcom/android/volley/o0OoOo0;->OooO0OO(Ljava/lang/Object;Lcom/android/volley/OooO0o$OooO00o;)Lcom/android/volley/o0OoOo0;\n\n    .line 20\n    .line 21\n    .line 22\n    move-result-object p0\n\n    .line 23\n    return-object p0\n\n    :catch_slim0\n    move-exception p0\n    new-instance p1, Lcom/android/volley/VolleyError;\n    invoke-direct {p1, p0}, Lcom/android/volley/VolleyError;-><init>(Ljava/lang/Throwable;)V\n    invoke-static {p1}, Lcom/android/volley/o0OoOo0;->OooO00o(Lcom/android/volley/VolleyError;)Lcom/android/volley/o0OoOo0;\n    move-result-object p0\n    return-object p0",
+      "finalAssertions": [
+        {
+          "text": "Lcom/android/volley/o0OoOo0;->OooO00o(Lcom/android/volley/VolleyError;)Lcom/android/volley/o0OoOo0;"
+        },
+        {
+          "text": ".catch Ljava/lang/RuntimeException; {:try_start_slim0 .. :try_end_slim0} :catch_slim0"
+        }
+      ]
+    },
+    {
+      "id": "T34-E57-cache-write-task-returns-false",
+      "evidence": "E57",
+      "relativePath": "smali_classes2/com/baidu/homework/common/net/OooOo00$OooOOOO$OooO00o.smali",
+      "method": {
+        "classDescriptor": "Lcom/baidu/homework/common/net/OooOo00$OooOOOO$OooO00o;",
+        "methodDescriptor": "public varargs OooO00o([Ljava/lang/Object;)Ljava/lang/Boolean;"
+      },
+      "expectedMethodSha256": "EE412CBD8F5CF7279DFB1FB33A28CC9B8D2FEC630FC9EA64F28AFF855F08ECCD",
+      "replacementBody": "    .locals 2\n\n    :try_start_slim0\n\n    .line 1\n    iget-object p1, p0, Lcom/baidu/homework/common/net/OooOo00$OooOOOO$OooO00o;->OooO0OO:Lcom/baidu/homework/common/net/OooOo00$OooOOOO;\n\n    .line 2\n    .line 3\n    invoke-virtual {p1}, Lcom/baidu/homework/common/net/OooOo00$OooOOOO;->OooO0O0()Ljava/lang/String;\n\n    .line 4\n    .line 5\n    .line 6\n    move-result-object p1\n\n    .line 7\n    new-instance v0, Ljava/io/File;\n\n    .line 8\n    .line 9\n    sget-object v1, Lcom/baidu/homework/common/utils/DirectoryManager$OooO00o;->OooO0o0:Lcom/baidu/homework/common/utils/DirectoryManager$OooO00o;\n\n    .line 10\n    .line 11\n    invoke-static {v1}, Lcom/baidu/homework/common/utils/DirectoryManager;->OooO0OO(Lcom/baidu/homework/common/utils/DirectoryManager$OooO00o;)Ljava/io/File;\n\n    .line 12\n    .line 13\n    .line 14\n    move-result-object v1\n\n    .line 15\n    invoke-direct {v0, v1, p1}, Ljava/io/File;-><init>(Ljava/io/File;Ljava/lang/String;)V\n\n    .line 16\n    .line 17\n    .line 18\n    invoke-virtual {v0}, Ljava/io/File;->getAbsolutePath()Ljava/lang/String;\n\n    .line 19\n    .line 20\n    .line 21\n    move-result-object p1\n\n    .line 22\n    iget-object v0, p0, Lcom/baidu/homework/common/net/OooOo00$OooOOOO$OooO00o;->OooO00o:Ljava/lang/Object;\n\n    .line 23\n    .line 24\n    if-eqz v0, :cond_1\n\n    .line 25\n    .line 26\n    invoke-static {}, Lo000O0Oo/OooOO0;->OooOOo0()Z\n\n    .line 27\n    .line 28\n    .line 29\n    move-result v0\n\n    .line 30\n    if-eqz v0, :cond_0\n\n    .line 31\n    .line 32\n    iget-object v0, p0, Lcom/baidu/homework/common/net/OooOo00$OooOOOO$OooO00o;->OooO00o:Ljava/lang/Object;\n\n    .line 33\n    .line 34\n    const/4 v1, 0x1\n\n    .line 35\n    invoke-static {v0, v1}, Lo000O0Oo/OooOO0;->OooO0Oo(Ljava/lang/Object;Z)Ljava/lang/Object;\n\n    .line 36\n    .line 37\n    .line 38\n    move-result-object v0\n\n    .line 39\n    invoke-static {v0, p1}, Lo000Oo00/Oooo000;->OooOOo0(Ljava/lang/Object;Ljava/lang/String;)Z\n\n    .line 40\n    .line 41\n    .line 42\n    move-result p1\n\n    .line 43\n    invoke-static {p1}, Ljava/lang/Boolean;->valueOf(Z)Ljava/lang/Boolean;\n\n    .line 44\n    .line 45\n    .line 46\n    move-result-object p1\n\n    .line 47\n    return-object p1\n\n    .line 48\n    :cond_0\n    sget-object p1, Ljava/lang/Boolean;->FALSE:Ljava/lang/Boolean;\n\n    .line 49\n    .line 50\n    return-object p1\n\n    .line 51\n    :cond_1\n    invoke-static {p1}, Lo000Oo00/Oooo000;->OooO0o(Ljava/lang/String;)Z\n\n    .line 52\n    .line 53\n    .line 54\n    move-result p1\n\n    .line 55\n    invoke-static {p1}, Ljava/lang/Boolean;->valueOf(Z)Ljava/lang/Boolean;\n\n    .line 56\n    .line 57\n    .line 58\n    move-result-object p1\n\n    .line 59\n    return-object p1\n    :try_end_slim0\n    .catch Ljava/lang/RuntimeException; {:try_start_slim0 .. :try_end_slim0} :catch_slim0\n\n    :catch_slim0\n    sget-object p1, Ljava/lang/Boolean;->FALSE:Ljava/lang/Boolean;\n    return-object p1",
+      "finalAssertions": [
+        {
+          "text": "sget-object p1, Ljava/lang/Boolean;->FALSE:Ljava/lang/Boolean;",
+          "hits": 2
+        },
+        {
+          "text": ".catch Ljava/lang/RuntimeException; {:try_start_slim0 .. :try_end_slim0} :catch_slim0"
+        }
+      ]
+    },
+    {
+      "id": "T34-E57-cache-write-skips-on-failure",
+      "evidence": "E57",
+      "relativePath": "smali_classes2/com/baidu/homework/common/net/OooOo00$OooOOOO.smali",
+      "method": {
+        "classDescriptor": "Lcom/baidu/homework/common/net/OooOo00$OooOOOO;",
+        "methodDescriptor": "public final synthetic OooO0Oo(Ljava/lang/Object;)V"
+      },
+      "expectedMethodSha256": "E2F7791B70B9C1E1D2CEBDE4679ABC131F314C62708CAD1EFBE0F14E9F5A8F8A",
+      "replacementBody": "    .locals 3\n\n    :try_start_slim0\n\n    .line 1\n    invoke-virtual {p0}, Lcom/baidu/homework/common/net/OooOo00$OooOOOO;->OooO0OO()Z\n\n    .line 2\n    .line 3\n    .line 4\n    move-result v0\n\n    .line 5\n    if-nez v0, :cond_0\n\n    .line 6\n    .line 7\n    return-void\n\n    .line 8\n    :cond_0\n    invoke-virtual {p0}, Lcom/baidu/homework/common/net/OooOo00$OooOOOO;->OooO0O0()Ljava/lang/String;\n\n    .line 9\n    .line 10\n    .line 11\n    move-result-object v0\n\n    .line 12\n    new-instance v1, Ljava/io/File;\n\n    .line 13\n    .line 14\n    sget-object v2, Lcom/baidu/homework/common/utils/DirectoryManager$OooO00o;->OooO0o0:Lcom/baidu/homework/common/utils/DirectoryManager$OooO00o;\n\n    .line 15\n    .line 16\n    invoke-static {v2}, Lcom/baidu/homework/common/utils/DirectoryManager;->OooO0OO(Lcom/baidu/homework/common/utils/DirectoryManager$OooO00o;)Ljava/io/File;\n\n    .line 17\n    .line 18\n    .line 19\n    move-result-object v2\n\n    .line 20\n    invoke-direct {v1, v2, v0}, Ljava/io/File;-><init>(Ljava/io/File;Ljava/lang/String;)V\n\n    .line 21\n    .line 22\n    .line 23\n    invoke-virtual {v1}, Ljava/io/File;->getAbsolutePath()Ljava/lang/String;\n\n    .line 24\n    .line 25\n    .line 26\n    move-result-object v0\n\n    .line 27\n    if-eqz p1, :cond_2\n\n    .line 28\n    .line 29\n    invoke-static {}, Lo000O0Oo/OooOO0;->OooOOo0()Z\n\n    .line 30\n    .line 31\n    .line 32\n    move-result v1\n\n    .line 33\n    if-eqz v1, :cond_1\n\n    .line 34\n    .line 35\n    const/4 v1, 0x1\n\n    .line 36\n    invoke-static {p1, v1}, Lo000O0Oo/OooOO0;->OooO0Oo(Ljava/lang/Object;Z)Ljava/lang/Object;\n\n    .line 37\n    .line 38\n    .line 39\n    move-result-object p1\n\n    .line 40\n    invoke-static {p1, v0}, Lo000Oo00/Oooo000;->OooOOo0(Ljava/lang/Object;Ljava/lang/String;)Z\n\n    .line 41\n    .line 42\n    .line 43\n    :cond_1\n    return-void\n\n    .line 44\n    :cond_2\n    invoke-static {v0}, Lo000Oo00/Oooo000;->OooO0o(Ljava/lang/String;)Z\n\n    .line 45\n    .line 46\n    .line 47\n    return-void\n    :try_end_slim0\n    .catch Ljava/lang/RuntimeException; {:try_start_slim0 .. :try_end_slim0} :catch_slim0\n\n    :catch_slim0\n    return-void",
+      "finalAssertions": [
+        {
+          "text": ".catch Ljava/lang/RuntimeException; {:try_start_slim0 .. :try_end_slim0} :catch_slim0"
+        }
+      ]
+    },
+    {
+      "id": "T34-E57-hybrid-post-failure-to-error-listener",
+      "evidence": "E57",
+      "relativePath": "smali_classes5/com/suda/yzune/wakeupschedule/aaa/actions/WakeupHttpRequest$post$1.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/aaa/actions/WakeupHttpRequest$post$1;",
+        "methodDescriptor": "public final invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;"
+      },
+      "expectedMethodSha256": "38C9E89FC542DB77113940013445DFDE38BDE3345EBDCE9DA7FDAEB3EBD00F8A",
+      "replacementBody": "    .locals 11\n\n    .line 1\n    invoke-static {}, Lkotlin/coroutines/intrinsics/OooO00o;->OooO0oO()Ljava/lang/Object;\n\n    .line 2\n    .line 3\n    .line 4\n    move-result-object v0\n    :try_start_slim0\n\n    .line 5\n    iget v1, p0, Lcom/suda/yzune/wakeupschedule/aaa/actions/WakeupHttpRequest$post$1;->label:I\n\n    .line 6\n    .line 7\n    const/4 v2, 0x1\n\n    .line 8\n    if-eqz v1, :cond_1\n\n    .line 9\n    .line 10\n    if-ne v1, v2, :cond_0\n\n    .line 11\n    .line 12\n    invoke-static {p1}, Lkotlin/OooOo00;->OooO0O0(Ljava/lang/Object;)V\n\n    .line 13\n    .line 14\n    .line 15\n    goto :goto_0\n\n    .line 16\n    :cond_0\n    new-instance p1, Ljava/lang/IllegalStateException;\n\n    .line 17\n    .line 18\n    const-string v0, \"call to \\'resume\\' before \\'invoke\\' with coroutine\"\n\n    .line 19\n    .line 20\n    invoke-direct {p1, v0}, Ljava/lang/IllegalStateException;-><init>(Ljava/lang/String;)V\n\n    .line 21\n    .line 22\n    .line 23\n    throw p1\n\n    .line 24\n    :cond_1\n    invoke-static {p1}, Lkotlin/OooOo00;->OooO0O0(Ljava/lang/Object;)V\n\n    .line 25\n    .line 26\n    .line 27\n    sget-object p1, Lcom/suda/yzune/wakeupschedule/aaa/utils/EncryptNet;->OooO00o:Lcom/suda/yzune/wakeupschedule/aaa/utils/EncryptNet;\n\n    .line 28\n    .line 29\n    iget-object v1, p0, Lcom/suda/yzune/wakeupschedule/aaa/actions/WakeupHttpRequest$post$1;->$inputBase:Lo000OO0o/OooO0O0;\n\n    .line 30\n    .line 31\n    invoke-virtual {p1, v1}, Lcom/suda/yzune/wakeupschedule/aaa/utils/EncryptNet;->OooOOO(Lo000OO0o/OooO0O0;)Lkotlin/Pair;\n\n    .line 32\n    .line 33\n    .line 34\n    move-result-object p1\n\n    .line 35\n    invoke-virtual {p1}, Lkotlin/Pair;->component1()Ljava/lang/Object;\n\n    .line 36\n    .line 37\n    .line 38\n    move-result-object v1\n\n    .line 39\n    check-cast v1, Ljava/lang/String;\n\n    .line 40\n    .line 41\n    invoke-virtual {p1}, Lkotlin/Pair;->component2()Ljava/lang/Object;\n\n    .line 42\n    .line 43\n    .line 44\n    move-result-object p1\n\n    .line 45\n    check-cast p1, Ljava/lang/String;\n\n    .line 46\n    .line 47\n    invoke-static {}, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO()Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;\n\n    .line 48\n    .line 49\n    .line 50\n    move-result-object v3\n\n    .line 51\n    invoke-virtual {v3, p1}, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO0OO(Ljava/lang/String;)Ljava/lang/String;\n\n    .line 52\n    .line 53\n    .line 54\n    move-result-object p1\n\n    .line 55\n    invoke-static {v1, p1}, Lcom/suda/yzune/wakeupschedule/aaa/v1/HybridHttpCurrencyRequest$OooO00o;->OooO00o(Ljava/lang/String;Ljava/lang/String;)Lcom/suda/yzune/wakeupschedule/aaa/v1/HybridHttpCurrencyRequest$OooO00o;\n\n    .line 56\n    .line 57\n    .line 58\n    move-result-object v5\n\n    .line 59\n    invoke-static {}, Lkotlinx/coroutines/o000O0O0;->OooO0OO()Lkotlinx/coroutines/oo0O;\n\n    .line 60\n    .line 61\n    .line 62\n    move-result-object p1\n\n    .line 63\n    new-instance v1, Lcom/suda/yzune/wakeupschedule/aaa/actions/WakeupHttpRequest$post$1$1;\n\n    .line 64\n    .line 65\n    iget-object v4, p0, Lcom/suda/yzune/wakeupschedule/aaa/actions/WakeupHttpRequest$post$1;->$context:Landroid/content/Context;\n\n    .line 66\n    .line 67\n    iget-object v6, p0, Lcom/suda/yzune/wakeupschedule/aaa/actions/WakeupHttpRequest$post$1;->$inputBase:Lo000OO0o/OooO0O0;\n\n    .line 68\n    .line 69\n    iget-object v7, p0, Lcom/suda/yzune/wakeupschedule/aaa/actions/WakeupHttpRequest$post$1;->this$0:Lcom/suda/yzune/wakeupschedule/aaa/actions/WakeupHttpRequest;\n\n    .line 70\n    .line 71\n    iget-object v8, p0, Lcom/suda/yzune/wakeupschedule/aaa/actions/WakeupHttpRequest$post$1;->$successListener:Lcom/baidu/homework/common/net/OooOo00$Oooo0;\n\n    .line 72\n    .line 73\n    iget-object v9, p0, Lcom/suda/yzune/wakeupschedule/aaa/actions/WakeupHttpRequest$post$1;->$errorListener:Lcom/baidu/homework/common/net/OooOo00$OooOo00;\n\n    .line 74\n    .line 75\n    const/4 v10, 0x0\n\n    .line 76\n    move-object v3, v1\n\n    .line 77\n    invoke-direct/range {v3 .. v10}, Lcom/suda/yzune/wakeupschedule/aaa/actions/WakeupHttpRequest$post$1$1;-><init>(Landroid/content/Context;Lcom/suda/yzune/wakeupschedule/aaa/v1/HybridHttpCurrencyRequest$OooO00o;Lo000OO0o/OooO0O0;Lcom/suda/yzune/wakeupschedule/aaa/actions/WakeupHttpRequest;Lcom/baidu/homework/common/net/OooOo00$Oooo0;Lcom/baidu/homework/common/net/OooOo00$OooOo00;Lkotlin/coroutines/OooO;)V\n\n    .line 78\n    .line 79\n    .line 80\n    iput v2, p0, Lcom/suda/yzune/wakeupschedule/aaa/actions/WakeupHttpRequest$post$1;->label:I\n\n    .line 81\n    .line 82\n    invoke-static {p1, v1, p0}, Lkotlinx/coroutines/OooOOO0;->OooO0oO(Lkotlin/coroutines/OooOOO;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/OooO;)Ljava/lang/Object;\n\n    .line 83\n    .line 84\n    .line 85\n    move-result-object p1\n    :try_end_slim0\n    .catch Ljava/lang/Exception; {:try_start_slim0 .. :try_end_slim0} :catch_slim0\n\n    .line 86\n    if-ne p1, v0, :cond_2\n\n    .line 87\n    .line 88\n    return-object v0\n\n    .line 89\n    :cond_2\n    :goto_0\n    sget-object p1, Lkotlin/o0ooOOo;->OooO00o:Lkotlin/o0ooOOo;\n\n    .line 90\n    .line 91\n    return-object p1\n\n    :catch_slim0\n    move-exception v1\n    instance-of v2, v1, Ljava/util/concurrent/CancellationException;\n    if-nez v2, :cond_slim0\n    iget-object v2, p0, Lcom/suda/yzune/wakeupschedule/aaa/actions/WakeupHttpRequest$post$1;->$errorListener:Lcom/baidu/homework/common/net/OooOo00$OooOo00;\n    invoke-static {v2, v1}, Lcom/suda/yzune/wakeupschedule/slim/TeachingBootstrap;->reportNetworkFailure(Ljava/lang/Object;Ljava/lang/Throwable;)V\n    sget-object p1, Lkotlin/o0ooOOo;->OooO00o:Lkotlin/o0ooOOo;\n    return-object p1\n\n    :cond_slim0\n    throw v1",
+      "finalAssertions": [
+        {
+          "text": "Lcom/suda/yzune/wakeupschedule/slim/TeachingBootstrap;->reportNetworkFailure(Ljava/lang/Object;Ljava/lang/Throwable;)V"
+        },
+        {
+          "text": "instance-of v2, v1, Ljava/util/concurrent/CancellationException;"
+        },
+        {
+          "text": ".catch Ljava/lang/Exception; {:try_start_slim0 .. :try_end_slim0} :catch_slim0"
+        }
+      ]
+    },
+    {
+      "id": "T34-E57-async-decrypt-falls-back-to-input",
+      "evidence": "E57",
+      "relativePath": "smali_classes5/com/suda/yzune/wakeupschedule/aaa/utils/RC4HelperNew$commonDecryptStringAsync$1.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/aaa/utils/RC4HelperNew$commonDecryptStringAsync$1;",
+        "methodDescriptor": "public final invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;"
+      },
+      "expectedMethodSha256": "E56BBA614A9A1B3A79C0838668FE3DA94740AF370465A15642AD9FA7588B7204",
+      "replacementBody": "    .locals 6\n\n    .line 1\n    invoke-static {}, Lkotlin/coroutines/intrinsics/OooO00o;->OooO0oO()Ljava/lang/Object;\n\n    .line 2\n    .line 3\n    .line 4\n    move-result-object v0\n\n    .line 5\n    iget v1, p0, Lcom/suda/yzune/wakeupschedule/aaa/utils/RC4HelperNew$commonDecryptStringAsync$1;->label:I\n\n    .line 6\n    .line 7\n    const/4 v2, 0x1\n\n    .line 8\n    if-eqz v1, :cond_1\n\n    .line 9\n    .line 10\n    if-ne v1, v2, :cond_0\n\n    .line 11\n    .line 12\n    invoke-static {p1}, Lkotlin/OooOo00;->OooO0O0(Ljava/lang/Object;)V\n\n    .line 13\n    .line 14\n    .line 15\n    goto :goto_0\n\n    .line 16\n    :cond_0\n    new-instance p1, Ljava/lang/IllegalStateException;\n\n    .line 17\n    .line 18\n    const-string v0, \"call to \\'resume\\' before \\'invoke\\' with coroutine\"\n\n    .line 19\n    .line 20\n    invoke-direct {p1, v0}, Ljava/lang/IllegalStateException;-><init>(Ljava/lang/String;)V\n\n    .line 21\n    .line 22\n    .line 23\n    throw p1\n\n    .line 24\n    :cond_1\n    invoke-static {p1}, Lkotlin/OooOo00;->OooO0O0(Ljava/lang/Object;)V\n\n    .line 25\n    .line 26\n    .line 27\n    invoke-static {}, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO()Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;\n\n    .line 28\n    .line 29\n    .line 30\n    move-result-object p1\n\n    .line 31\n    iget-object v1, p0, Lcom/suda/yzune/wakeupschedule/aaa/utils/RC4HelperNew$commonDecryptStringAsync$1;->$input:Ljava/lang/String;\n\n    .line 32\n    .line 33\n    :try_start_slim0\n    invoke-virtual {p1, v1}, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO0O0(Ljava/lang/String;)Ljava/lang/String;\n\n    .line 34\n    .line 35\n    .line 36\n    move-result-object p1\n    :try_end_slim0\n    .catch Ljava/lang/RuntimeException; {:try_start_slim0 .. :try_end_slim0} :catch_slim0\n    :goto_slim0\n\n    .line 37\n    invoke-static {}, Lkotlinx/coroutines/o000O0O0;->OooO0OO()Lkotlinx/coroutines/oo0O;\n\n    .line 38\n    .line 39\n    .line 40\n    move-result-object v1\n\n    .line 41\n    new-instance v3, Lcom/suda/yzune/wakeupschedule/aaa/utils/RC4HelperNew$commonDecryptStringAsync$1$1;\n\n    .line 42\n    .line 43\n    iget-object v4, p0, Lcom/suda/yzune/wakeupschedule/aaa/utils/RC4HelperNew$commonDecryptStringAsync$1;->$callback:Lo000O0Oo/OooO0O0;\n\n    .line 44\n    .line 45\n    const/4 v5, 0x0\n\n    .line 46\n    invoke-direct {v3, v4, p1, v5}, Lcom/suda/yzune/wakeupschedule/aaa/utils/RC4HelperNew$commonDecryptStringAsync$1$1;-><init>(Lo000O0Oo/OooO0O0;Ljava/lang/String;Lkotlin/coroutines/OooO;)V\n\n    .line 47\n    .line 48\n    .line 49\n    iput v2, p0, Lcom/suda/yzune/wakeupschedule/aaa/utils/RC4HelperNew$commonDecryptStringAsync$1;->label:I\n\n    .line 50\n    .line 51\n    invoke-static {v1, v3, p0}, Lkotlinx/coroutines/OooOOO0;->OooO0oO(Lkotlin/coroutines/OooOOO;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/OooO;)Ljava/lang/Object;\n\n    .line 52\n    .line 53\n    .line 54\n    move-result-object p1\n\n    .line 55\n    if-ne p1, v0, :cond_2\n\n    .line 56\n    .line 57\n    return-object v0\n\n    .line 58\n    :cond_2\n    :goto_0\n    sget-object p1, Lkotlin/o0ooOOo;->OooO00o:Lkotlin/o0ooOOo;\n\n    .line 59\n    .line 60\n    return-object p1\n\n    :catch_slim0\n    iget-object p1, p0, Lcom/suda/yzune/wakeupschedule/aaa/utils/RC4HelperNew$commonDecryptStringAsync$1;->$input:Ljava/lang/String;\n    goto :goto_slim0",
+      "finalAssertions": [
+        {
+          "text": "iget-object p1, p0, Lcom/suda/yzune/wakeupschedule/aaa/utils/RC4HelperNew$commonDecryptStringAsync$1;->$input:Ljava/lang/String;"
+        },
+        {
+          "text": ".catch Ljava/lang/RuntimeException; {:try_start_slim0 .. :try_end_slim0} :catch_slim0"
+        }
+      ]
+    },
+    {
+      "id": "T34-E57-dx-login-keeps-raw-response",
+      "evidence": "E57",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/schedule_import/DXParserLoginFragment$OooO0O0.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/schedule_import/DXParserLoginFragment$OooO0O0;",
+        "methodDescriptor": "public onResponse(Ljava/lang/String;)V"
+      },
+      "expectedMethodSha256": "49CED84874E07A8CFBFD44B37D2D109BE26E1400D732C7C1119BBBFCAD905F4B",
+      "replacementBody": "    .locals 5\n\n    .line 2\n    const-string v0, \"data\"\n\n    const/4 v1, 0x0\n\n    if-eqz p1, :cond_3\n\n    .line 3\n    :try_start_0\n    new-instance v2, Lorg/json/JSONObject;\n\n    invoke-direct {v2, p1}, Lorg/json/JSONObject;-><init>(Ljava/lang/String;)V\n\n    .line 4\n    const-string v3, \"errNo\"\n\n    const/4 v4, -0x1\n\n    invoke-virtual {v2, v3, v4}, Lorg/json/JSONObject;->optInt(Ljava/lang/String;I)I\n\n    move-result v3\n\n    if-ne v3, v4, :cond_0\n\n    .line 5\n    const-string v3, \"errno\"\n\n    invoke-virtual {v2, v3}, Lorg/json/JSONObject;->getInt(Ljava/lang/String;)I\n\n    move-result v3\n\n    :cond_0\n    if-nez v3, :cond_2\n\n    .line 6\n    invoke-virtual {v2, v0}, Lorg/json/JSONObject;->optJSONObject(Ljava/lang/String;)Lorg/json/JSONObject;\n\n    move-result-object v3\n\n    if-eqz v3, :cond_1\n\n    invoke-virtual {v3, v0}, Lorg/json/JSONObject;->optString(Ljava/lang/String;)Ljava/lang/String;\n\n    move-result-object v1\n\n    .line 7\n    :cond_1\n    invoke-static {}, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO()Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;\n\n    move-result-object v3\n\n    :try_end_slim0\n    :try_start_slim1\n    invoke-virtual {v3, v1}, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO0O0(Ljava/lang/String;)Ljava/lang/String;\n\n    move-result-object v1\n    :try_end_slim1\n    :try_start_slim2\n\n    .line 8\n    new-instance v3, Lorg/json/JSONObject;\n\n    invoke-direct {v3, v1}, Lorg/json/JSONObject;-><init>(Ljava/lang/String;)V\n\n    invoke-virtual {v2, v0, v3}, Lorg/json/JSONObject;->put(Ljava/lang/String;Ljava/lang/Object;)Lorg/json/JSONObject;\n\n    .line 9\n    iget-object v0, p0, Lcom/suda/yzune/wakeupschedule/schedule_import/DXParserLoginFragment$OooO0O0;->OooO00o:Lcom/baidu/homework/common/net/OooOo00$Oooo0;\n\n    invoke-virtual {v2}, Lorg/json/JSONObject;->toString()Ljava/lang/String;\n\n    move-result-object v1\n\n    invoke-virtual {v0, v1}, Lcom/baidu/homework/common/net/OooOo00$Oooo0;->onResponse(Ljava/lang/Object;)V\n\n    goto :goto_0\n\n    .line 10\n    :cond_2\n    iget-object v0, p0, Lcom/suda/yzune/wakeupschedule/schedule_import/DXParserLoginFragment$OooO0O0;->OooO00o:Lcom/baidu/homework/common/net/OooOo00$Oooo0;\n\n    invoke-virtual {v0, p1}, Lcom/baidu/homework/common/net/OooOo00$Oooo0;->onResponse(Ljava/lang/Object;)V\n    :try_end_0\n    .catch Lorg/json/JSONException; {:try_start_0 .. :try_end_slim0} :catch_0\n    .catch Ljava/lang/RuntimeException; {:try_start_slim1 .. :try_end_slim1} :catch_0\n    .catch Lorg/json/JSONException; {:try_start_slim2 .. :try_end_0} :catch_0\n\n    goto :goto_0\n\n    .line 11\n    :catch_0\n    iget-object v0, p0, Lcom/suda/yzune/wakeupschedule/schedule_import/DXParserLoginFragment$OooO0O0;->OooO00o:Lcom/baidu/homework/common/net/OooOo00$Oooo0;\n\n    invoke-virtual {v0, p1}, Lcom/baidu/homework/common/net/OooOo00$Oooo0;->onResponse(Ljava/lang/Object;)V\n\n    :goto_0\n    return-void\n\n    .line 12\n    :cond_3\n    iget-object p1, p0, Lcom/suda/yzune/wakeupschedule/schedule_import/DXParserLoginFragment$OooO0O0;->OooO00o:Lcom/baidu/homework/common/net/OooOo00$Oooo0;\n\n    invoke-virtual {p1, v1}, Lcom/baidu/homework/common/net/OooOo00$Oooo0;->onResponse(Ljava/lang/Object;)V\n\n    return-void",
+      "finalAssertions": [
+        {
+          "text": ".catch Ljava/lang/RuntimeException; {:try_start_slim1 .. :try_end_slim1} :catch_0"
+        },
+        {
+          "text": "{:try_start_0 .. :try_end_0}",
+          "present": false
+        }
+      ]
+    },
+    {
+      "id": "T34-E57-download-stops-on-decrypt-failure",
+      "evidence": "E57",
+      "relativePath": "smali_classes5/com/suda/yzune/wakeupschedule/action/FileDownLoadProcess.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/action/FileDownLoadProcess;",
+        "methodDescriptor": "public onAction(Landroid/app/Activity;Lorg/json/JSONObject;Lcom/baidu/homework/common/ui/widget/HybridWebView$OooOo;)V"
+      },
+      "expectedOriginal": "    invoke-virtual {p2, v1}, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO0O0(Ljava/lang/String;)Ljava/lang/String;\n\n    .line 148\n    .line 149\n    .line 150\n    move-result-object p2\n",
+      "replacement": "    :try_start_slim0\n    invoke-virtual {p2, v1}, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO0O0(Ljava/lang/String;)Ljava/lang/String;\n\n    .line 148\n    .line 149\n    .line 150\n    move-result-object p2\n    :try_end_slim0\n    .catch Ljava/lang/RuntimeException; {:try_start_slim0 .. :try_end_slim0} :catch_slim0\n    goto :goto_slim0\n\n    :catch_slim0\n    return-void\n\n    :goto_slim0\n",
+      "expectedHits": 1,
+      "finalAssertions": [
+        {
+          "text": ".catch Ljava/lang/RuntimeException; {:try_start_slim0 .. :try_end_slim0} :catch_slim0"
+        },
+        {
+          "text": "    :catch_slim0\n    return-void\n"
+        }
+      ]
     }
   ],
   "manifestCloseRules": [

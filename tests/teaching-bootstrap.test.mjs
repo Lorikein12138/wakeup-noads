@@ -353,8 +353,10 @@ test('E16 runs the owner-bound bootstrap before crypto and routes failures to ca
     'crypto failures are delivered once and cancellation remains cancellation');
   assert.match(networkCallback, /instance-of v0, p1, Ljava\/lang\/Throwable;[\s\S]*TeachingBootstrap;->reportNetworkFailure\(Ljava\/lang\/Object;Ljava\/lang\/Throwable;\)V[\s\S]*:slim_encrypt_success_callback/,
     'the existing NetError listener receives bootstrap/crypto failures and success stays separate');
-  assert.match(coroutineCallback, /OooO00o\(Ljava\/lang\/Throwable;\)Ljava\/lang\/Object;[\s\S]*resumeWith\(Ljava\/lang\/Object;\)V[\s\S]*:slim_encrypt_resume_success/,
-    'suspend callers receive a failed Kotlin Result instead of a success callback');
+  assert.match(coroutineCallback, /OooO00o\(Ljava\/lang\/Throwable;\)Ljava\/lang\/Object;[\s\S]*Lkotlin\/Result;->box-impl\(Ljava\/lang\/Object;\)Lkotlin\/Result;[\s\S]*Lkotlinx\/coroutines\/Oooo000;->OooOO0o\(Ljava\/lang\/Object;Lkotlin\/jvm\/functions\/Function1;\)V[\s\S]*:slim_encrypt_resume_success/,
+    'suspend callers receive a boxed failed Kotlin Result, matching the original NetError listener, instead of a success callback');
+  assert.doesNotMatch(coroutineCallback, /resumeWith\(Ljava\/lang\/Object;\)V/,
+    'bootstrap/crypto failures never resume the caller exceptionally; the original API returns Result and callers do not catch');
   assert.match(apiEntry, /public final OooO0o\([\s\S]*OooO0oV\(Lo000OO0o\/OooO0O0;Lkotlin\/jvm\/functions\/Function1;Lkotlin\/jvm\/functions\/Function1;\)V/,
     'the old binary entry remains and delegates with a null error callback, preserving its success-only contract');
   assert.match(dualEntry, /new-instance v4,[\s\S]*-><init>\(Lo000OO0o\/OooO0O0;Lkotlin\/jvm\/functions\/Function1;Lkotlin\/jvm\/functions\/Function1;Lkotlin\/coroutines\/OooO;\)V/,
@@ -382,7 +384,7 @@ test('E16 runs the owner-bound bootstrap before crypto and routes failures to ca
     assert.notEqual(changed, encryptNetSource, `${name} mutates the real patched EncryptNet class`);
     assert.throws(() => assertPrivateInvokeAbi(changed, abiContract, paths[0]), undefined, `${name} violates the private call ABI`);
   }
-  const failureResumeEdge = 'Lkotlin/coroutines/OooO;->resumeWith(Ljava/lang/Object;)V';
+  const failureResumeEdge = 'Lkotlinx/coroutines/Oooo000;->OooOO0o(Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)V';
   const failureResumeLine = coroutineCallback.split('\n').find((line) => line.includes(failureResumeEdge));
   assert.ok(failureResumeLine, 'the patched callback contains the concrete continuation failure edge');
   const mutations = [

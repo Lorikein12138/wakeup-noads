@@ -116,7 +116,8 @@ try {
         $testFile = Join-Path $TestsRoot "$Suite.test.mjs"
         if (Test-Path -LiteralPath $testFile -PathType Leaf) { $files += $testFile }
         $aliases = @{
-            'patch-engine' = @('patch-engine')
+            'patch-engine' = @('patch-engine', 'smali-registers')
+            'startup' = @('smali-registers')
             'ad-switches' = @('ad-switches')
             'package-identity' = @('package-identity')
             'signing' = @('signing-input')
@@ -151,7 +152,7 @@ try {
         if ($sources.Count -eq 0) { throw 'No Java runtime or test sources were found.' }
         & $javac '--release' '8' '-Xlint:-options' '-encoding' 'UTF-8' '-d' $classes @sources
         if ($LASTEXITCODE -ne 0) { throw "Java test compilation failed with exit code $LASTEXITCODE." }
-        foreach ($main in @('SlimNetworkPolicyTest', 'TeachingBootstrapTest', 'NetworkAdapterTest', 'Rc4PoolLifecycleTest')) {
+        foreach ($main in @('SlimNetworkPolicyTest', 'TeachingBootstrapTest', 'NetworkAdapterTest', 'Rc4PoolLifecycleTest', 'CrashLogTest')) {
             & $java '-cp' $classes "com.suda.yzune.wakeupschedule.slim.$main"
             if ($LASTEXITCODE -ne 0) { throw "Java test '$main' failed with exit code $LASTEXITCODE." }
         }

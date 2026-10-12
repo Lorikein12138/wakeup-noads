@@ -155,7 +155,7 @@ test('T28 guards the real RC4 helper with valid keys, bounded leases, and failur
     'an invalid key sentinel stops before borrowing a cipher');
   assert.ok(encryptInput.indexOf('Rc4PoolLifecycle;->requireCurrent') < encryptInput.indexOf('->OooO0o(Ljava/lang/String;'),
     'a stale generation is rejected before encryption');
-  assert.match(encryptInput, /throw p2[\s\S]*?return-object p1/,
+  assert.match(encryptInput, /if-eqz v5, :slim_rc4_input_success\s+throw v5[\s\S]*?return-object p1/,
     'the encrypted-input transform reports failure instead of returning the original plaintext object');
 
   const decryptString = await readSmaliMethod(fixtureRoot, rc4Path, 'Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;',
@@ -219,7 +219,7 @@ test('T30 crypto mutations fail the same method and invoke-edge checks used by p
       id: 'plaintext-on-encryption-failure',
       path: rc4Path,
       descriptor: 'public OooO0o0(Ljava/lang/Object;Z)Ljava/lang/Object;',
-      mutate: (source) => source.replace('    throw p2', '    return-object p1'),
+      mutate: (source) => source.replace('    throw v5', '    return-object p1'),
     },
     {
       id: 'empty-encrypted-body',
@@ -245,4 +245,86 @@ test('T30 crypto mutations fail the same method and invoke-edge checks used by p
     }
     await writeFile(path.join(mutationPath, `${mutation.id}.smali`), mutated, 'utf8');
   }
+});
+
+function guardingHandlers(method, call) {
+  const lines = method.split(/\r?\n/);
+  const at = lines.findIndex((line) => line.includes(call));
+  assert.ok(at >= 0, `call site present: ${call}`);
+  const labelAt = new Map(lines.flatMap((line, index) => (/^\s*:\w+\s*$/.test(line) ? [[line.trim(), index]] : [])));
+  return lines.flatMap((line) => {
+    const match = line.match(/^\s*\.catch\s+(\S+)\s+\{(:\w+) \.\. (:\w+)\} (:\w+)/);
+    if (!match || !(labelAt.get(match[2]) <= at && at < labelAt.get(match[3]))) return [];
+    const start = labelAt.get(match[4]);
+    const end = lines.findIndex((candidate, index) => index > start && /^\s*(return|throw|goto)/.test(candidate));
+    return [{ type: match[1], handler: lines.slice(start, end + 1).join('\n') }];
+  });
+}
+
+test('T34 routes crypto and signature failures on worker, cache and callback paths to their original error channels', async (t) => {
+  await mkdir(fixtureCache, { recursive: true });
+  const fixtureRoot = await mkdtemp(path.join(fixtureCache, 'network-guard-simulation-'));
+  t.after(() => rm(fixtureRoot, { recursive: true, force: true }));
+  const fullSpec = JSON.parse(await readFile('patches/slim-v1/patch-spec.json', 'utf8'));
+  const guards = fullSpec.operations.filter((operation) => operation.id.startsWith('T34-E57-'));
+  assert.equal(guards.length, 12);
+  const paths = new Set(guards.map((operation) => operation.relativePath));
+  for (const relative of paths) {
+    const target = path.join(fixtureRoot, relative);
+    await mkdir(path.dirname(target), { recursive: true });
+    await copyFile(path.join(baselineRoot, relative), target);
+  }
+  const specPath = path.join(fixtureRoot, 'network-guard-fixture-spec.json');
+  const operations = fullSpec.operations.filter((operation) => paths.has(operation.relativePath));
+  await writeFile(specPath, JSON.stringify({ schemaVersion: 1, applicationId: 'io.github.wakeupnoads', operations }, null, 2));
+  await applyPatchSpec({ root: fixtureRoot, specPath });
+
+  const report = 'Lcom/suda/yzune/wakeupschedule/slim/TeachingBootstrap;->reportNetworkFailure(Ljava/lang/Object;Ljava/lang/Throwable;)V';
+  const net = 'smali_classes2/com/baidu/homework/common/net/';
+  const app = 'com/suda/yzune/wakeupschedule/';
+  const sign = 'Lcom/baidu/homework/common/net/OooOo00;->OooO(Lo000OO0o/OooO0O0;)Ljava/lang/String;';
+  const decrypt = 'Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO0O0(Ljava/lang/String;)Ljava/lang/String;';
+  const cacheRead = 'Lo000O0Oo/OooOO0;->OooO0O0(Ljava/lang/Object;)Ljava/lang/Object;';
+  const cacheWrite = 'Lo000O0Oo/OooOO0;->OooO0Oo(Ljava/lang/Object;Z)Ljava/lang/Object;';
+  const cases = [
+    ['smali_classes2/com/android/volley/toolbox/OooOO0O.smali', 'Lcom/android/volley/toolbox/OooOO0O;', 'public final OooOO0(Ljava/io/File;)Ljava/io/File;', cacheRead,
+      /return-object p1$/],
+    [`${net}OooOo00$OooO0OO.smali`, 'Lcom/baidu/homework/common/net/OooOo00$OooO0OO;', 'public OooO0o0()Ljava/lang/String;', sign,
+      /->o00OOOO:[\s\S]*reportNetworkFailure[\s\S]*const\/4 v0, 0x0\s+return-object v0$/],
+    ['smali_classes2/o000O0o0.1/OooO0o.smali', 'Lo000O0o0/OooO0o;', 'public Oooo0()V', sign,
+      /->o00OOOO:[\s\S]*Request;->cancel\(\)V[\s\S]*reportNetworkFailure[\s\S]*goto :goto_0$/],
+    ['smali_classes4/o0OoOO00/o00000OO.smali', 'Lo0OoOO00/o00000OO;', 'public OooO00o(Lzyb/okhttp3/oo000o$OooO00o;)Lzyb/okhttp3/Response;',
+      'Lcom/zybang/net/v2/OooO0o;->OooO00o(Lzyb/okhttp3/Request;)Lzyb/okhttp3/Request;', /Ljava\/io\/IOException;-><init>\(Ljava\/lang\/Throwable;\)V\s+throw v1$/],
+    ['smali_classes2/o000O0o0.1/OooOO0O.smali', 'Lo000O0o0/OooOO0O;', 'public static OooO0Oo(Ljava/lang/Object;Lcom/android/volley/OooO0o$OooO00o;)Lcom/android/volley/o0OoOo0;', cacheRead,
+      /VolleyError;-><init>\(Ljava\/lang\/Throwable;\)V[\s\S]*o0OoOo0;->OooO00o\(Lcom\/android\/volley\/VolleyError;\)[\s\S]*return-object p0$/],
+    [`${net}OooOo00$OooOOOO$OooO00o.smali`, 'Lcom/baidu/homework/common/net/OooOo00$OooOOOO$OooO00o;', 'public varargs OooO00o([Ljava/lang/Object;)Ljava/lang/Boolean;', cacheWrite,
+      /sget-object p1, Ljava\/lang\/Boolean;->FALSE:Ljava\/lang\/Boolean;\s+return-object p1$/],
+    [`${net}OooOo00$OooOOOO.smali`, 'Lcom/baidu/homework/common/net/OooOo00$OooOOOO;', 'public final synthetic OooO0Oo(Ljava/lang/Object;)V', cacheWrite,
+      /:catch_slim0\s+return-void$/],
+    [`smali_classes5/${app}aaa/actions/WakeupHttpRequest$post$1.smali`, `L${app}aaa/actions/WakeupHttpRequest$post$1;`, 'public final invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;',
+      `L${app}aaa/utils/EncryptNet;->OooOOO(Lo000OO0o/OooO0O0;)Lkotlin/Pair;`,
+      /instance-of v2, v1, Ljava\/util\/concurrent\/CancellationException;\s+if-nez v2, :cond_slim0[\s\S]*->\$errorListener:[\s\S]*reportNetworkFailure[\s\S]*return-object p1$/],
+    [`smali_classes5/${app}aaa/utils/RC4HelperNew$commonDecryptStringAsync$1.smali`, `L${app}aaa/utils/RC4HelperNew$commonDecryptStringAsync$1;`, 'public final invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;', decrypt,
+      /iget-object p1, p0, \S+->\$input:Ljava\/lang\/String;\s+goto :goto_slim0$/],
+    [`smali_classes6/${app}schedule_import/DXParserLoginFragment$OooO0O0.smali`, `L${app}schedule_import/DXParserLoginFragment$OooO0O0;`, 'public onResponse(Ljava/lang/String;)V', decrypt,
+      /invoke-virtual \{v0, p1\}, Lcom\/baidu\/homework\/common\/net\/OooOo00\$Oooo0;->onResponse\(Ljava\/lang\/Object;\)V\s+(?::goto_0\s+)?return-void$/],
+    [`smali_classes5/${app}action/FileDownLoadProcess.smali`, `L${app}action/FileDownLoadProcess;`, 'public onAction(Landroid/app/Activity;Lorg/json/JSONObject;Lcom/baidu/homework/common/ui/widget/HybridWebView$OooOo;)V', decrypt,
+      /:catch_slim0\s+return-void$/],
+  ];
+  for (const [relative, classDescriptor, methodDescriptor, call, handler] of cases) {
+    const method = await readSmaliMethod(fixtureRoot, relative, classDescriptor, methodDescriptor);
+    const guarding = guardingHandlers(method, call)
+      .filter(({ type }) => type === 'Ljava/lang/RuntimeException;' || type === 'Ljava/lang/Exception;');
+    assert.equal(guarding.length, 1, `${classDescriptor}${methodDescriptor} guards ${call}`);
+    assert.match(guarding[0].handler, handler, `${classDescriptor}${methodDescriptor} hands the failure to its original error channel`);
+    if (handler.source.includes('reportNetworkFailure')) assert.ok(hasSmaliInvoke(method, report));
+  }
+  const post = await readSmaliMethod(fixtureRoot, cases[7][0], cases[7][1], cases[7][2]);
+  assert.match(post, /:cond_slim0\s+throw v1/, 'coroutine cancellation is rethrown, not reported');
+
+  const enqueue = await readSmaliMethod(fixtureRoot, `${net}OooOo00$OooO0OO.smali`,
+    'Lcom/baidu/homework/common/net/OooOo00$OooO0OO;', 'public OooO0Oo(Ljava/lang/String;)V');
+  const skipAt = enqueue.indexOf('if-nez p1, :cond_slim0');
+  assert.ok(skipAt >= 0 && skipAt < enqueue.indexOf('Lcom/android/volley/o000oOoO;->OooO00o(Lcom/android/volley/Request;)'),
+    'an unsigned async request is never queued');
 });

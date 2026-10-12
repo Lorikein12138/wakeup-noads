@@ -116,3 +116,33 @@ test('E05 retains only the schedule reminder channel and removes push subscripti
   assert.doesNotMatch(createChannels, /"news"/);
   assert.doesNotMatch(subscriptions, /wakeup_subscribe|wakeup_upgrade_subscribe/);
 });
+
+test('E56 installs the local crash log first in attachBaseContext and leaves the rest of the method unchanged', async (t) => {
+  await mkdir(fixtures, { recursive: true });
+  const root = await mkdtemp(path.join(fixtures, 'crash-log-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const target = path.join(root, basePath);
+  await mkdir(path.dirname(target), { recursive: true });
+  await copyFile(path.join(baseline, basePath), target);
+  const fullSpec = JSON.parse(await readFile('patches/slim-v1/patch-spec.json', 'utf8'));
+  const operations = fullSpec.operations.filter((operation) => operation.id.startsWith('T33-E56-'));
+  assert.equal(operations.length, 1, 'one exact crash-log install operation is in the production spec');
+  const dependencies = JSON.parse(await readFile('patches/slim-v1/teaching-dependencies.json', 'utf8'));
+  assert.ok(dependencies.allowedOperationIds.includes('T33-E56-install-crash-log'), 'the protected BaseApplication change is explicitly allowed');
+  const specPath = path.join(root, 'crash-log-spec.json');
+  await (await import('node:fs/promises')).writeFile(specPath, JSON.stringify({ schemaVersion: 1, applicationId: 'io.github.wakeupnoads', operations }));
+  const result = await applyPatchSpec({ root, specPath });
+  assert.equal(result.operations.length, 1);
+  const descriptor = 'public attachBaseContext(Landroid/content/Context;)V';
+  const attach = await readSmaliMethod(root, basePath, baseClass, descriptor);
+  const install = attach.indexOf('invoke-static {p1}, Lcom/suda/yzune/wakeupschedule/slim/CrashLog;->install(Ljava/lang/Object;)V');
+  const attachSuper = attach.indexOf('invoke-super {p0, p1}, Landroid/content/ContextWrapper;->attachBaseContext(Landroid/content/Context;)V');
+  assert.ok(install > 0 && install < attachSuper, 'the crash log is installed with the base context before any other startup work');
+  assert.equal(attach.match(/CrashLog;->install/g).length, 1);
+  const baselineAttach = await readSmaliMethod(baseline, basePath, baseClass, descriptor);
+  assert.equal(attach.replace(/    invoke-static \{p1\}, Lcom\/suda\/yzune\/wakeupschedule\/slim\/CrashLog;->install\(Ljava\/lang\/Object;\)V\r?\n\r?\n/, ''), baselineAttach,
+    'only the install call is added');
+  const source = await readFile('runtime/src/com/suda/yzune/wakeupschedule/slim/CrashLog.java', 'utf8');
+  assert.match(source, /public static void install\(Object context\)/);
+  assert.doesNotMatch(source, /java\.net\.|HttpURLConnection|Socket/, 'the crash log never uploads');
+});

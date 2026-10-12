@@ -538,12 +538,19 @@
     "T28-E47-fail-encryption-instead-of-returning-input",
     "T28-E47-fail-string-decrypt-instead-of-returning-input",
     "T28-E47-fail-string-encrypt-instead-of-returning-input",
+    "T28-E47-initialize-object-decrypt-failure-state",
+    "T28-E47-initialize-object-encrypt-failure-state",
     "T28-E47-initialize-string-decrypt-failure-state",
     "T28-E47-initialize-string-encrypt-failure-state",
+    "T28-E47-propagate-object-decrypt-failure",
+    "T28-E47-propagate-object-encrypt-failure",
     "T28-E47-propagate-string-encrypt-failure",
     "T28-E47-propagate-string-transform-failure",
+    "T28-E47-retain-object-decrypt-failure",
+    "T28-E47-retain-object-encrypt-failure",
     "T28-E47-retain-string-decrypt-failure",
-    "T28-E47-retain-string-encrypt-failure"
+    "T28-E47-retain-string-encrypt-failure",
+    "T33-E56-install-crash-log"
   ],
   "auditLimits": [
     "This ledger records source dependencies and conservative boundaries; it does not assert that a real school server or native library was executed.",
