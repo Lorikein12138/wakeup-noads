@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "applicationId": "io.github.wakeupnoads",
+  "baselineApplicationId": "com.suda.yzune.wakeupschedule",
+  "operations": [
+    {
+      "id": "T18-E01-manifest-package",
+      "evidence": "E01",
+      "relativePath": "AndroidManifest.xml",
+      "xmlNode": "manifest/@package",
+      "expectedOriginal": "package=\"com.suda.yzune.wakeupschedule\"",
+      "replacement": "package=\"{{applicationId}}\"",
+      "expectedHits": 1,
+      "finalAssertions": [{ "text": "package=\"{{applicationId}}\"" }]
+    },
+    { "id": "T18-E01-authority-01", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.fileprovider\"", "replacement": "android:authorities=\"{{applicationId}}.fileprovider\"", "expectedHits": 1, "finalAssertions": [{ "text": "android:authorities=\"{{applicationId}}.fileprovider\"" }] },
+    { "id": "T18-E01-authority-02", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.provider\"", "replacement": "android:authorities=\"{{applicationId}}.provider\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-03", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.fastad.preference-preload\"", "replacement": "android:authorities=\"{{applicationId}}.fastad.preference-preload\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-04", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.AbtestLifeCycleProviderImpl\"", "replacement": "android:authorities=\"{{applicationId}}.AbtestLifeCycleProviderImpl\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-05", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.file.path.share\"", "replacement": "android:authorities=\"{{applicationId}}.file.path.share\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-06", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.gdt.fileprovider\"", "replacement": "android:authorities=\"{{applicationId}}.gdt.fileprovider\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-07", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.TTFileProvider\"", "replacement": "android:authorities=\"{{applicationId}}.TTFileProvider\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-08", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.adFileProvider\"", "replacement": "android:authorities=\"{{applicationId}}.adFileProvider\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-09", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.pangle.servermanager.downloader.com.bytedance.sdk.openadsdk.adhost\"", "replacement": "android:authorities=\"{{applicationId}}.pangle.servermanager.downloader.com.bytedance.sdk.openadsdk.adhost\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-10", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.pangle.servermanager.main\"", "replacement": "android:authorities=\"{{applicationId}}.pangle.servermanager.main\"", "expectedHits": 2 },
+    { "id": "T18-E01-authority-11", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.TTMultiProvider\"", "replacement": "android:authorities=\"{{applicationId}}.TTMultiProvider\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-12", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.pangle.provider.proxy.main\"", "replacement": "android:authorities=\"{{applicationId}}.pangle.provider.proxy.main\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-13", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.pangle.fileprovider\"", "replacement": "android:authorities=\"{{applicationId}}.pangle.fileprovider\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-14", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.bytedance.android.openliveplugin.process.server.LiveServerManager\"", "replacement": "android:authorities=\"{{applicationId}}.bytedance.android.openliveplugin.process.server.LiveServerManager\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-15", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.pangle.servermanager.bytelive.com.byted.live.lite\"", "replacement": "android:authorities=\"{{applicationId}}.pangle.servermanager.bytelive.com.byted.live.lite\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-16", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.pangle.servermanager.push.com.byted.live.lite\"", "replacement": "android:authorities=\"{{applicationId}}.pangle.servermanager.push.com.byted.live.lite\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-17", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.pangle.servermanager.downloader.com.byted.live.lite\"", "replacement": "android:authorities=\"{{applicationId}}.pangle.servermanager.downloader.com.byted.live.lite\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-18", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.androidx-startup\"", "replacement": "android:authorities=\"{{applicationId}}.androidx-startup\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-19", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.rmonitor-installer\"", "replacement": "android:authorities=\"{{applicationId}}.rmonitor-installer\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-20", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.bd.provider\"", "replacement": "android:authorities=\"{{applicationId}}.bd.provider\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-21", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.matisse.fileprovider\"", "replacement": "android:authorities=\"{{applicationId}}.matisse.fileprovider\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-22", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.techain.ac.provider\"", "replacement": "android:authorities=\"{{applicationId}}.techain.ac.provider\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-23", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.huawei.push.provider\"", "replacement": "android:authorities=\"{{applicationId}}.huawei.push.provider\"", "expectedHits": 1 },
+    { "id": "T18-E01-authority-24", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "provider/@android:authorities", "expectedOriginal": "android:authorities=\"com.suda.yzune.wakeupschedule.aaidinitprovider\"", "replacement": "android:authorities=\"{{applicationId}}.aaidinitprovider\"", "expectedHits": 1 },
+
+    { "id": "T18-E01-permission-01", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "permission and uses-permission/@android:name", "expectedOriginal": "com.suda.yzune.wakeupschedule.openadsdk.permission.TT_PANGOLIN", "replacement": "{{applicationId}}.openadsdk.permission.TT_PANGOLIN", "expectedHits": 2 },
+    { "id": "T18-E01-permission-02", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "permission and uses-permission/@android:name", "expectedOriginal": "com.suda.yzune.wakeupschedule.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION", "replacement": "{{applicationId}}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION", "expectedHits": 2 },
+    { "id": "T18-E01-permission-03", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "permission and uses-permission/@android:name", "expectedOriginal": "com.suda.yzune.wakeupschedule.permission.MIPUSH_RECEIVE", "replacement": "{{applicationId}}.permission.MIPUSH_RECEIVE", "expectedHits": 2 },
+    { "id": "T18-E01-permission-04", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "permission and uses-permission/@android:name", "expectedOriginal": "com.suda.yzune.wakeupschedule.push.permission.MESSAGE", "replacement": "{{applicationId}}.push.permission.MESSAGE", "expectedHits": 2 },
+    { "id": "T18-E01-permission-05", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "permission and uses-permission/@android:name", "expectedOriginal": "com.suda.yzune.wakeupschedule.permission.C2D_MESSAGE", "replacement": "{{applicationId}}.permission.C2D_MESSAGE", "expectedHits": 2 },
+    { "id": "T18-E01-permission-06", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "permission and uses-permission/@android:name", "expectedOriginal": "com.suda.yzune.wakeupschedule.permission.techain.RECEIVE", "replacement": "{{applicationId}}.permission.techain.RECEIVE", "expectedHits": 2 },
+    { "id": "T18-E01-permission-07", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "permission and uses-permission/@android:name", "expectedOriginal": "com.suda.yzune.wakeupschedule.permission.PROCESS_PUSH_MSG", "replacement": "{{applicationId}}.permission.PROCESS_PUSH_MSG", "expectedHits": 4 },
+    { "id": "T18-E01-permission-08", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "permission and uses-permission/@android:name", "expectedOriginal": "com.suda.yzune.wakeupschedule.permission.PUSH_PROVIDER", "replacement": "{{applicationId}}.permission.PUSH_PROVIDER", "expectedHits": 3 },
+    { "id": "T18-E01-permission-09", "evidence": "E01", "relativePath": "AndroidManifest.xml", "xmlNode": "permission and uses-permission/@android:name", "expectedOriginal": "com.suda.yzune.wakeupschedule.permission.PUSH_WRITE_PROVIDER", "replacement": "{{applicationId}}.permission.PUSH_WRITE_PROVIDER", "expectedHits": 2 },
+
+    {
+      "id": "T19-E33-uri-matcher-authority",
+      "evidence": "E33",
+      "relativePath": "smali_classes5/com/suda/yzune/wakeupschedule/ScheduleContentProvider.smali",
+      "method": { "classDescriptor": "Lcom/suda/yzune/wakeupschedule/ScheduleContentProvider;", "methodDescriptor": "public static final OooO0oo(Lcom/suda/yzune/wakeupschedule/ScheduleContentProvider;)Landroid/content/UriMatcher;" },
+      "expectedOriginal": "const-string v2, \"com.suda.yzune.wakeupschedule.provider\"",
+      "replacement": "const-string v2, \"{{applicationId}}.provider\"",
+      "expectedHits": 1
+    },
+    {
+      "id": "T19-E33-self-caller-package",
+      "evidence": "E33",
+      "relativePath": "smali_classes5/com/suda/yzune/wakeupschedule/ScheduleContentProvider.smali",
+      "method": { "classDescriptor": "Lcom/suda/yzune/wakeupschedule/ScheduleContentProvider;", "methodDescriptor": "public query(Landroid/net/Uri;[Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;Ljava/lang/String;)Landroid/database/Cursor;" },
+      "expectedOriginal": "const-string p2, \"com.suda.yzune.wakeupschedule\"",
+      "replacement": "const-string p2, \"{{applicationId}}\"",
+      "expectedHits": 1
+    },
+    {
+      "id": "T19-E34-widget-refresh-uri",
+      "evidence": "E34",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/utils/AppWidgetUtils.smali",
+      "method": { "classDescriptor": "Lcom/suda/yzune/wakeupschedule/utils/AppWidgetUtils;", "methodDescriptor": "public final OooOOO0(Landroid/content/Context;Z)V" },
+      "expectedOriginal": "content://com.suda.yzune.wakeupschedule.provider/refresh",
+      "replacement": "content://{{applicationId}}.provider/refresh",
+      "expectedHits": 1
+    },
+    {
+      "id": "T19-E34-widget-table-id-uri",
+      "evidence": "E34",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/utils/AppWidgetUtils.smali",
+      "method": { "classDescriptor": "Lcom/suda/yzune/wakeupschedule/utils/AppWidgetUtils;", "methodDescriptor": "public final OooOOoo(Landroid/content/Context;Landroid/appwidget/AppWidgetManager;ILcom/suda/yzune/wakeupschedule/today_appwidget/TodayAppWidgetType;Z)V" },
+      "expectedOriginal": "content://com.suda.yzune.wakeupschedule.provider/show_table_id",
+      "replacement": "content://{{applicationId}}.provider/show_table_id",
+      "expectedHits": 1
+    },
+    {
+      "id": "T19-E34-widget-config-uri",
+      "evidence": "E34",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/utils/AppWidgetUtils.smali",
+      "method": { "classDescriptor": "Lcom/suda/yzune/wakeupschedule/utils/AppWidgetUtils;", "methodDescriptor": "public final OooOOoo(Landroid/content/Context;Landroid/appwidget/AppWidgetManager;ILcom/suda/yzune/wakeupschedule/today_appwidget/TodayAppWidgetType;Z)V" },
+      "expectedOriginal": "content://com.suda.yzune.wakeupschedule.provider/table_config/",
+      "replacement": "content://{{applicationId}}.provider/table_config/",
+      "expectedHits": 1
+    },
+    {
+      "id": "T19-E35-today-widget-init-uri",
+      "evidence": "E35",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/today_appwidget/TodayCourseAppWidget.smali",
+      "method": { "classDescriptor": "Lcom/suda/yzune/wakeupschedule/today_appwidget/TodayCourseAppWidget;", "methodDescriptor": "public OooO00o(Landroid/content/Context;Landroid/appwidget/AppWidgetManager;[I)V" },
+      "expectedOriginal": "content://com.suda.yzune.wakeupschedule.provider/has_init",
+      "replacement": "content://{{applicationId}}.provider/has_init",
+      "expectedHits": 1
+    }
+  ]
+}

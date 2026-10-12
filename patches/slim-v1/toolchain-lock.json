@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "versionName": "6.5.2",
+    "versionCode": 542,
+    "path": "baseline/wakeup-v6.5.2.apk",
+    "sha256": "62AFFB92977D5A5B4E78D90D1F7FF36234795A59114327E4E6F169911E671CEA"
+  },
+  "apktool": {
+    "version": "3.0.3",
+    "path": "tools/apktool-3.0.3/apktool_3.0.3.jar",
+    "sha256": "DBF930B076C6B9BE08D57C449CACEFC3BDD6B71EBD59B3066FC0E1F5B14F9423",
+    "framework": {
+      "path": "tools/_cache/apktool/1.apk",
+      "sha256": "5DD984016ED5A5EB0EEF866E2C6E8CD352E1427828EC23ADB18005CF5648F3D7"
+    }
+  },
+  "jadx": {
+    "version": "1.5.6",
+    "path": "tools/jadx-1.5.6",
+    "sha256": "545EA2BE9C242511BC145755CF4BDA2485ADE42966E096F8B4D3DA2A230E8974",
+    "requiredForBuild": false
+  },
+  "androidBuildTools": {
+    "version": "35.0.0",
+    "repositoryMetadataUrl": "https://dl.google.com/android/repository/repository2-1.xml",
+    "packageUrl": "https://dl.google.com/android/repository/build-tools_r35_windows.zip",
+    "officialSha1": "AF059BB67CF7786F45EE0DB85E2D24985DF1B4B6",
+    "archivePath": "tools/_downloads/build-tools_r35_windows.zip",
+    "archiveSize": 59878107,
+    "archiveSha256": "5753C679A1B90BCF6FBC9945A2CE39DFB9E74F1DF0831A1E1866AE5B594326F0",
+    "installPath": "tools/android-build-tools-35.0.0/android-15",
+    "metadataEvidencePath": "tools/_cache/android-repository2-1.xml"
+  }
+}
