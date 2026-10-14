@@ -76,6 +76,7 @@ async function currentBuildInputHashes(metadata) {
     signingScript: await fileSha256('scripts/signing.ps1'),
     signingInput: await fileSha256('scripts/signing-input.ps1'),
     preservationTest: await fileSha256('tests/teaching-preservation.test.mjs'),
+    versionScript: await fileSha256('scripts/version.mjs'),
     smaliHelper: await fileSha256('tests/smali-helpers.mjs'),
     runtimeSourceTree,
     apktoolJar: await fileSha256(lock.apktool.path),

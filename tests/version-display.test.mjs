@@ -11,9 +11,14 @@ const getterPath = 'smali_classes5/com/suda/yzune/wakeupschedule/BaseApplication
 const settingsPath = 'smali_classes6/com/suda/yzune/wakeupschedule/settings/SettingsActivity.smali';
 const adapterPath = 'smali_classes6/com/suda/yzune/wakeupschedule/settings/o00O000o.smali';
 const providerPath = 'smali_classes6/oo0oO0/OooO0O0.smali';
+const blankProviderPath = 'smali_classes6/oo0oO0/OooOOOO.smali';
+const basePath = 'smali_classes5/com/suda/yzune/wakeupschedule/base_view/OooOO0.smali';
+const scheduleSettingsPath = 'smali_classes6/com/suda/yzune/wakeupschedule/schedule_settings/ScheduleSettingsFragment.smali';
 const getterClass = 'Lcom/suda/yzune/wakeupschedule/BaseApplication$OooO00o;';
 const settingsClass = 'Lcom/suda/yzune/wakeupschedule/settings/SettingsActivity;';
 const adapterClass = 'Lcom/suda/yzune/wakeupschedule/settings/o00O000o;';
+const blankProviderBindDescriptor = 'public OooOO0O(Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;Lcom/suda/yzune/wakeupschedule/settings/items/OooO00o;)V';
+const baseClass = 'Lcom/suda/yzune/wakeupschedule/base_view/OooOO0;';
 const bindDescriptor = 'public o0OOO0o(Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;Lcom/suda/yzune/wakeupschedule/settings/items/OooO00o;)V';
 const providerBindDescriptor = 'public OooOO0O(Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;Lcom/suda/yzune/wakeupschedule/settings/items/OooO00o;)V';
 const tagId = 0x7f130021;
@@ -23,19 +28,23 @@ async function patchedFixture(t) {
   await mkdir(cache, { recursive: true });
   const root = await mkdtemp(path.join(cache, 'version-display-simulation-'));
   t.after(() => rm(root, { recursive: true, force: true }));
-  for (const relative of [getterPath, settingsPath, adapterPath, providerPath]) {
+  for (const relative of [getterPath, settingsPath, adapterPath, providerPath, blankProviderPath, basePath]) {
     const target = path.join(root, relative);
     await mkdir(path.dirname(target), { recursive: true });
     await copyFile(path.join(decoded, relative), target);
   }
+  const scheduleSettingsTarget = path.join(root, scheduleSettingsPath);
+  await mkdir(path.dirname(scheduleSettingsTarget), { recursive: true });
+  await copyFile(path.join(decoded, scheduleSettingsPath), scheduleSettingsTarget);
   const fullSpec = JSON.parse(await readFile('patches/slim-v1/patch-spec.json', 'utf8'));
   const operations = fullSpec.operations.filter((operation) =>
-    operation.id.startsWith('T23-E37-') || operation.id.startsWith('T23-E38-') || operation.id.startsWith('T32-E55-'));
-  assert.equal(operations.length, 6, 'the four version-display and two E55 style operations are present');
+    operation.id.startsWith('T23-E37-') || operation.id.startsWith('T23-E38-') || operation.id.startsWith('T32-E55-')
+    || operation.id === 'T34-E55-collapse-empty-settings-row' || operation.id === 'T34-E55-settings-viewport-clip');
+  assert.equal(operations.length, 8, 'the four version-display, two T32 style, and two T34 settings operations are present');
   const specPath = path.join(root, 'fixture-spec.json');
   await writeFile(specPath, JSON.stringify({ schemaVersion: 1, applicationId: 'io.github.wakeupnoads', operations }));
-  const result = await applyPatchSpec({ root, specPath, releaseName: 'wakeup-noads-v6.5.2-r1' });
-  assert.equal(result.operations.length, 6);
+  const result = await applyPatchSpec({ root, specPath, releaseName: 'wakeup-noads-v6.5.4-r1' });
+  assert.equal(result.operations.length, 8);
   return root;
 }
 
@@ -83,7 +92,7 @@ function invocationRegisters(text, locals) {
 }
 
 function parseInvocation(text) {
-  const match = /^(invoke-(?:static|virtual|direct|super)(?:\/range)?)\s+\{[^}]*\},\s+(.+);->([^ (]+)(\(.*)$/.exec(text);
+  const match = /^(invoke-(?:static|virtual|direct|super|interface)(?:\/range)?)\s+\{[^}]*\},\s+(.+);->([^ (]+)(\(.*)$/.exec(text);
   if (!match) throw new Error('unsupported invoke syntax: ' + text);
   return { kind: match[1].replace('/range', ''), owner: match[2] + ';', method: match[3], descriptor: match[4] };
 }
@@ -124,7 +133,7 @@ function createProviderHolder({ density = 1, innerOrientation = 0, padding = [0,
     id: 'itemView',
     kind: 'outer',
     orientation: 1,
-    layoutParams: { width: -1, height: -2, margins: { start: margin, end: margin, top: 0, bottom: 0 }, gravity: -1 },
+    layoutParams: { width: -1, height: -2, margins: { start: margin, end: margin, top: 0, bottom: 0 }, gravity: -1, layoutParamsClass: 'frame' },
     background: 'baseline-' + theme + '-' + group,
     divider: { id: 0x7f0900ab, marker: 'provider-divider' },
     eventState: { clickListener: 'ordinary-listener', longClickListener: 'ordinary-long-listener', clickable: true, longClickable: true, enabled: true },
@@ -134,22 +143,26 @@ function createProviderHolder({ density = 1, innerOrientation = 0, padding = [0,
   const context = { resources: { displayMetrics: { density } } };
   const inner = {
     id: 0x7f090099, kind: 'linear', context, orientation: innerOrientation,
-    layoutParams: { width: -1, height: Math.trunc(64 * density), weight: 0, margins: { start: 0, end: 0, top: 0, bottom: 0 }, gravity: -1 },
+    layoutParams: { width: -1, height: Math.trunc(64 * density), weight: 0, margins: { start: 0, end: 0, top: 0, bottom: 0 }, gravity: -1, layoutParamsClass: 'compat' },
     minimumHeight: 0, padding: [...padding], tags: new Map()
   };
   const title = {
     id: 0x7f0900ae, kind: 'text', context, text: '', textSize: 16, typeface: 'default-bold-' + theme,
     textColor: 'theme-title-' + theme, gravity: 16,
-    layoutParams: { width: 0, height: -2, weight: 1, margins: { start: margin, end: margin, top: 0, bottom: 0 }, gravity: -1 },
+    layoutParams: { width: 0, height: -2, weight: 1, margins: { start: margin, end: margin, top: 0, bottom: 0 }, gravity: -1, layoutParamsClass: 'compat' },
     minLines: 1, maxLines: 1, maxWidth: 2147483647, ellipsize: null
   };
   const value = {
     id: 0x7f0900d9, kind: 'text', context, text: '', textSize: 14, typeface: 'default-' + theme,
     textColor: 'theme-value-' + theme, gravity: 16,
-    layoutParams: { width: -2, height: -2, weight: 0, margins: { start: margin, end: margin, top: 0, bottom: 0 }, gravity: -1 },
+    layoutParams: { width: -2, height: -2, weight: 0, margins: { start: margin, end: margin, top: 0, bottom: 0 }, gravity: -1, layoutParamsClass: 'compat' },
     minLines: 1, maxLines: 1, maxWidth: Math.trunc(200 * density), ellipsize: null
   };
-  const holder = { itemView: outer, views: new Map([[0x7f090099, inner], [0x7f0900ae, title], [0x7f0900d9, value]]), lookupCount: 0 };
+  const description = {
+    id: 0x7f0900af, kind: 'text', context, text: '', visibility: 0,
+    layoutParams: { width: -2, height: -2, margins: { start: margin, end: margin, top: 0, bottom: 0 }, gravity: -1, layoutParamsClass: 'compat' }
+  };
+  const holder = { itemView: outer, views: new Map([[0x7f090099, inner], [0x7f0900ae, title], [0x7f0900af, description], [0x7f0900d9, value]]), lookupCount: 0 };
   outer.children = [inner, outer.divider];
   return holder;
 }
@@ -167,7 +180,11 @@ function viewStyle(holder) {
 }
 
 function makeItem({ type = 1, titleId = 0x7f130020, title = 'Ordinary', value = 'Setting value', visible = true, group = 'middle' } = {}) {
-  return { type, titleId, title, value, visible, group };
+  return { type, titleId, title, value, visible, group, richText: false, settingSubtype: type === 4 ? 'blank-setting-row' : 'ordinary' };
+}
+
+function isBlankSettingPlaceholder(item) {
+  return item?.type === 4 && item.titleId === 0x7f130341 && String(item.value ?? '').trim().length === 0;
 }
 
 function methodDescriptorFor(methodName, source) {
@@ -193,6 +210,10 @@ function dispatchInvocation(sources, target, args, world) {
     if (args[2].type === 1) {
       return executeMethod(sources.provider, providerBindDescriptor, [{ provider: true }, args[1], args[2]], world);
     }
+    if (args[2].type === 4) {
+      assertBlankProviderFixture(sources.blankProvider);
+      return executeMethod(sources.blankProvider, blankProviderBindDescriptor, [{ provider: true }, args[1], args[2]], world);
+    }
     return undefined;
   }
   if (owner === 'Lkotlin/jvm/internal/o00oO0o;' && method === 'OooO0oO') return undefined;
@@ -214,6 +235,11 @@ function dispatchInvocation(sources, target, args, world) {
       if (view) view.text = String(args[2]);
       return holder;
     }
+    if (method === 'setGone') {
+      const view = Number(args[1]) === 0x7f0900ab ? holder.itemView.divider : holder.views.get(Number(args[1]));
+      if (view) view.visibility = args[2] ? 8 : 0;
+      return holder;
+    }
   }
   if (owner === 'Lcom/suda/yzune/wakeupschedule/settings/items/OooO00o;') {
     const item = args[0];
@@ -221,12 +247,51 @@ function dispatchInvocation(sources, target, args, world) {
     if (method === 'OooO0OO') return item.titleId;
     if (method === 'OooO0O0') return item.visible;
     if (method === 'OooOOoo') return item.value;
+    if (method === 'OooOO0') return item.group === 'first' || item.group === 'single';
+    if (method === 'OooOO0O') return item.group === 'last' || item.group === 'single';
   }
+  if (owner === 'Lcom/suda/yzune/wakeupschedule/settings/items/OooOOO;') {
+    const item = args[0];
+    if (method === 'OooOOoo') return item.value;
+    if (method === 'OooOo0') return item.titleId;
+    if (method === 'OooOo0O') return item.richText ?? false;
+  }
+  if (owner === 'Ljava/lang/CharSequence;' && method === 'length') return String(args[0] ?? '').length;
   if (owner === 'Lcom/suda/yzune/wakeupschedule/settings/items/OooO0o;' && method === 'OooOOoo') return args[0].value;
   if (method === '<init>' && owner === 'Landroidx/appcompat/widget/LinearLayoutCompat$LayoutParams;') {
-    Object.assign(args[0], lpCopy(args[1]));
+    const source = args[1];
+    Object.assign(args[0], {
+      width: source.width,
+      height: source.height,
+      margins: source.margins ? { ...source.margins } : undefined,
+      weight: 0,
+      gravity: -1,
+      layoutParamsClass: 'compat'
+    });
     return undefined;
   }
+  if (method === '<init>' && owner === 'Landroid/graphics/drawable/StateListDrawable;') {
+    args[0].type = 'StateListDrawable'; args[0].states = [];
+    return undefined;
+  }
+  if (method === '<init>' && owner === 'Landroid/graphics/drawable/GradientDrawable;') {
+    args[0].type = 'GradientDrawable'; args[0].cornerRadii = [];
+    return undefined;
+  }
+  if (method === '<init>' && owner === 'Landroid/graphics/drawable/RippleDrawable;') {
+    Object.assign(args[0], { type: 'RippleDrawable', color: args[1], content: args[2], mask: args[3] });
+    return undefined;
+  }
+  if (owner === 'Landroid/content/res/ColorStateList;' && method === 'valueOf') return { type: 'ColorStateList', color: Number(args[0]) };
+  if (owner === 'Landroid/graphics/drawable/GradientDrawable;') {
+    if (method === 'setCornerRadii') { args[0].cornerRadii = [...args[1]]; return undefined; }
+    if (method === 'setColor') { args[0].color = Number(args[1]); return undefined; }
+  }
+  if (owner === 'Landroid/graphics/drawable/StateListDrawable;' && method === 'addState') {
+    args[0].states.push({ state: [...args[1]], drawable: args[2] });
+    return undefined;
+  }
+  if (owner === 'Lkotlin/text/o00000OO;' && method === 'o0ooOoO') return String(args[0] ?? '').trim().length === 0;
   if (owner === 'Landroidx/appcompat/widget/LinearLayoutCompat;' && method === 'getOrientation') return args[0].orientation;
   if (owner === 'Landroidx/appcompat/widget/LinearLayoutCompat;' && method === 'setOrientation') {
     args[0].orientation = Number(args[1]);
@@ -242,6 +307,19 @@ function dispatchInvocation(sources, target, args, world) {
     if (method === 'getLayoutParams') return view.layoutParams;
     if (method === 'setLayoutParams') {
       view.layoutParams = args[1];
+      return undefined;
+    }
+    if (method === 'setVisibility') {
+      view.visibility = Number(args[1]);
+      return undefined;
+    }
+    if (method === 'getVisibility') return view.visibility ?? 0;
+    if (method === 'setBackgroundColor') {
+      view.backgroundColor = Number(args[1]);
+      return undefined;
+    }
+    if (method === 'setBackground') {
+      view.background = args[1];
       return undefined;
     }
     if (method === 'getMinimumHeight') return view.minimumHeight;
@@ -285,6 +363,8 @@ function dispatchInvocation(sources, target, args, world) {
   }
   if (owner === 'Landroid/content/Context;' && method === 'getResources') return args[0].resources;
   if (owner === 'Landroid/content/res/Resources;' && method === 'getDisplayMetrics') return args[0].displayMetrics;
+  if (owner === 'Lcom/chad/library/adapter/base/BaseQuickAdapter;' && method === 'Oooo000') return args[0].context;
+  if (owner === 'Lcom/google/android/material/elevation/SurfaceColors;' && method === 'getColor') return 0xfffafafa;
   throw new Error('unsupported invoke in restricted Smali fixture: ' + target.kind + ' ' + owner + '->' + method + target.descriptor);
 }
 
@@ -338,7 +418,13 @@ function executeMethod(source, descriptor, args, world) {
         write(dest, Array(Number(read(size))).fill(null));
       } else if (op === 'new-instance') {
         const match = /^(\S+),\s+(.+)$/.exec(tail);
-        if (!match || match[2] !== 'Landroidx/appcompat/widget/LinearLayoutCompat$LayoutParams;') throw new Error('unsupported new-instance: ' + instruction);
+        const supported = new Set([
+          'Landroidx/appcompat/widget/LinearLayoutCompat$LayoutParams;',
+          'Landroid/graphics/drawable/StateListDrawable;',
+          'Landroid/graphics/drawable/GradientDrawable;',
+          'Landroid/graphics/drawable/RippleDrawable;'
+        ]);
+        if (!match || !supported.has(match[2])) throw new Error('unsupported new-instance: ' + instruction);
         write(match[1], {});
       } else if (op === 'move' || op === 'move-object') {
         const [dest, sourceRegister] = commaParts;
@@ -350,6 +436,13 @@ function executeMethod(source, descriptor, args, world) {
         world.lastResult = invokeSmali(world.sources, instruction, world);
       } else if (op === 'check-cast') {
         // Explicitly modeled as a reference-preserving cast in this restricted fixture.
+      } else if (op === 'instance-of') {
+        const [dest, objectRegister, className] = commaParts;
+        const object = read(objectRegister);
+        const isCompat = className === 'Landroidx/appcompat/widget/LinearLayoutCompat$LayoutParams;' && object?.layoutParamsClass === 'compat';
+        const isAndroidLinear = className === 'Landroid/widget/LinearLayout$LayoutParams;' && object?.layoutParamsClass === 'android';
+        const isBlankRow = className === 'Lcom/suda/yzune/wakeupschedule/settings/items/OooOOO;' && object?.settingSubtype === 'blank-setting-row';
+        write(dest, Boolean(isCompat || isAndroidLinear || isBlankRow));
       } else if (op === 'if-eqz' || op === 'if-nez') {
         const [value, label] = commaParts;
         const v = read(value);
@@ -374,9 +467,22 @@ function executeMethod(source, descriptor, args, world) {
       } else if (op === 'aput-object') {
         const [sourceRegister, arrayRegister, indexRegister] = commaParts;
         read(arrayRegister)[Number(read(indexRegister))] = read(sourceRegister);
+      } else if (op === 'aput') {
+        const [sourceRegister, arrayRegister, indexRegister] = commaParts;
+        read(arrayRegister)[Number(read(indexRegister))] = read(sourceRegister);
       } else if (op === 'aget-object') {
         const [dest, arrayRegister, indexRegister] = commaParts;
         write(dest, read(arrayRegister)[Number(read(indexRegister))]);
+      } else if (op === 'filled-new-array') {
+        const match = /^\{([^}]*)\}/.exec(tail);
+        if (!match) throw new Error('unsupported filled-new-array: ' + instruction);
+        world.lastResult = match[1].split(',').map((register) => read(register.trim()));
+      } else if (op === 'fill-array-data') {
+        const [arrayRegister] = commaParts;
+        read(arrayRegister).fill(0);
+      } else if (op === 'sget-object') {
+        const [dest, fieldRef] = commaParts;
+        write(dest, { smaliField: fieldRef });
       } else if (op === 'mul-float/2addr') {
         const [dest, sourceRegister] = commaParts;
         write(dest, { floatValue: Math.fround(asFloat(read(dest)) * asFloat(read(sourceRegister))) });
@@ -395,7 +501,8 @@ function executeMethod(source, descriptor, args, world) {
         pc = method.labels.get(jump);
         continue;
       }
-      if (descriptor === bindDescriptor && world.styleApplied && op === 'iput' && instruction.includes('ViewGroup$LayoutParams;->height:I')) {
+      if (!world.completeVisibleBind && descriptor === bindDescriptor && world.styleApplied && !isBlankSettingPlaceholder(world.currentItem)
+        && op === 'iput' && instruction.includes('ViewGroup$LayoutParams;->height:I')) {
         return { stoppedAt: 'existing visible outer-height update' };
       }
       pc += 1;
@@ -407,25 +514,105 @@ function executeMethod(source, descriptor, args, world) {
   }
 }
 
+function executeInsetsCallback(source, descriptor, args) {
+  const method = parseMethod(source, descriptor);
+  const registers = Array(method.localCount + args.length + 2).fill(null);
+  args.forEach((value, index) => { registers[method.localCount + index] = value; });
+  const read = (operand) => /^[vp]\d+$/.test(operand) ? registers[registerIndex(operand, method.localCount)] : labelValue(operand);
+  const write = (operand, value) => { registers[registerIndex(operand, method.localCount)] = value; };
+  const world = { currentLocalCount: method.localCount, lastResult: undefined };
+  const invoke = (instruction) => {
+    const target = parseInvocation(instruction);
+    const registerBody = instruction.slice(instruction.indexOf('{') + 1, instruction.indexOf('}')).trim();
+    const values = registerBody ? invocationRegisters(instruction, method.localCount).map((index) => registers[index]) : [];
+    if (target.kind === 'invoke-static' && target.owner === 'Landroidx/core/view/WindowInsetsCompat$Type;') {
+      if (target.method === 'systemBars') return 1;
+      if (target.method === 'ime') return 2;
+    }
+    if (target.kind === 'invoke-static' && target.owner === 'Lkotlin/jvm/internal/o00oO0o;') return undefined;
+    if (target.owner === 'Landroidx/core/view/WindowInsetsCompat;' && target.method === 'getInsets') {
+      return values[0][values[1] === 1 ? 'systemBars' : 'ime'];
+    }
+    if (target.owner === baseClass && target.method === 'o0OoOo0') return values[0].list;
+    if (target.owner === 'Landroidx/recyclerview/widget/RecyclerView;' && target.method === 'setClipToPadding') {
+      values[0].clipToPadding = Boolean(values[1]);
+      values[0].clipCalls.push(Boolean(values[1]));
+      return undefined;
+    }
+    if (target.owner === 'Landroid/view/View;') {
+      const view = values[0];
+      const paddingMethods = { getPaddingLeft: 0, getPaddingTop: 1, getPaddingRight: 2, getPaddingBottom: 3 };
+      if (Object.hasOwn(paddingMethods, target.method)) return view.padding[paddingMethods[target.method]];
+      if (target.method === 'setPadding') {
+        const padding = values.slice(1, 5).map(Number);
+        view.paddingCalls.push(padding);
+        view.padding = padding;
+        return undefined;
+      }
+    }
+    throw new Error('unsupported invoke in production inset callback: ' + target.kind + ' ' + target.owner + '->' + target.method + target.descriptor);
+  };
+  let pc = 0;
+  let steps = 0;
+  while (pc < method.instructions.length) {
+    if (++steps > 500) throw new Error('production inset callback exceeded its instruction bound');
+    const instruction = method.instructions[pc];
+    const op = instruction.split(/\s+/)[0];
+    const tail = instruction.slice(op.length).trim();
+    const parts = tail.split(',').map((part) => part.trim());
+    let jump = null;
+    if (/^const(?:\/4|\/16)?$/.test(op)) write(parts[0], read(parts[1]));
+    else if (op === 'const-string') write(parts[0], tail.slice(tail.indexOf(',') + 1).trim().replace(/^"|"$/g, ''));
+    else if (op === 'move' || op === 'move-object') write(parts[0], read(parts[1]));
+    else if (op === 'move-result' || op === 'move-result-object') { write(parts[0], world.lastResult); world.lastResult = undefined; }
+    else if (op.startsWith('invoke-')) world.lastResult = invoke(instruction);
+    else if (op === 'instance-of') {
+      const object = read(parts[1]);
+      write(parts[0], object.className === parts[2]);
+    }
+    else if (op === 'iget' || op === 'iget-object') {
+      const field = /;->([^:]+):/.exec(parts[2])?.[1];
+      if (!field) throw new Error('invalid production inset field: ' + instruction);
+      write(parts[0], read(parts[1])[field]);
+    }
+    else if (op === 'if-eqz' || op === 'if-nez') {
+      const value = read(parts[0]);
+      const zero = value === null || value === undefined || value === false || value === 0;
+      if (op === 'if-eqz' ? zero : !zero) jump = parts[1];
+    }
+    else if (op === 'goto') jump = tail;
+    else if (op === 'return-object' || op === 'return') return read(tail);
+    else throw new Error('unsupported production inset instruction: ' + instruction);
+    if (jump) {
+      assert.ok(method.labels.has(jump), 'production inset branch target exists: ' + jump);
+      pc = method.labels.get(jump);
+    } else pc++;
+  }
+  return undefined;
+}
+
 async function readFixtureSources(root) {
   return {
     getter: await readFile(path.join(root, getterPath), 'utf8'),
     settings: await readFile(path.join(root, settingsPath), 'utf8'),
     adapter: await readFile(path.join(root, adapterPath), 'utf8'),
-    provider: await readFile(path.join(root, providerPath), 'utf8')
+    provider: await readFile(path.join(root, providerPath), 'utf8'),
+    blankProvider: await readFile(path.join(root, blankProviderPath), 'utf8'),
+    base: await readFile(path.join(root, basePath), 'utf8')
   };
 }
 
-function makeWorld(sources, holder, item) {
+function makeWorld(sources, holder, item, { completeVisibleBind = false } = {}) {
   holder.currentItem = item;
-  return { sources, registers: [], currentLocalCount: 0, lastResult: undefined, styleApplied: false, inAdapterBind: true };
+  return { sources, currentItem: item, registers: [], currentLocalCount: 0, lastResult: undefined, styleApplied: false,
+    inAdapterBind: true, completeVisibleBind };
 }
 
-async function bind(root, holder, item, adapterOverride = null) {
+async function bind(root, holder, item, adapterOverride = null, options = {}) {
   const sources = await readFixtureSources(root);
   if (adapterOverride) sources.adapter = adapterOverride;
-  const world = makeWorld(sources, holder, item);
-  const output = executeMethod(sources.adapter, bindDescriptor, [{ adapter: true }, holder, item], world);
+  const world = makeWorld(sources, holder, item, options);
+  const output = executeMethod(sources.adapter, bindDescriptor, [{ adapter: true, o00Oo0oo: 12 }, holder, item], world);
   return { world, output, sources };
 }
 
@@ -441,6 +628,17 @@ function assertProviderFixture(providerSource) {
   assert.match(create, /setMaxWidth\(I\)V/);
   assert.match(bindMethod, /BaseViewHolder;->setText\(II\)/);
   assert.match(bindMethod, /BaseViewHolder;->setText\(ILjava\/lang\/CharSequence;\)/);
+}
+
+function assertBlankProviderFixture(providerSource) {
+  const type = methodBlock(providerSource, 'public OooO0Oo()I');
+  const create = methodBlock(providerSource, 'public OooO0o0(Landroid/view/ViewGroup;I)Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;');
+  const bindMethod = methodBlock(providerSource, blankProviderBindDescriptor);
+  assert.match(type, /const\/4 v0, 0x4/);
+  assert.match(create, /0x7f0900ae[\s\S]*?0x7f0900af/);
+  assert.match(bindMethod, /OooOOoo\(\)Ljava\/lang\/String;[\s\S]*?CharSequence;->length\(\)I/);
+  assert.match(bindMethod, /const\/16 p2, 0x8[\s\S]*?setVisibility\(I\)V/);
+  assert.match(bindMethod, /setVisibility\(I\)V[\s\S]*?return-void/);
 }
 
 function assertT32Contract(adapterSource, providerSource) {
@@ -501,8 +699,42 @@ test('the version getter keeps PackageInfo reads and uses releaseName for both f
   assert.match(baseline, /getPackageInfo/);
   assert.match(patched, /getPackageInfo/);
   assert.match(patched, /PackageInfo;->versionName:Ljava\/lang\/String;/);
-  assert.equal((patched.match(/wakeup-noads-v6\.5\.2-r1/g) ?? []).length, 2);
+  assert.equal((patched.match(/wakeup-noads-v6\.5\.4-r1/g) ?? []).length, 2);
   assert.doesNotMatch(patched, /6\.5\.1/);
+});
+
+test('four global and course setting titles remain bound to their public IDs and provider values', async (t) => {
+  const root = await patchedFixture(t);
+  const publicXml = await readFile(path.join(decoded, 'res/values/public.xml'), 'utf8');
+  const stringsXml = await readFile(path.join(decoded, 'res/values/strings.xml'), 'utf8');
+  const titleCases = [
+    ['setting_schedule_name', 0x7f13037a, '课表名称'],
+    ['setting_class_time', 0x7f130343, '上课时间'],
+    ['setting_term_start_date', 0x7f13038f, '开学时间'],
+    ['setting_week_start_day', 0x7f130393, '每周起始日'],
+  ];
+  for (const [name, id, title] of titleCases) {
+    assert.match(publicXml, new RegExp(`<public type="string" name="${name}" id="0x${id.toString(16)}"`));
+    assert.match(stringsXml, new RegExp(`<string name="${name}">${title}</string>`));
+    const holder = createInitialItem(1.25, 0, [1, 2, 3, 4], 'light', 'middle');
+    const value = `synthetic current value for ${name}`;
+    await bind(root, holder, makeItem({ titleId: id, title, value }));
+    assert.equal(holder.views.get(0x7f0900ae).text, title);
+    assert.equal(holder.views.get(0x7f0900d9).text, value);
+  }
+  const actionCases = [
+    ['setting_notify', 0x7f130368, '上课提醒'],
+    ['setting_current_schedule', 0x7f13034c, '设置当前课表'],
+    ['setting_clear_webview_cache', 0x7f130346, '清除内置浏览器缓存'],
+  ];
+  for (const [name, id, title] of actionCases) {
+    assert.match(publicXml, new RegExp(`<public type="string" name="${name}" id="0x${id.toString(16)}"`));
+    assert.match(stringsXml, new RegExp(`<string name="${name}">${title}</string>`));
+    const holder = createInitialItem(1, 0, [0, 0, 0, 0], 'light', 'middle');
+    await bind(root, holder, makeItem({ titleId: id, title, value: '' }));
+    assert.equal(holder.views.get(0x7f0900ae).text, title, `${name} retains its title when its value is empty`);
+    assert.equal(holder.itemView.visibility ?? 0, 0, `${name} remains visible`);
+  }
 });
 
 test('global settings appends a read-only current-version item that calls the shared getter', async (t) => {
@@ -539,7 +771,7 @@ test('actual visible E55 binding executes E54 text binding and helper, restoring
   assert.deepEqual(holder.itemView.eventState, baseline.outer.eventState);
   assert.equal(holder.itemView.orientation, 1);
 
-  await bind(root, holder, makeItem({ titleId: versionTitleId, title: 'Current version', value: 'wakeup-noads-v6.5.2-r1' }));
+  await bind(root, holder, makeItem({ titleId: versionTitleId, title: 'Current version', value: 'wakeup-noads-v6.5.4-r1' }));
   const inner = holder.views.get(0x7f090099);
   const title = holder.views.get(0x7f0900ae);
   const value = holder.views.get(0x7f0900d9);
@@ -571,7 +803,7 @@ test('actual visible E55 binding executes E54 text binding and helper, restoring
   assert.equal(holder.itemView.divider.marker, 'provider-divider');
   assert.deepEqual(holder.itemView.eventState, baseline.outer.eventState);
   assert.equal(title.text, 'Current version');
-  assert.equal(value.text, 'wakeup-noads-v6.5.2-r1');
+  assert.equal(value.text, 'wakeup-noads-v6.5.4-r1');
 
   const savedInnerParams = lpCopy(snapshot[1]);
   await bind(root, holder, makeItem({ titleId: versionTitleId, title: 'Current version', value: 'second version text' }));
@@ -627,6 +859,191 @@ test('two holders, first/middle/last groups, hidden recycling, and non-type1 row
   }
 });
 
+test('type1 restore copies real LinearLayout weight/gravity, preserves margins, and allocates fresh parameters', async (t) => {
+  const root = await patchedFixture(t);
+  for (const layoutParamsClass of ['compat', 'android']) {
+    const holder = createInitialItem(1.3, 0, [2, 4, 6, 8], 'dark', 'middle');
+    const title = holder.views.get(0x7f0900ae);
+    const value = holder.views.get(0x7f0900d9);
+    title.layoutParams = { ...title.layoutParams, layoutParamsClass, weight: 2.75, gravity: 17, margins: { start: 11, end: 13, top: 5, bottom: 7 } };
+    value.layoutParams = { ...value.layoutParams, layoutParamsClass, weight: 0.5, gravity: 80, margins: { start: 17, end: 19, top: 3, bottom: 9 } };
+    const expected = viewStyle(holder);
+    expected.title.layoutParams.layoutParamsClass = 'compat';
+    expected.value.layoutParams.layoutParamsClass = 'compat';
+    await bind(root, holder, makeItem({ titleId: versionTitleId, title: 'Version', value: 'release' }));
+    const snapshot = holder.views.get(0x7f090099).tags.get(tagId);
+    assert.notEqual(snapshot[7], title.layoutParams, 'title snapshot owns a separate LayoutParams object');
+    assert.notEqual(snapshot[12], value.layoutParams, 'value snapshot owns a separate LayoutParams object');
+    await bind(root, holder, makeItem({ title: 'ordinary row', value: 'ordinary value' }));
+    assert.deepEqual(viewStyle(holder), expected, `${layoutParamsClass} weight, gravity, and margins restore`);
+  }
+
+  const marginOnly = createInitialItem(1, 0, [0, 0, 0, 0], 'light', 'middle');
+  marginOnly.views.get(0x7f0900ae).layoutParams = { width: 0, height: -2, margins: { start: 23, end: 29, top: 2, bottom: 3 }, layoutParamsClass: 'margin' };
+  await bind(root, marginOnly, makeItem({ titleId: versionTitleId, value: 'release' }));
+  await bind(root, marginOnly, makeItem({ title: 'ordinary' }));
+  assert.equal(marginOnly.views.get(0x7f0900ae).layoutParams.weight, 0, 'MarginLayoutParams gets the constructor default weight');
+  assert.equal(marginOnly.views.get(0x7f0900ae).layoutParams.gravity, -1, 'MarginLayoutParams gets the constructor default gravity');
+  assert.deepEqual(marginOnly.views.get(0x7f0900ae).layoutParams.margins, { start: 23, end: 29, top: 2, bottom: 3 });
+});
+
+test('actual settings adapter collapses blank rows and restores recycled visible rows', async (t) => {
+  const root = await patchedFixture(t);
+  const source = await readFile(path.join(root, adapterPath), 'utf8');
+  const binder = methodBlock(source, bindDescriptor);
+  const prepareCall = '->slimPrepareSettingRow(Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;Lcom/suda/yzune/wakeupschedule/settings/items/OooO00o;)V';
+  assert.equal((binder.match(/->slimPrepareSettingRow\(/g) ?? []).length, 2);
+  assert.ok(binder.lastIndexOf(prepareCall) > binder.indexOf('iput v11, v9, Landroid/view/ViewGroup$LayoutParams;->height:I'),
+    'the blank-row decision runs again after the original binder restores WRAP_CONTENT');
+  const helper = methodBlock(source, 'private static slimPrepareSettingRow(Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;Lcom/suda/yzune/wakeupschedule/settings/items/OooO00o;)V');
+  assert.match(helper, /OooO0O0\(\)Z[\s\S]*?if-nez v1, :slim_setting_check_blank/);
+  assert.match(helper, /OooO0Oo\(\)I[\s\S]*?const\/4 v2, 0x4[\s\S]*?setting_blank|const v2, 0x7f130341/);
+  assert.match(helper, /getLayoutParams\(\)Landroid\/view\/ViewGroup\$LayoutParams;[\s\S]*?const\/4 v2, 0x0[\s\S]*?iput v2, v1, Landroid\/view\/ViewGroup\$LayoutParams;->height:I[\s\S]*?setVisibility\(I\)V/);
+  assert.match(helper, /const\/4 v2, -0x2[\s\S]*?setLayoutParams\(Landroid\/view\/ViewGroup\$LayoutParams;\)V[\s\S]*?setVisibility\(I\)V/);
+
+  const blank = createInitialItem(1, 0, [0, 0, 0, 0], 'light', 'middle');
+  const blankBind = await bind(root, blank, makeItem({ type: 4, titleId: 0x7f130341, title: 'setting_blank', value: '  \t\n' }));
+  assert.equal(blankBind.output, undefined, 'the production adapter completes the type4 blank-provider branch');
+  assert.equal(blank.itemView.layoutParams.height, 0);
+  assert.equal(blank.itemView.visibility, 8);
+  assert.equal(blank.itemView.divider.visibility, 8, 'original divider hiding branch still runs');
+  assert.equal(blank.views.get(0x7f0900ae).text, 'setting_blank', 'the real type4 provider still supplies the original title');
+  assert.equal(blank.views.get(0x7f0900af).visibility, 0, 'whitespace description reaches the real provider before the row is collapsed');
+
+  const secondBlank = createInitialItem(1, 0, [0, 0, 0, 0], 'dark', 'first');
+  await bind(root, secondBlank, makeItem({ type: 4, titleId: 0x7f130341, title: 'setting_blank', value: '\t\n' }));
+  assert.equal(secondBlank.itemView.layoutParams.height, 0);
+  assert.equal(secondBlank.itemView.visibility, 8);
+  assert.equal(blank.itemView.layoutParams.height, 0, 'collapsing another holder does not mutate the first holder');
+
+  const recycled = createInitialItem(1, 0, [0, 0, 0, 0], 'light', 'middle');
+  await bind(root, recycled, makeItem({ type: 4, titleId: 0x7f130341, title: 'setting_blank', value: '' }));
+  await bind(root, recycled, makeItem({ type: 1, titleId: 0x7f130368, title: '上课提醒', value: '' }));
+  assert.equal(recycled.itemView.layoutParams.height, -2);
+  assert.equal(recycled.itemView.visibility, 0);
+  assert.equal(recycled.views.get(0x7f0900ae).text, '上课提醒');
+
+  const nonempty = createInitialItem(1, 0, [0, 0, 0, 0], 'light', 'middle');
+  const nonemptyBind = await bind(root, nonempty,
+    makeItem({ type: 4, titleId: 0x7f130341, title: 'setting_blank', value: 'section description', group: 'first' }),
+    null, { completeVisibleBind: true });
+  assert.equal(nonemptyBind.output, undefined, 'the production binder executes the nonempty-description row through return-void');
+  assert.equal(nonempty.itemView.layoutParams.height, -2);
+  assert.equal(nonempty.itemView.visibility, 0);
+  assert.equal(nonempty.views.get(0x7f0900af).visibility, 0, 'nonempty type4 descriptions remain visible');
+  assert.equal(nonempty.itemView.divider.visibility, 8, 'the completed visible-row path applies the production divider result');
+  assert.equal(nonempty.itemView.background.type, 'StateListDrawable', 'the completed type4 path installs its production background');
+  assert.deepEqual(nonempty.itemView.background.states[1].drawable.cornerRadii.map(asFloat), [12, 12, 12, 12, 0, 0, 0, 0],
+    'the completed first-row path applies top corner radii and square bottom corners');
+
+  const ordinaryVisible = createInitialItem(1, 0, [0, 0, 0, 0], 'dark', 'middle');
+  const ordinaryBind = await bind(root, ordinaryVisible,
+    makeItem({ type: 1, titleId: 0x7f130368, title: '上课提醒', value: '', group: 'last' }),
+    null, { completeVisibleBind: true });
+  assert.equal(ordinaryBind.output, undefined, 'ordinary visible production bind reaches method return');
+  assert.equal(ordinaryVisible.itemView.visibility, 0);
+  assert.equal(ordinaryVisible.itemView.layoutParams.height, -2);
+  assert.equal(ordinaryVisible.itemView.background.type, 'StateListDrawable');
+  assert.deepEqual(ordinaryVisible.itemView.background.states[1].drawable.cornerRadii.map(asFloat), [0, 0, 0, 0, 12, 12, 12, 12],
+    'the completed last-row path applies bottom corner radii and square top corners');
+  assert.equal(ordinaryVisible.itemView.divider.visibility, 8);
+
+  const originallyHidden = createInitialItem(1, 0, [0, 0, 0, 0], 'light', 'last');
+  await bind(root, originallyHidden, makeItem({ type: 1, titleId: 0x7f130368, title: '上课提醒', value: '', visible: false }));
+  assert.equal(originallyHidden.itemView.layoutParams.height, 0);
+  assert.equal(originallyHidden.itemView.visibility, 8);
+  await bind(root, originallyHidden, makeItem({ type: 1, titleId: 0x7f130368, title: '上课提醒', value: '', visible: true }));
+  assert.equal(originallyHidden.itemView.layoutParams.height, -2);
+  assert.equal(originallyHidden.itemView.visibility, 0);
+  assert.equal(originallyHidden.views.get(0x7f0900ae).text, '上课提醒');
+
+  const feature = createInitialItem(1, 0, [0, 0, 0, 0], 'light', 'middle');
+  await bind(root, feature, makeItem({ type: 1, titleId: 0x7f130368, title: '上课提醒', value: '' }));
+  assert.equal(feature.itemView.visibility, 0);
+  assert.equal(feature.itemView.layoutParams.height, -2);
+  assert.equal(feature.views.get(0x7f0900ae).text, '上课提醒', 'a functional row with an empty value retains its title');
+
+  const courseClass = 'Lcom/suda/yzune/wakeupschedule/schedule_settings/ScheduleSettingsFragment;';
+  const courseBefore = await readSmaliMethod(decoded, scheduleSettingsPath, courseClass, 'private final o00ooo(Ljava/util/List;)V');
+  const courseAfter = await readSmaliMethod(root, scheduleSettingsPath, courseClass, 'private final o00ooo(Ljava/util/List;)V');
+  assert.equal(courseAfter, courseBefore, 'course-setting entries remain byte-for-byte at the v6.5.4 baseline');
+  const settingsBefore = await readSmaliMethod(decoded, settingsPath, settingsClass, 'private final oo0o0Oo(Ljava/util/List;)V');
+  const settingsAfter = await readSmaliMethod(root, settingsPath, settingsClass, 'private final oo0o0Oo(Ljava/util/List;)V');
+  const spec = JSON.parse(await readFile('patches/slim-v1/patch-spec.json', 'utf8'));
+  const listOp = spec.operations.find((operation) => operation.id === 'T23-E38-current-version-row');
+  assert.ok(listOp);
+  assert.equal(settingsAfter.replace(listOp.replacement, listOp.expectedOriginal), settingsBefore,
+    'the only global-list difference remains the current-version addition');
+  const clickBefore = await readSmaliMethod(decoded, settingsPath, settingsClass,
+    'private final o0OO00O(Lcom/suda/yzune/wakeupschedule/settings/items/OooO0o;I)V');
+  const clickAfter = await readSmaliMethod(root, settingsPath, settingsClass,
+    'private final o0OO00O(Lcom/suda/yzune/wakeupschedule/settings/items/OooO0o;I)V');
+  const clickOp = spec.operations.find((operation) => operation.id === 'T23-E38-version-read-only');
+  assert.ok(clickOp);
+  assert.equal(clickAfter.replace(clickOp.replacement, clickOp.expectedOriginal), clickBefore,
+    'the only click-handler difference remains the read-only version guard');
+});
+
+test('insets callback clips only SettingsActivity and keeps all padding and inset calculations at baseline', async (t) => {
+  const root = await patchedFixture(t);
+  const descriptor = 'public static final Ooooooo(Lcom/suda/yzune/wakeupschedule/base_view/OooOO0;Landroid/view/View;Landroidx/core/view/WindowInsetsCompat;)Landroidx/core/view/WindowInsetsCompat;';
+  const before = await readSmaliMethod(decoded, basePath, baseClass, descriptor);
+  const after = await readSmaliMethod(root, basePath, baseClass, descriptor);
+  const match = /instance-of (v\d+), p0, (L[^;]+;)/.exec(after);
+  assert.ok(match, 'the callback saves the host class before p0 becomes the RecyclerView');
+  const clip = new RegExp(`invoke-virtual \\{p0, ${match[1]}\\}, Landroidx/recyclerview/widget/RecyclerView;->setClipToPadding\\(Z\\)V`);
+  assert.match(after, clip, 'the saved SettingsActivity result controls the actual RecyclerView call');
+  const clipRegister = /invoke-virtual \{p0, (v\d+)\}, Landroidx\/recyclerview\/widget\/RecyclerView;->setClipToPadding\(Z\)V/.exec(after);
+  assert.ok(clipRegister && clipRegister[1] === match[1], 'the captured instance-of register feeds the real clip call');
+  const executeHostBranch = (className) => Number(className === match[2]);
+  const settingsClipValue = executeHostBranch('Lcom/suda/yzune/wakeupschedule/settings/SettingsActivity;');
+  const otherHostClipValue = executeHostBranch('Lcom/suda/yzune/wakeupschedule/schedule/ScheduleActivity;');
+  assert.equal(match[2], 'Lcom/suda/yzune/wakeupschedule/settings/SettingsActivity;');
+  assert.equal(settingsClipValue, 1, 'the parsed production instance-of sets true for SettingsActivity');
+  assert.equal(otherHostClipValue, 0, 'the parsed production instance-of keeps other base hosts false');
+  assert.match(after, /WindowInsetsCompat\$Type;->systemBars\(\)I[\s\S]*?WindowInsetsCompat\$Type;->ime\(\)I[\s\S]*?getInsets\(I\)Landroidx\/core\/graphics\/Insets;[\s\S]*?setPadding\(IIII\)V/);
+  assert.match(after, /return-object p2/);
+  const restored = after
+    .replace('    .locals 7', '    .locals 6')
+    .replace('    invoke-virtual {p0, v6}, Landroidx/recyclerview/widget/RecyclerView;->setClipToPadding(Z)V\n\n    const/4 v1, 0x0\n\n    .line 56',
+      '    invoke-virtual {p0, v6}, Landroidx/recyclerview/widget/RecyclerView;->setClipToPadding(Z)V\n\n    .line 56')
+    .replace(`    instance-of ${match[1]}, p0, Lcom/suda/yzune/wakeupschedule/settings/SettingsActivity;\n`, '')
+    .replace(`    invoke-virtual {p0, ${match[1]}}, Landroidx/recyclerview/widget/RecyclerView;->setClipToPadding(Z)V`,
+      '    const/4 v1, 0x0\n\n    .line 55\n    invoke-virtual {p0, v1}, Landroidx/recyclerview/widget/RecyclerView;->setClipToPadding(Z)V');
+  assert.equal(restored, before, 'the patch changes only the host-scoped clip flag; all insets behavior stays at baseline');
+
+  const execute = (className, systemBars, ime, rootPadding, listPadding) => {
+    const list = { padding: [...listPadding], paddingCalls: [], clipCalls: [] };
+    const rootView = { padding: [...rootPadding], paddingCalls: [] };
+    const host = { className, list };
+    const insets = { systemBars, ime };
+    const returned = executeInsetsCallback(after, descriptor, [host, rootView, insets]);
+    return { host, list, rootView, insets, returned };
+  };
+  const barsOnly = execute(settingsClass,
+    { left: 10, right: 12, bottom: 24 }, { left: 0, right: 0, bottom: 0 }, [1, 7, 2, 15], [3, 4, 5, 9]);
+  assert.strictEqual(barsOnly.returned, barsOnly.insets, 'real callback returns the exact WindowInsetsCompat argument');
+  assert.deepEqual(barsOnly.rootView.paddingCalls, [[10, 7, 12, 15], [10, 7, 12, 0]],
+    'system bars update root horizontal padding, then the IME bottom replaces only root bottom padding');
+  assert.deepEqual(barsOnly.list.paddingCalls, [[3, 4, 5, 24]], 'without IME the list receives the system-bars bottom inset');
+  assert.deepEqual(barsOnly.list.clipCalls, [true], 'SettingsActivity clips the RecyclerView padding in the executed callback');
+  const repeatedResult = executeInsetsCallback(after, descriptor, [barsOnly.host, barsOnly.rootView, barsOnly.insets]);
+  assert.strictEqual(repeatedResult, barsOnly.insets, 'repeated callback still returns the same Insets object');
+  assert.deepEqual(barsOnly.rootView.padding, [10, 7, 12, 0], 'repeating the same input does not accumulate root padding');
+  assert.deepEqual(barsOnly.list.padding, [3, 4, 5, 24], 'repeating the same input does not accumulate list padding');
+  assert.deepEqual(barsOnly.rootView.paddingCalls.slice(2), [[10, 7, 12, 0], [10, 7, 12, 0]]);
+  assert.deepEqual(barsOnly.list.paddingCalls, [[3, 4, 5, 24], [3, 4, 5, 24]]);
+
+  const withIme = execute(settingsClass,
+    { left: 14, right: 16, bottom: 28 }, { left: 0, right: 0, bottom: 280 }, [3, 8, 5, 11], [2, 4, 6, 23]);
+  assert.strictEqual(withIme.returned, withIme.insets);
+  assert.deepEqual(withIme.rootView.paddingCalls, [[14, 8, 16, 11], [14, 8, 16, 280]]);
+  assert.deepEqual(withIme.list.paddingCalls, [[2, 4, 6, 0]], 'a visible IME removes the list bottom inset while preserving other padding');
+  const otherHost = execute('Lcom/suda/yzune/wakeupschedule/schedule/ScheduleActivity;',
+    { left: 0, right: 0, bottom: 12 }, { left: 0, right: 0, bottom: 0 }, [0, 2, 0, 4], [0, 0, 0, 0]);
+  assert.deepEqual(otherHost.list.clipCalls, [false], 'other base hosts retain the original unclipped list behavior');
+});
+
 test('design10 breakage mutants are rejected by the executed fixture and source guards', async (t) => {
   const root = await patchedFixture(t);
   const original = await readFile(path.join(root, adapterPath), 'utf8');
@@ -649,6 +1066,23 @@ test('design10 breakage mutants are rejected by the executed fixture and source 
     '.method private static slimCopyType1Params(Landroid/view/ViewGroup$MarginLayoutParams;)Landroidx/appcompat/widget/LinearLayoutCompat$LayoutParams;\n    .locals 0\n    return-object p0\n.end method'
   );
   await recycleMutationFails(root, aliasedSnapshot, (holder, baseline) => assert.deepEqual(viewStyle(holder), baseline));
+
+  for (const [field, expectedValue] of [['weight', 2.25], ['gravity', 17]]) {
+    const copyDescriptor = 'private static slimCopyType1Params(Landroid/view/ViewGroup$MarginLayoutParams;)Landroidx/appcompat/widget/LinearLayoutCompat$LayoutParams;';
+    const copy = methodBlock(original, copyDescriptor);
+    const copyInstruction = new RegExp(`    iput v1, v0, Landroidx/appcompat/widget/LinearLayoutCompat\\$LayoutParams;->${field}:${field === 'weight' ? 'F' : 'I'}\\r?\\n`, 'g');
+    assert.ok((copy.match(new RegExp(copyInstruction.source, 'g')) ?? []).length >= 2, `both ${field} copies are present in the production helper before mutation`);
+    const mutant = original.replace(/(\.method private static slimCopyType1Params\([\s\S]*?\.end method)/, (block) => block.replace(copyInstruction, ''));
+    assert.notEqual(mutant, original, `the ${field} copy mutant changes the production helper`);
+    const holder = createInitialItem(1.25, 0, [3, 5, 7, 9], 'dark', 'middle');
+    const title = holder.views.get(0x7f0900ae);
+    title.layoutParams = { ...title.layoutParams, weight: 2.25, gravity: 17, margins: { start: 31, end: 37, top: 2, bottom: 4 } };
+    const baselineStyle = viewStyle(holder);
+    await bind(root, holder, makeItem({ titleId: versionTitleId, title: 'Current version', value: 'synthetic' }), mutant);
+    await bind(root, holder, makeItem({ title: 'ordinary row', value: 'ordinary' }), mutant);
+    assert.throws(() => assert.deepEqual(viewStyle(holder), baselineStyle), `deleting ${field} copying must break actual version-to-ordinary restoration`);
+    assert.notEqual(title.layoutParams[field], expectedValue);
+  }
 
   const titleNoWeightReset = original.replace(/    iput v2, v1, Landroidx\/appcompat\/widget\/LinearLayoutCompat\$LayoutParams;->weight:F\r?\n/, '');
   await versionMutationFails(root, titleNoWeightReset, (holder) => assert.equal(holder.views.get(0x7f0900ae).layoutParams.weight, 0));

@@ -102,6 +102,7 @@ function Get-CurrentBuildInputHashes([string]$ResolvedJavaHome, [string]$Resolve
         signingScript = Get-FileSha256 (Join-Path $ProjectRoot 'scripts/signing.ps1')
         signingInput = Get-FileSha256 (Join-Path $ProjectRoot 'scripts/signing-input.ps1')
         preservationTest = Get-FileSha256 (Join-Path $ProjectRoot 'tests/teaching-preservation.test.mjs')
+        versionScript = Get-FileSha256 (Join-Path $ProjectRoot 'scripts/version.mjs')
         smaliHelper = Get-FileSha256 (Join-Path $ProjectRoot 'tests/smali-helpers.mjs')
         runtimeSourceTree = $runtimeSourceTree
         apktoolJar = Get-FileSha256 (Join-Path $ProjectRoot $ToolchainLock.apktool.path)

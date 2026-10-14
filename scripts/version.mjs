@@ -4,7 +4,12 @@ import { pathToFileURL } from 'node:url';
 
 const MAX_REVISION = 2_100_000_000;
 const BASELINE_VERSION_PATTERN = /^\d+(?:\.\d+){1,3}$/;
+const CONFIRMED_BASELINE_VERSIONS = new Set(['6.5.2', '6.5.4']);
 export const DEFAULT_APPLICATION_ID = 'io.github.wakeupnoads';
+
+export function isDefaultConfirmedBaseline(version) {
+  return CONFIRMED_BASELINE_VERSIONS.has(version);
+}
 
 export function resolveApplicationId(value = DEFAULT_APPLICATION_ID) {
   if (value !== DEFAULT_APPLICATION_ID) throw new Error(`ApplicationId is fixed to ${DEFAULT_APPLICATION_ID}`);
@@ -18,7 +23,7 @@ export function releaseNameFor(baselineVersion, revision, { baselineConfirmed = 
   if (!Number.isSafeInteger(revision) || revision < 1 || revision > MAX_REVISION) {
     throw new RangeError('revision must be a positive integer');
   }
-  if (baselineVersion !== '6.5.2' && !baselineConfirmed) {
+  if (!isDefaultConfirmedBaseline(baselineVersion) && !baselineConfirmed) {
     throw new Error('a changed official baseline requires explicit confirmation');
   }
   return `wakeup-noads-v${baselineVersion}-r${revision}`;
@@ -76,7 +81,7 @@ async function main(argv) {
   if (!baselineVersion || !revisionText || argv.length > 2 || !/^\d+$/.test(revisionText)) {
     throw new Error('usage: node scripts/version.mjs <baselineVersion> <positiveRevision>');
   }
-  process.stdout.write(`${JSON.stringify({ releaseName: releaseNameFor(baselineVersion, Number(revisionText), { baselineConfirmed: baselineVersion === '6.5.2' }) })}\n`);
+  process.stdout.write(`${JSON.stringify({ releaseName: releaseNameFor(baselineVersion, Number(revisionText), { baselineConfirmed: isDefaultConfirmedBaseline(baselineVersion) }) })}\n`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

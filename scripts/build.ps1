@@ -4,7 +4,7 @@ param(
     [string]$Mode = 'ReleaseSigned',
     [string]$ApplicationId = 'io.github.wakeupnoads',
     [ValidateRange(1, 2100000000)]
-    [int]$VersionCode = 542,
+    [int]$VersionCode,
     [ValidateRange(1, 2100000000)]
     [int]$Revision = 1,
     [string]$JavaHome,
@@ -17,6 +17,7 @@ $ErrorActionPreference = 'Stop'
 $Root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $LockPath = Join-Path $Root 'patches/slim-v1/toolchain-lock.json'
 $Lock = Get-Content -LiteralPath $LockPath -Raw | ConvertFrom-Json
+if (-not $PSBoundParameters.ContainsKey('VersionCode')) { $VersionCode = [int]$Lock.baseline.versionCode }
 $CacheRoot = Join-Path $Root 'tools/_cache/slim-v1-build'
 $DownloadsRoot = Join-Path $Root 'tools/_downloads'
 $BuildToolsRoot = Join-Path $Root $Lock.androidBuildTools.installPath
@@ -247,6 +248,7 @@ function Get-BuildInputSnapshot {
         signingScript = Get-Sha256 $SigningScript
         signingInput = Get-Sha256 (Join-Path $PSScriptRoot 'signing-input.ps1')
         preservationTest = Get-Sha256 $preservationTest
+        versionScript = Get-Sha256 (Join-Path $PSScriptRoot 'version.mjs')
         smaliHelper = Get-Sha256 $smaliHelper
         runtimeSourceTree = $runtimeTreeSha256
         apktoolJar = Get-Sha256 $ApktoolJar

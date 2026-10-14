@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "baseline": {
-    "path": "baseline/wakeup-v6.5.2.apk",
-    "sha256": "62AFFB92977D5A5B4E78D90D1F7FF36234795A59114327E4E6F169911E671CEA",
-    "versionName": "6.5.2",
-    "versionCode": 542
+    "path": "baseline/wakeup-v6.5.4.apk",
+    "sha256": "05050A52114FAC52019773F8E7F20C23CBAA23211575E4C378CF274663601623",
+    "versionName": "6.5.4",
+    "versionCode": 543
   },
   "routeEntrypoints": [
     {
@@ -559,7 +559,7 @@
   ],
   "baselineMethodInventory": {
     "schemaVersion": 1,
-    "baselineSha256": "62AFFB92977D5A5B4E78D90D1F7FF36234795A59114327E4E6F169911E671CEA",
+    "baselineSha256": "05050A52114FAC52019773F8E7F20C23CBAA23211575E4C378CF274663601623",
     "fileCount": 127,
     "methodCount": 1406,
     "invokeEdgeCount": 9408,
@@ -94164,7 +94164,7 @@
   },
   "methodInventorySha256": "85E9099A6B16E84EC887B95B07F23BB0248EB51BDB64BEEB71FEA0D31DD3C245",
   "revisionNotes": [
-    "Method and invoke inventory comes from the locked 6.5.2 decoded baseline.",
+    "Method and invoke inventory comes from the locked 6.5.4 decoded baseline.",
     "Inventory covers every nested school client file and E39-E51 startup, context, CUID, service, crypto, signature, antispam, public parameter, Cookie and native support files.",
     "Reflection, JNI, interface/virtual dispatch and server-provided scripts remain conservative protected boundaries; inventory is static evidence only.",
     "Inventory regenerated from the locked baseline: exact class declarations, normalized method bodies, invoke edges, dynamic invoke instructions, protected paths, route roots, and the complete nested school-client tree."

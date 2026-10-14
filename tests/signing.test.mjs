@@ -42,6 +42,9 @@ test('ready.json written by ReleaseSigned carries every field the signing eviden
   assert.deepEqual([...read].filter((field) => !written.has(field)), []);
   assert.match(readyBlock, /protectedPayloadHashes = \$signedPayloadHashes/);
   assert.match(readyBlock, /identityId = \$signedStage\.metadata\.identityId/);
+  assert.match(signing, /versionScript = Get-FileSha256 \(Join-Path \$ProjectRoot 'scripts\/version\.mjs'\)/);
+  assert.match(build, /versionScript = Get-Sha256 \(Join-Path \$PSScriptRoot 'version\.mjs'\)/);
+  assert.match(readyBlock, /buildInputSha256 = \$metadata\.buildInputSha256/);
 });
 
 test('release history is monotonic and an existing candidate can finish registration', () => {
@@ -109,6 +112,7 @@ async function copySigningInputs(fixtureRoot) {
     'patches/slim-v1/package-identity-spec.json',
     'patches/slim-v1/teaching-dependencies.json',
     'scripts/patch.mjs',
+    'scripts/version.mjs',
     'scripts/signing-input.ps1',
     'scripts/test.ps1',
     'tests/teaching-preservation.test.mjs',
@@ -289,6 +293,10 @@ test('Release runs a real PowerShell key, backup, verify, signed build, history 
   assert.equal(fixture.summary.promptCount, 1);
   assert.equal(fixture.summary.passwordStillSet, false);
   assert.equal(fixture.summary.secretLeak, false);
+  const metadata = JSON.parse(await readFile(path.join(fixture.fixtureRoot, 'tools/_cache/slim-v1-build/candidates/versionCode-542/release-metadata.json'), 'utf8'));
+  const ready = JSON.parse(await readFile(path.join(fixture.fixtureRoot, 'tools/_cache/slim-v1-build/candidates/versionCode-542/ready.json'), 'utf8'));
+  assert.equal(metadata.inputHashes.versionScript, await fileSha256(path.join(fixture.fixtureRoot, 'scripts/version.mjs')));
+  assert.equal(ready.buildInputSha256, metadata.buildInputSha256);
   assert.deepEqual(fixture.summary.trace, ['prompt', 'prepare', 'pre-sign:542', 'build:542']);
   const active = await readReleaseHistory(fixture.fixtureRoot, 'tools/_signing/wakeup-noads');
   const backup = await readReleaseHistory(fixture.fixtureRoot, 'tools/_signing/wakeup-noads-backup');
@@ -383,7 +391,7 @@ $ErrorActionPreference='Stop'
 . (Join-Path $FixtureRoot 'scripts/signing.ps1') -Action VerifyIdentity -JavaHome $JavaHome -BuildToolsPath $BuildToolsPath -Silent
 $snapshot=Get-CurrentBuildInputHashes $JavaHome $BuildToolsPath
 $metadata=@{toolPaths=@{javaHome=$JavaHome;buildToolsRoot=$BuildToolsPath};inputHashes=$snapshot.inputHashes;buildInputSha256=$snapshot.buildInputSha256;runtimeSourceSha256=$snapshot.runtimeSourceSha256}
-$paths=@('patches/slim-v1/patch-spec.json','patches/slim-v1/package-identity-spec.json','patches/slim-v1/teaching-dependencies.json','patches/slim-v1/toolchain-lock.json','scripts/patch.mjs','scripts/build.ps1','scripts/test.ps1','scripts/signing.ps1','scripts/signing-input.ps1','tests/teaching-preservation.test.mjs','tests/smali-helpers.mjs')
+$paths=@('patches/slim-v1/patch-spec.json','patches/slim-v1/package-identity-spec.json','patches/slim-v1/teaching-dependencies.json','patches/slim-v1/toolchain-lock.json','scripts/patch.mjs','scripts/version.mjs','scripts/build.ps1','scripts/test.ps1','scripts/signing.ps1','scripts/signing-input.ps1','tests/teaching-preservation.test.mjs','tests/smali-helpers.mjs')
 $paths+=@([IO.Path]::GetRelativePath($FixtureRoot,(Get-ChildItem -LiteralPath (Join-Path $FixtureRoot 'runtime/src') -Recurse -Filter '*.java' -File | Select-Object -First 1).FullName))
 $rejected=0
 foreach($relative in $paths){
@@ -398,7 +406,7 @@ Assert-PreSignSnapshotCurrent $metadata $JavaHome $BuildToolsPath
     path.join(fixture.fixtureRoot, 'tools/android-build-tools-35.0.0/android-15')], { encoding: 'utf8', timeout: 60000 });
   assert.ifError(result.error);
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.deepEqual(JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1)), { rejected: 12, restored: true });
+  assert.deepEqual(JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1)), { rejected: 13, restored: true });
 });
 
 function directBuildRunnerScript() {
