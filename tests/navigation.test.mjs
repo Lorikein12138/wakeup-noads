@@ -10,6 +10,7 @@ const baseline = path.resolve(process.env.SLIM_BASELINE_DECODED_ROOT ?? 'tools/_
 const fixtures = path.resolve('tools/_cache/slim-v1-review/fixtures/round-2');
 const activityPath = 'smali_classes6/com/suda/yzune/wakeupschedule/schedule/ScheduleActivity.smali';
 const tabsPath = 'smali_classes6/com/suda/yzune/wakeupschedule/widget/MainAiTitleTabView.smali';
+const listenerPath = 'smali_classes6/com/suda/yzune/wakeupschedule/widget/MainAiTitleTabView$OooO0o.smali';
 const adapterPath = 'smali_classes5/o0O0OOoo.2/OooOOO.smali';
 const switchesPath = 'smali_classes5/o0O0o0O.2/o00oO0o.smali';
 const activityClass = 'Lcom/suda/yzune/wakeupschedule/schedule/ScheduleActivity;';
@@ -29,18 +30,20 @@ async function patchedFixture(t, { joint = false, layout = false } = {}) {
   if (joint) {
     operations = spec.operations.filter((operation) =>
       operation.id.startsWith('T04-E23-') || operation.id.startsWith('T07-E05-') || operation.id.startsWith('T11-E06-')
-      || operation.id === 'T34-E05-hide-calendar-tab'
+      || operation.id === 'T34-E05-hide-calendar-tab' || operation.id === 'T35-E05-initial-tab-style'
       || (layout && operation.id.startsWith('T34-E05-pager-')));
   } else {
-    operations = spec.operations.filter((operation) => operation.id.startsWith('T07-E05-') || operation.id === 'T34-E05-hide-calendar-tab');
+    operations = spec.operations.filter((operation) => operation.id.startsWith('T07-E05-')
+      || operation.id === 'T34-E05-hide-calendar-tab' || operation.id === 'T35-E05-initial-tab-style');
   }
   if (!joint) {
-    assert.equal(operations.length, 7, 'ordinary mode selects the six retained T07 operations and the hide-calendar operation');
+    assert.equal(operations.length, 8, 'ordinary mode selects the six retained T07 operations, hide-calendar, and initial-style operations');
     assert.equal(operations.some((operation) => operation.id === 'T34-E05-hide-calendar-tab'), true);
+    assert.equal(operations.some((operation) => operation.id === 'T35-E05-initial-tab-style'), true);
     assert.equal(operations.some((operation) => operation.id === 'T07-E05-enable-local-calendar-tab'), false);
   }
   const targets = new Set(operations.map((operation) => operation.relativePath));
-  if (!joint) for (const relative of [tabsPath, adapterPath]) targets.add(relative);
+  if (!joint) for (const relative of [tabsPath, adapterPath, listenerPath]) targets.add(relative);
   for (const relative of targets) {
     const target = path.join(root, relative);
     await mkdir(path.dirname(target), { recursive: true });
@@ -192,6 +195,218 @@ function pagerExecuteMethod(source, descriptor, args, world) {
   }
 }
 
+function tabMethodBlock(source, descriptor) {
+  const lines = source.split(/\r?\n/);
+  const start = lines.findIndex((line) => line.trim().startsWith('.method ') && line.trim().endsWith(descriptor));
+  assert.notEqual(start, -1, `official tab method exists: ${descriptor}`);
+  const end = lines.findIndex((line, index) => index > start && line.trim() === '.end method');
+  assert.notEqual(end, -1, `official tab method closes: ${descriptor}`);
+  return lines.slice(start, end + 1).join('\n');
+}
+
+function tabParseMethod(source, descriptor) {
+  const block = tabMethodBlock(source, descriptor);
+  const localCount = Number(block.match(/^\s*\.locals\s+(\d+)/m)?.[1]);
+  const instructions = [];
+  const labels = new Map();
+  for (const raw of block.split('\n').slice(1, -1)) {
+    const line = raw.trim();
+    if (!line || line.startsWith('.')) continue;
+    if (line.startsWith(':')) { labels.set(line, instructions.length); continue; }
+    instructions.push(line);
+  }
+  return { descriptor, localCount, instructions, labels };
+}
+
+function tabInt(value) {
+  if (String(value).startsWith('-0x')) return -Number.parseInt(String(value).slice(3), 16);
+  if (String(value).startsWith('0x')) return Number.parseInt(String(value).slice(2), 16);
+  return Number(value);
+}
+
+function tabFloatBits(value) {
+  const buffer = new ArrayBuffer(4);
+  new DataView(buffer).setUint32(0, tabInt(value) >>> 0, true);
+  return new DataView(buffer).getFloat32(0, true);
+}
+
+function tabExecuteMethod(source, callbackSource, descriptor, args, world) {
+  const methodSource = source.split(/\r?\n/).some((line) => line.trim().startsWith('.method ') && line.trim().endsWith(descriptor))
+    ? source : callbackSource;
+  const method = tabParseMethod(methodSource, descriptor);
+  const registers = Array(method.localCount + args.length + 2).fill(null);
+  args.forEach((value, index) => { registers[method.localCount + index] = value; });
+  const previousRegisters = world.registers;
+  const previousLocalCount = world.localCount;
+  world.registers = registers;
+  world.localCount = method.localCount;
+  const indexOf = (name) => name[0] === 'v' ? Number(name.slice(1)) : method.localCount + Number(name.slice(1));
+  const read = (name) => /^[vp]\d+$/.test(name) ? registers[indexOf(name)] : tabInt(name);
+  const write = (name, value) => { registers[indexOf(name)] = value; };
+  const fieldName = (text) => /;->([^:]+):/.exec(text)?.[1];
+  const invoke = (instruction) => {
+    const match = /^(invoke-(?:static|virtual|direct|super|interface)(?:\/range)?)\s+\{([^}]*)\},\s+(.+);->([^ (]+)(\(.*)$/.exec(instruction);
+    assert.ok(match, `supported official tab invocation: ${instruction}`);
+    const kind = match[1].replace('/range', '');
+    const rawRegisters = match[2].split(',').map((value) => value.trim()).filter(Boolean);
+    const values = rawRegisters.map(read);
+    const owner = `${match[3]};`;
+    const name = match[4];
+    const targetDescriptor = match[5];
+    const receiver = kind === 'invoke-static' ? null : values[0];
+    const callArgs = kind === 'invoke-static' ? values : values.slice(1);
+    if (owner === tabsClass) {
+      const callDescriptor = `${name}${targetDescriptor}`;
+      if (name === 'loadTabs') {
+        assert.deepEqual(callArgs[0].map((entry) => entry.id), world.adapter.tabs.map((entry) => entry.id));
+        world.tabsBound = true;
+        world.events.push('tabs-bound');
+        return undefined;
+      }
+      if (name === 'loadBackground' && targetDescriptor === '()V' && world.inSetViewPager) {
+        world.initialRefreshCalls += 1;
+        world.events.push('initial-loadBackground');
+        assert.deepEqual([world.modelBound, world.tabsBound, world.pagerBound, world.listenerAdded], [true, true, true, true],
+          'the production initial refresh runs after model, tabs, pager and listener are ready');
+      }
+      world.methodCalls.push(name);
+      return tabExecuteMethod(source, callbackSource,
+        tabMethodBlock(source, callDescriptor).split('\n')[0].trim().replace(/^\.method\s+/, '').split(/\s+/).slice(0, -1).join(' ') + ` ${callDescriptor}`,
+        kind === 'invoke-static' ? callArgs : [receiver, ...callArgs], world);
+    }
+    if (owner === 'Lcom/suda/yzune/wakeupschedule/widget/MainAiTitleTabView$OooO0o;') {
+      const callDescriptor = `${name}${targetDescriptor}`;
+      if (name === '<init>') {
+        receiver.tab = callArgs[0]; receiver.adapter = callArgs[1];
+        receiver.o00OOO0O = callArgs[0]; receiver.o0o0Oo = callArgs[1];
+        return undefined;
+      }
+      return tabExecuteMethod(source, callbackSource, callDescriptor, [receiver, ...callArgs], world);
+    }
+    if (owner === 'Lo0O0OOoo/OooOOO;') {
+      if (name === 'OooO0O0') return receiver.tabs;
+      if (name === 'getCount') return receiver.tabs.length;
+    }
+    if (owner === 'Lo0O0OOoo/OooOOOO;' && name === 'OooO0O0') return receiver.id;
+    if (owner === 'Landroidx/viewpager/widget/ViewPager;') {
+      if (name === 'getAdapter') return receiver.adapter;
+      if (name === 'getCurrentItem') return receiver.currentItem;
+      if (name === 'setOffscreenPageLimit') { receiver.offscreenLimit = callArgs[0]; world.events.push('pager-configured'); return undefined; }
+      if (name === 'addOnPageChangeListener') {
+        receiver.listeners.push(callArgs[0]); world.listenerAdded = true; world.events.push('listener-added'); return undefined;
+      }
+    }
+    if (owner === 'Lcom/suda/yzune/wakeupschedule/schedule/ScheduleViewModel;' && name === 'Oooo0OO') return receiver.night;
+    if (owner === 'Lcom/suda/yzune/wakeupschedule/utils/ScheduleSpUtils;' && name === 'OooO0Oo') return world.preferenceNight;
+    if (owner === 'Lkotlin/OooOOO0;' && name === 'getValue') return receiver.value;
+    if (owner === 'Landroidx/core/view/ViewGroupKt;' && name === 'getChildren') return { items: callArgs[0].children };
+    if (owner === 'Lkotlin/sequences/OooOo00;' && name === 'iterator') return { items: receiver.items, index: 0 };
+    if (owner === 'Ljava/util/List;' && name === 'iterator') return { items: receiver, index: 0 };
+    if (owner === 'Ljava/util/Iterator;' && name === 'hasNext') return receiver.index < receiver.items.length;
+    if (owner === 'Ljava/util/Iterator;' && name === 'next') return receiver.items[receiver.index++];
+    if (owner === 'Ljava/util/List;' && name === 'get') return receiver[callArgs[0]] ?? null;
+    if (owner === 'Lkotlin/collections/o00000O0;' && name === 'o0OOO0o') return callArgs[0][callArgs[1]] ?? null;
+    if (owner === 'Ljava/lang/String;' && name === 'hashCode') {
+      let result = 0; for (const character of receiver) result = (Math.imul(result, 31) + character.charCodeAt(0)) | 0; return result;
+    }
+    if (owner === 'Ljava/lang/String;' && name === 'equals') return receiver === callArgs[0];
+    if (owner === 'Ljava/lang/CharSequence;' && name === 'length') return receiver.length;
+    if (owner === 'Ljava/lang/Boolean;' && name === 'booleanValue') return Boolean(receiver);
+    if (owner === 'Ljava/lang/Integer;' && name === 'valueOf') return callArgs[0];
+    if (owner === 'Ljava/lang/Integer;' && name === 'parseInt') return Number.parseInt(callArgs[0], 10);
+    if (owner === 'Landroid/graphics/Color;' && name === 'parseColor') {
+      const text = callArgs[0].toLowerCase();
+      if (text === 'white') return 0xffffffff | 0;
+      if (text === 'transparent') return 0;
+      assert.match(text, /^#[0-9a-f]{6}([0-9a-f]{2})?$/);
+      const hex = Number.parseInt(text.slice(1), 16);
+      return (text.length === 7 ? (0xff000000 | hex) : ((hex & 0xff) << 24) | (hex >>> 8)) | 0;
+    }
+    if (owner === 'Landroidx/core/graphics/ColorUtils;' && name === 'setAlphaComponent') {
+      assert.ok(callArgs[1] >= 0 && callArgs[1] <= 255, 'production ColorUtils receives an 8-bit alpha');
+      return ((callArgs[0] & 0x00ffffff) | (callArgs[1] << 24)) | 0;
+    }
+    if (owner === 'Lkotlin/text/o000000O;' && name === 'OoooOoO') return callArgs[0].startsWith(callArgs[1]);
+    if (owner === 'Lkotlin/text/o00000OO;' && name === 'o00000oo') return callArgs[0].startsWith(callArgs[1]) ? callArgs[0].slice(callArgs[1].length) : callArgs[0];
+    if (owner === 'Landroid/view/View;' && name === 'setBackgroundColor') { receiver.backgroundColor = callArgs[0] | 0; return undefined; }
+    if (owner === 'Landroid/view/View;' && name === 'setVisibility') { receiver.visibility = callArgs[0]; return undefined; }
+    if (owner === 'Landroid/view/View;' && name === 'findViewById') return receiver.views.get(callArgs[0]) ?? null;
+    if (owner === 'Landroid/view/View;' && name === 'setAlpha') { receiver.alpha = callArgs[0]; return undefined; }
+    if (owner === 'Landroid/view/View;' && name === 'setTranslationX') { receiver.translationX = callArgs[0]; return undefined; }
+    if (owner === 'Landroid/view/ViewGroup;' && name === 'getChildAt') return receiver.children[callArgs[0]] ?? null;
+    if (owner === 'Landroid/widget/ImageView;' && name === 'setImageResource') { receiver.imageResource = callArgs[0]; return undefined; }
+    if (owner === 'Landroidx/appcompat/widget/AppCompatImageView;' && name === 'setImageDrawable') { receiver.drawable = callArgs[0]; return undefined; }
+    if (owner === 'Landroid/widget/TextView;' && name === 'setTextSize') { receiver.textSizeUnit = callArgs[0]; receiver.textSize = callArgs[1]; return undefined; }
+    if (owner === 'Landroid/widget/TextView;' && name === 'setTextColor') { receiver.textColor = callArgs[0] | 0; return undefined; }
+    if (owner === 'Landroidx/appcompat/widget/AppCompatImageView;' && name === 'setImageResource') { receiver.imageResource = callArgs[0]; return undefined; }
+    if (owner === 'Ljava/lang/Math;' && name === 'rint') return Math.round(callArgs[0]);
+    if (owner === 'Lo000OOoO/OooO00o;' && name === 'OooO0o') return world.density;
+    if (owner === 'Lo000OOO/OooO;' && name === 'OooOOOo') return undefined;
+    if (owner === 'Lkotlin/jvm/internal/o00oO0o;' && name === 'OooO0O0') return callArgs[0] === callArgs[1];
+    if (owner === 'Lkotlin/jvm/internal/o00oO0o;' && ['OooO0o', 'OooO0o0', 'OooO0oO'].includes(name)) return undefined;
+    if (owner === 'Lkotlin/jvm/internal/o00oO0o;' && name === 'OooOoO0') throw new Error('unexpected null check failure in official tab code');
+    if (owner === 'Lkotlin/jvm/functions/Function2;' && name === 'invoke') {
+      const emitted = [callArgs[0], callArgs[1]];
+      world.pageStyle.push(emitted);
+      return undefined;
+    }
+    if (owner === 'Ljava/lang/Throwable;' && name === 'printStackTrace') return undefined;
+    if (kind === 'invoke-direct' && name === '<init>' && receiver?.kind === 'listener') {
+      receiver.tab = callArgs[0]; receiver.adapter = callArgs[1];
+      receiver.o00OOO0O = callArgs[0]; receiver.o0o0Oo = callArgs[1]; return undefined;
+    }
+    throw new Error(`unsupported production tab call ${kind} ${owner}->${name}${targetDescriptor}`);
+  };
+  try {
+    let pc = 0; let steps = 0; let lastResult;
+    while (pc < method.instructions.length) {
+      assert.ok(++steps < 5000, `official tab method returns within the restricted instruction limit: ${descriptor}`);
+      const instruction = method.instructions[pc];
+      const op = instruction.split(/\s+/)[0];
+      const tail = instruction.slice(op.length).trim().split(/\s+#/, 1)[0].trim();
+      const parts = tail.split(',').map((part) => part.trim());
+      let jump = null;
+      if (op === 'const-string') {
+        const comma = tail.indexOf(','); write(parts[0], JSON.parse(tail.slice(comma + 1).trim()));
+      } else if (op === 'const/high16') write(parts[0], tabFloatBits(parts[1]));
+      else if (/^const(?:\/4|\/16)?$/.test(op)) write(parts[0], tabInt(parts[1]));
+      else if (op === 'new-instance') write(parts[0], { kind: 'listener' });
+      else if (op === 'move' || op === 'move-object') write(parts[0], read(parts[1]));
+      else if (op === 'move-result' || op === 'move-result-object' || op === 'move-result-wide') { write(parts[0], lastResult); lastResult = undefined; }
+      else if (op === 'move-exception') write(parts[0], { kind: 'ignored-exception' });
+      else if (op.startsWith('invoke-')) lastResult = invoke(instruction);
+      else if (op === 'sget-object') write(parts[0], world.scheduleSpUtils);
+      else if (op === 'iget' || op === 'iget-object') {
+        const field = fieldName(parts[2]); assert.ok(field, `production tab field is recognized: ${instruction}`); write(parts[0], read(parts[1])[field]);
+      } else if (op === 'iput' || op === 'iput-object') {
+        const field = fieldName(parts[2]); assert.ok(field, `production tab field is recognized: ${instruction}`); read(parts[1])[field] = read(parts[0]);
+        if (field === 'scheduleViewModel') world.modelBound = true;
+        if (field === 'viewPager') { world.pagerBound = true; world.events.push('pager-bound'); }
+      } else if (op === 'check-cast') { /* reference-preserving Android cast */ }
+      else if (op === 'instance-of') write(parts[0], read(parts[1])?.kind === 'adapter');
+      else if (op === 'if-eqz' || op === 'if-nez') {
+        const value = read(parts[0]); const zero = value == null || value === false || value === 0;
+        if (op === 'if-eqz' ? zero : !zero) jump = parts[1];
+      } else if (op === 'if-eq' || op === 'if-ne') {
+        const equal = read(parts[0]) === read(parts[1]); if (op === 'if-eq' ? equal : !equal) jump = parts[2];
+      } else if (op === 'if-lez') { if (read(parts[0]) <= 0) jump = parts[1]; }
+      else if (op === 'goto' || op === 'goto/16') jump = tail;
+      else if (op === 'add-int/lit8') write(parts[0], read(parts[1]) + tabInt(parts[2]));
+      else if (op === 'mul-float/2addr') write(parts[0], read(parts[0]) * read(parts[1]));
+      else if (op === 'float-to-double' || op === 'double-to-float') write(parts[0], read(parts[1]));
+      else if (op === 'return-void') return undefined;
+      else if (op === 'return-object' || op === 'return') return read(tail);
+      else throw new Error(`unsupported production tab instruction ${descriptor}: ${instruction}`);
+      if (jump) { assert.ok(method.labels.has(jump), `official tab label exists: ${jump}`); pc = method.labels.get(jump); }
+      else pc += 1;
+    }
+    return undefined;
+  } finally {
+    world.registers = previousRegisters;
+    world.localCount = previousLocalCount;
+  }
+}
+
 function extractTabAdditions(onCreate) {
   const types = new Map();
   const strings = new Map();
@@ -240,6 +455,132 @@ function hasTwoHomeTabContract(onCreate, tabs) {
     && tabs.length === 2
     && tabs[0].id === 'schedule'
     && tabs[1].id === 'mine';
+}
+
+function tabUiSnapshot(tab) {
+  return {
+    backgroundColor: tab.backgroundColor,
+    selectedColor: tab.selectTextColor,
+    unselectedColor: tab.unselectTextColor,
+    backgroundImage: { visibility: tab.backgroundImage.visibility, drawable: tab.backgroundImage.drawable, imageResource: tab.backgroundImage.imageResource },
+    tabs: tab.tabViews.map((view) => ({
+      text: { size: view.title.textSize, color: view.title.textColor, alpha: tabAlphaValue(view.title.alpha), translationX: view.title.translationX },
+      icon: { imageResource: view.icon.imageResource, visibility: view.icon.visibility },
+    })),
+    pageStyle: tab.pageStyle.at(-1),
+  };
+}
+
+function tabAlphaValue(value) {
+  if (Number.isInteger(value) && value > 1) {
+    const buffer = new ArrayBuffer(4);
+    new DataView(buffer).setUint32(0, value >>> 0, true);
+    const decoded = new DataView(buffer).getFloat32(0, true);
+    if (decoded >= 0 && decoded <= 1) return Math.round(decoded * 10) / 10;
+  }
+  return value;
+}
+
+function makeTabBinding(input) {
+  const adapter = { kind: 'adapter', tabs: [{ id: 'schedule' }, { id: 'mine' }] };
+  const pager = { adapter, currentItem: input.pageIndex, listeners: [], offscreenLimit: 0 };
+  const pageStyle = [];
+  const tabViews = adapter.tabs.map(() => {
+    const title = { textSize: 14, textColor: 0, alpha: 0, translationX: -1 };
+    const icon = { imageResource: 0, visibility: 0 };
+    return { title, icon, views: new Map([[0x7f090aaf, title], [0x7f0903c4, icon]]) };
+  });
+  const backgroundImage = { visibility: 0, drawable: input.drawable, imageResource: 0 };
+  const tab = {
+    kind: 'MainAiTitleTabView', adapter, viewPager: null, scheduleViewModel: null,
+    llTab: { children: tabViews }, tabViews,
+    llTab$delegate: { value: { children: tabViews } },
+    tabDrawableImageView$delegate: { value: backgroundImage }, backgroundImage,
+    tabDrawable: input.drawable, tabBackGround: input.background,
+    titleTextColor: 0xff102030 | 0, mineTabItemColor: 0xff556677 | 0,
+    nightTabItemColor: 0xff778899 | 0, nightTabColor: 0xff202830 | 0,
+    defaultTabBg: 0xff345678 | 0, selectTextColor: 0, unselectTextColor: 0,
+    onPageStyleChanged: { kind: 'Function2' }, backgroundColor: 0, pageStyle,
+  };
+  const world = {
+    adapter, pager, tab, tabViews, preferenceNight: input.night, density: 1,
+    scheduleSpUtils: {}, events: [], methodCalls: [], pageStyle, initialRefreshCalls: 0,
+    modelBound: false, tabsBound: false, pagerBound: false, listenerAdded: false,
+    inSetViewPager: true,
+  };
+  return world;
+}
+
+function expectedTabPalette(page, night, backgroundName, pageIndex) {
+  let backgroundColor;
+  let selectedColor;
+  let unselectedColor;
+  let pageStyleColor;
+  if (page === 'schedule') {
+    backgroundColor = backgroundName === 'existing color' ? (0xe001b669 | 0)
+      : backgroundName === 'existing drawable' ? 0 : (0xff345678 | 0);
+    selectedColor = 0xff102030 | 0;
+    unselectedColor = 0x7a102030 | 0;
+    pageStyleColor = 0xfff8f8fa | 0;
+  } else if (night) {
+    backgroundColor = 0xff202830 | 0;
+    selectedColor = 0xff778899 | 0;
+    unselectedColor = 0x7a778899 | 0;
+    pageStyleColor = 0xff202830 | 0;
+  } else {
+    backgroundColor = 0xfff8f8fa | 0;
+    selectedColor = 0xff556677 | 0;
+    unselectedColor = 0x7a556677 | 0;
+    pageStyleColor = 0xfff8f8fa | 0;
+  }
+  const drawable = backgroundName === 'existing drawable' ? { marker: 'existing schedule drawable' } : null;
+  const tabText = (selected) => ({
+    size: 16,
+    color: selected ? selectedColor : unselectedColor,
+    alpha: selected ? 1 : 0.8,
+    translationX: 0,
+  });
+  return {
+    backgroundColor,
+    selectedColor,
+    unselectedColor,
+    backgroundImage: { visibility: page === 'schedule' && backgroundName === 'existing drawable' ? 0 : 8, drawable, imageResource: 0 },
+    tabs: [
+      { text: tabText(pageIndex === 0), icon: { imageResource: 0, visibility: 0 } },
+      { text: tabText(pageIndex === 1), icon: { imageResource: 0, visibility: 0 } },
+    ],
+    pageStyle: [page, pageStyleColor],
+  };
+}
+
+async function executeInitialTabBinding(root, source, input, expectedPalette) {
+  const callbackSource = await readFile(path.join(root, listenerPath), 'utf8');
+  const world = makeTabBinding(input);
+  const descriptor = 'public final setViewPager(Landroidx/viewpager/widget/ViewPager;Lcom/suda/yzune/wakeupschedule/schedule/ScheduleViewModel;)V';
+  const returned = tabExecuteMethod(source, callbackSource, descriptor, [world.tab, world.pager, { night: input.night }], world);
+  assert.equal(returned, undefined, 'the real patched setViewPager reaches its return');
+  assert.equal(world.initialRefreshCalls, 1, 'the production initial refresh runs exactly once');
+  assert.deepEqual(world.events, ['tabs-bound', 'pager-bound', 'pager-configured', 'listener-added', 'initial-loadBackground']);
+  assert.equal(world.pager.currentItem, input.pageIndex, 'initial refresh leaves the current page unchanged');
+  assert.equal(world.pager.listeners.length, 1, 'initial refresh does not add a second listener');
+  assert.equal(world.pager.offscreenLimit, world.adapter.tabs.length, 'the original pager limit remains based on adapter count');
+  assert.ok(world.methodCalls.includes('updateTabItem') && world.methodCalls.includes('setSelectedTabUI'),
+    'the official color update and selected-tab methods executed');
+  if (input.pageIndex === 0) assert.ok(world.methodCalls.includes('updateTabBackGround'), 'schedule uses the official background path');
+  const initial = tabUiSnapshot(world.tab);
+  if (expectedPalette) assert.deepEqual(initial, expectedPalette, 'first setViewPager binding equals the independent literal palette');
+  world.inSetViewPager = false;
+  tabExecuteMethod(source, callbackSource, 'onPageSelected(I)V', [world.pager.listeners[0], input.pageIndex], world);
+  const afterPageSelected = tabUiSnapshot(world.tab);
+  assert.deepEqual(afterPageSelected, initial, 'the official onPageSelected callback yields the same output for the same page and inputs');
+  if (expectedPalette) assert.deepEqual(afterPageSelected, expectedPalette, 'onPageSelected equals the same independent literal palette');
+  assert.equal(world.pager.currentItem, input.pageIndex);
+  assert.equal(world.pager.listeners.length, 1);
+  tabExecuteMethod(source, callbackSource, 'public final loadBackground(Ljava/lang/String;I)V',
+    [world.tab, '#112233', 0xffabcdef | 0], world);
+  assert.equal(world.tab.tabBackGround, '#112233', 'the existing public loadBackground(String,int) method remains executable');
+  assert.equal(world.tab.titleTextColor, 0xffabcdef | 0, 'the existing public refresh method retains its title color argument');
+  return { world, initial, afterPageSelected };
 }
 
 test('home assembles only schedule and mine while the upstream calendar class remains unreachable', async (t) => {
@@ -350,6 +691,45 @@ test('tab labels and page callbacks continue to use the adapter list and dynamic
   assert.match(loadTabs, /List;->size\(\)I[\s\S]*?div-int\/2addr v1, v0[\s\S]*?Iterable;->iterator\(\)/);
   assert.match(loadTabs, /add-int\/lit8 v4, v3, 0x1[\s\S]*?OooOOOO;->OooO0OO\(\)Ljava\/lang\/String;[\s\S]*?MainAiTitleTabView\$OooO0O0;-><init>\(Lcom\/suda\/yzune\/wakeupschedule\/widget\/MainAiTitleTabView;ILjava\/lang\/String;\)V/);
   assert.match(setViewPager, /OooOOO;->OooO0O0\(\)Ljava\/util\/List;[\s\S]*?loadTabs\(Ljava\/util\/List;\)V[\s\S]*?getCount\(\)I/);
+});
+
+test('production initial tab refresh uses the official palette for every current page and later refresh path', async (t) => {
+  const root = await patchedFixture(t);
+  const source = await readFile(path.join(root, tabsPath), 'utf8');
+  const backgrounds = [
+    { name: 'default', background: '', drawable: null },
+    { name: 'existing color', background: '#112233', drawable: null },
+    { name: 'existing drawable', background: 'schedule-image', drawable: { marker: 'existing schedule drawable' } },
+  ];
+  for (const page of [{ id: 'schedule', pageIndex: 0 }, { id: 'mine', pageIndex: 1 }]) {
+    for (const night of [false, true]) {
+      for (const background of backgrounds) {
+        const input = { ...page, night, ...background };
+        const { world } = await executeInitialTabBinding(root, source, input,
+          expectedTabPalette(page.id, night, background.name, page.pageIndex));
+        assert.ok(world.methodCalls.includes('loadBackground') && world.methodCalls.includes('updateTabItem')
+          && world.methodCalls.includes('setSelectedTabUI'), `${page.id}/${night}/${background.name} executes the official chain`);
+      }
+    }
+  }
+  const refreshCall = '    invoke-direct {p0}, Lcom/suda/yzune/wakeupschedule/widget/MainAiTitleTabView;->loadBackground()V\n';
+  assert.equal((source.match(/invoke-direct \{p0\}, Lcom\/suda\/yzune\/wakeupschedule\/widget\/MainAiTitleTabView;->loadBackground\(\)V/g) ?? []).length, 4,
+    'the patched binding adds one call while all three official refresh calls remain');
+  const initialCallIndex = source.indexOf('invoke-virtual {p1, p2}, Landroidx/viewpager/widget/ViewPager;->addOnPageChangeListener');
+  const insertedCallIndex = source.indexOf(refreshCall.trim(), initialCallIndex);
+  assert.ok(initialCallIndex >= 0 && insertedCallIndex > initialCallIndex, 'the new production call follows listener registration');
+  const mutantStart = source.indexOf(refreshCall.trim(), initialCallIndex);
+  assert.ok(mutantStart > initialCallIndex, 'the inserted call is found after the listener anchor');
+  const mutant = source.slice(0, mutantStart) + source.slice(mutantStart + refreshCall.trim().length);
+  assert.notEqual(mutant, source, 'the isolated no-initial-refresh mutant removes the production invocation');
+  const callbackSource = await readFile(path.join(root, listenerPath), 'utf8');
+  const mutantWorld = makeTabBinding({ pageIndex: 0, night: false, background: '', drawable: null });
+  assert.throws(() => {
+    tabExecuteMethod(mutant, callbackSource,
+      'public final setViewPager(Landroidx/viewpager/widget/ViewPager;Lcom/suda/yzune/wakeupschedule/schedule/ScheduleViewModel;)V',
+      [mutantWorld.tab, mutantWorld.pager, { night: false }], mutantWorld);
+    assert.equal(mutantWorld.initialRefreshCalls, 1, 'production initial refresh runs exactly once');
+  }, /production initial refresh runs exactly once/, 'removing the initial refresh is detected by the real setViewPager execution');
 });
 
 test('joint offline/network patch keeps the two-tab home local and preserves only intended delayed work', async (t) => {

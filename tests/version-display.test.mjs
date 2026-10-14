@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { applyPatchSpec } from '../scripts/patch.mjs';
@@ -530,6 +531,17 @@ function executeInsetsCallback(source, descriptor, args) {
       if (target.method === 'ime') return 2;
     }
     if (target.kind === 'invoke-static' && target.owner === 'Lkotlin/jvm/internal/o00oO0o;') return undefined;
+    if (target.kind === 'invoke-static' && target.owner === 'Lcom/suda/yzune/wakeupschedule/slim/LogPage;') {
+      if (target.method === 'isLogActivity') {
+        const activity = values[0];
+        return activity.className === settingsClass && activity.logMode === true;
+      }
+      if (target.method === 'applyPageInsets') {
+        const activity = values[0];
+        activity.pageInsetsCalls.push({ view: values[1], insets: values[2] });
+        return undefined;
+      }
+    }
     if (target.owner === 'Landroidx/core/view/WindowInsetsCompat;' && target.method === 'getInsets') {
       return values[0][values[1] === 1 ? 'systemBars' : 'ime'];
     }
@@ -984,7 +996,7 @@ test('actual settings adapter collapses blank rows and restores recycled visible
     'the only click-handler difference remains the read-only version guard');
 });
 
-test('insets callback clips only SettingsActivity and keeps all padding and inset calculations at baseline', async (t) => {
+test('insets callback dispatches only the true log mode and preserves the HEAD ordinary branch', async (t) => {
   const root = await patchedFixture(t);
   const descriptor = 'public static final Ooooooo(Lcom/suda/yzune/wakeupschedule/base_view/OooOO0;Landroid/view/View;Landroidx/core/view/WindowInsetsCompat;)Landroidx/core/view/WindowInsetsCompat;';
   const before = await readSmaliMethod(decoded, basePath, baseClass, descriptor);
@@ -1003,19 +1015,23 @@ test('insets callback clips only SettingsActivity and keeps all padding and inse
   assert.equal(otherHostClipValue, 0, 'the parsed production instance-of keeps other base hosts false');
   assert.match(after, /WindowInsetsCompat\$Type;->systemBars\(\)I[\s\S]*?WindowInsetsCompat\$Type;->ime\(\)I[\s\S]*?getInsets\(I\)Landroidx\/core\/graphics\/Insets;[\s\S]*?setPadding\(IIII\)V/);
   assert.match(after, /return-object p2/);
-  const restored = after
-    .replace('    .locals 7', '    .locals 6')
-    .replace('    invoke-virtual {p0, v6}, Landroidx/recyclerview/widget/RecyclerView;->setClipToPadding(Z)V\n\n    const/4 v1, 0x0\n\n    .line 56',
-      '    invoke-virtual {p0, v6}, Landroidx/recyclerview/widget/RecyclerView;->setClipToPadding(Z)V\n\n    .line 56')
-    .replace(`    instance-of ${match[1]}, p0, Lcom/suda/yzune/wakeupschedule/settings/SettingsActivity;\n`, '')
-    .replace(`    invoke-virtual {p0, ${match[1]}}, Landroidx/recyclerview/widget/RecyclerView;->setClipToPadding(Z)V`,
-      '    const/4 v1, 0x0\n\n    .line 55\n    invoke-virtual {p0, v1}, Landroidx/recyclerview/widget/RecyclerView;->setClipToPadding(Z)V');
-  assert.equal(restored, before, 'the patch changes only the host-scoped clip flag; all insets behavior stays at baseline');
+  const headSpec = JSON.parse(execFileSync('git', ['show', 'HEAD:patches/slim-v1/patch-spec.json'], { encoding: 'utf8' }));
+  const headClip = headSpec.operations.find((operation) => operation.id === 'T34-E55-settings-viewport-clip');
+  assert.ok(headClip, 'the committed round-three T34 replacement is the ordinary-mode reference');
+  const guardLabel = ':slim_settings_clip_ordinary';
+  const falseBranchStart = after.lastIndexOf(guardLabel) + guardLabel.length;
+  assert.ok(falseBranchStart > guardLabel.length, 'the new exact log-mode branch has an ordinary fallthrough label');
+  const actualFalseBody = after.slice(falseBranchStart, after.lastIndexOf('.end method')).trim();
+  const originalInsetsStart = headClip.replacementMethod.indexOf('    invoke-static {}, Landroidx/core/view/WindowInsetsCompat$Type;->systemBars()I');
+  assert.ok(originalInsetsStart >= 0, 'the HEAD T34 body includes the original system-bars callback');
+  const expectedFalseBody = headClip.replacementMethod.slice(originalInsetsStart,
+    headClip.replacementMethod.lastIndexOf('\n.end method')).trim();
+  assert.equal(actualFalseBody, expectedFalseBody, 'false log guard keeps the committed T34 body byte-for-byte, including R312');
 
-  const execute = (className, systemBars, ime, rootPadding, listPadding) => {
+  const execute = (className, systemBars, ime, rootPadding, listPadding, logMode = false) => {
     const list = { padding: [...listPadding], paddingCalls: [], clipCalls: [] };
     const rootView = { padding: [...rootPadding], paddingCalls: [] };
-    const host = { className, list };
+    const host = { className, list, logMode, pageInsetsCalls: [] };
     const insets = { systemBars, ime };
     const returned = executeInsetsCallback(after, descriptor, [host, rootView, insets]);
     return { host, list, rootView, insets, returned };
@@ -1042,6 +1058,16 @@ test('insets callback clips only SettingsActivity and keeps all padding and inse
   const otherHost = execute('Lcom/suda/yzune/wakeupschedule/schedule/ScheduleActivity;',
     { left: 0, right: 0, bottom: 12 }, { left: 0, right: 0, bottom: 0 }, [0, 2, 0, 4], [0, 0, 0, 0]);
   assert.deepEqual(otherHost.list.clipCalls, [false], 'other base hosts retain the original unclipped list behavior');
+  const logActivity = execute(settingsClass,
+    { left: 10, right: 12, bottom: 24 }, { left: 0, right: 0, bottom: 280 }, [1, 7, 2, 15], [3, 4, 5, 9], true);
+  assert.strictEqual(logActivity.returned, logActivity.insets, 'log dispatch returns the same WindowInsetsCompat object');
+  assert.deepEqual(logActivity.host.pageInsetsCalls, [{ view: logActivity.rootView, insets: logActivity.insets }],
+    'true log mode dispatches the existing callback view and Insets to the Activity-owned page bridge');
+  assert.deepEqual(logActivity.rootView.paddingCalls, [], 'the log branch does not apply the removed RecyclerView callback padding');
+  assert.deepEqual(logActivity.list.clipCalls, [], 'the log branch returns before touching the removed RecyclerView');
+  const missingExtra = execute(settingsClass,
+    { left: 4, right: 5, bottom: 9 }, { left: 0, right: 0, bottom: 0 }, [1, 2, 3, 4], [5, 6, 7, 8], false);
+  assert.deepEqual(missingExtra.list.clipCalls, [true], 'ordinary SettingsActivity with a missing/false log extra follows the prior path');
 });
 
 test('design10 breakage mutants are rejected by the executed fixture and source guards', async (t) => {

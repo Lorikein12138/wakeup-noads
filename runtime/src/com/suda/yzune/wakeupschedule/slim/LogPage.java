@@ -21,14 +21,18 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.CountDownLatch;
 
-/** Full-screen, local-only log browser. Public methods are the Smali bridge ABI. */
+/** Native-page, local-only log browser. Public methods are the Smali bridge ABI. */
 public final class LogPage {
     static final int EXPORT_REQUEST_CODE = 0x6c67;
     static final int RESULT_OK = -1;
     static final String ENTRY_TAG = "wakeup_noads_logs_entry";
     static final String SANITIZED_NOTICE = "日志已脱敏";
     private static final Object LOCK = new Object();
+    private static final String LOG_EXTRA = "wakeup_noads_log_page";
+    private static final String SETTINGS_ACTIVITY = "com.suda.yzune.wakeupschedule.settings.SettingsActivity";
+    private static final int FLAG_ACTIVITY_SINGLE_TOP = 0x20000000;
     private static final Map<Object, Controller> CONTROLLERS = new WeakHashMap<Object, Controller>();
+    private static final Map<Object, Boolean> FINISHED_ACTIVITIES = new WeakHashMap<Object, Boolean>();
     private static final List<String> ACTIVE_SNAPSHOTS = new ArrayList<String>();
     private static final Map<Object, Pending> ACTIVE_EXPORTS = new WeakHashMap<Object, Pending>();
     private static final AtomicLong EXPORT_TOKENS = new AtomicLong();
@@ -46,6 +50,9 @@ public final class LogPage {
             return thread;
         }
     });
+    private static volatile PageLaunchCalls pageLaunchCalls = new ReflectivePageLaunchCalls();
+    private static volatile AndroidUiCalls androidUiCalls = new ReflectiveAndroidUiCalls();
+    private static volatile AndroidCalls androidCalls = new ReflectiveAndroidCalls();
 
     private LogPage() { }
 
@@ -69,30 +76,22 @@ public final class LogPage {
 
     public static void show(Object fragment) {
         if (fragment == null) return;
-        Controller controller;
-        synchronized (LOCK) {
-            controller = CONTROLLERS.get(fragment);
-            if (controller == null || controller.closed) {
-                try {
-                    Object activity = fragment.getClass().getMethod("getActivity").invoke(fragment);
-                    if (activity == null) return;
-                    LogStore store = LogStore.forContext(activity);
-                    AndroidHost host = new AndroidHost(fragment, activity);
-                    controller = new Controller(fragment, store, host);
-                    host.controller = controller;
-                    CONTROLLERS.put(fragment, controller);
-                    cleanupOrphanSnapshots((File) activity.getClass().getMethod("getCacheDir").invoke(activity));
-                } catch (Throwable failure) {
-                    toastFromFragment(fragment, "日志页暂不可用");
-                    return;
-                }
-            }
+        try {
+            Object activity = fragment.getClass().getMethod("getActivity").invoke(fragment);
+            if (activity == null) return;
+            PageLaunchCalls calls = pageLaunchCalls;
+            Object intent = calls.newExplicitIntent(activity, calls.settingsActivityClass());
+            calls.putBooleanExtra(intent, LOG_EXTRA, true);
+            calls.addFlags(intent, FLAG_ACTIVITY_SINGLE_TOP);
+            calls.startActivity(fragment, intent);
+        } catch (Throwable failure) {
+            toastFromFragment(fragment, "日志页暂不可用");
         }
-        controller.present();
     }
 
     public static void onActivityResult(Object fragment, int requestCode, int resultCode, Object intent) {
         if (requestCode != EXPORT_REQUEST_CODE) return;
+        if (!isLogActivity(fragment)) return;
         Controller controller;
         synchronized (LOCK) { controller = CONTROLLERS.get(fragment); }
         if (controller == null) {
@@ -111,12 +110,110 @@ public final class LogPage {
         if (controller != null) controller.close();
     }
 
+    public static boolean isLogActivity(Object activity) {
+        if (activity == null) return false;
+        try {
+            PageLaunchCalls calls = pageLaunchCalls;
+            if (!calls.isSettingsActivity(activity)) return false;
+            Object intent = calls.activityIntent(activity);
+            return calls.booleanExtraIsTrue(intent, LOG_EXTRA);
+        } catch (Throwable ignored) { return false; }
+    }
+
+    public static void prepareActivity(Object activity) {
+        if (!isLogActivity(activity)) return;
+        try { activity.getClass().getMethod("setTitle", CharSequence.class).invoke(activity, "本地日志"); }
+        catch (Throwable ignored) { }
+    }
+
+    public static void attachActivity(Object activity) {
+        if (!isLogActivity(activity)) return;
+        Controller controller;
+        synchronized (LOCK) {
+            controller = CONTROLLERS.get(activity);
+            if (controller == null || controller.closed) {
+                try {
+                    LogStore store = LogStore.forContext(activity);
+                    FINISHED_ACTIVITIES.remove(activity);
+                    AndroidHost host = new AndroidHost(activity, activity, androidCalls, androidUiCalls);
+                    controller = new Controller(activity, store, host);
+                    host.controller = controller;
+                    CONTROLLERS.put(activity, controller);
+                    cleanupOrphanSnapshots((File) activity.getClass().getMethod("getCacheDir").invoke(activity));
+                } catch (Throwable failure) {
+                    safeToastAndFinish(activity);
+                    return;
+                }
+            }
+        }
+        controller.present();
+    }
+
+    public static boolean onBackPressed(Object activity) {
+        if (!isLogActivity(activity)) return false;
+        Controller controller;
+        synchronized (LOCK) { controller = CONTROLLERS.get(activity); }
+        if (controller != null) controller.back();
+        else safeFinish(activity);
+        return true;
+    }
+
+    public static void onDestroy(Object activity) {
+        if (!isLogActivity(activity)) return;
+        Controller controller;
+        synchronized (LOCK) { controller = CONTROLLERS.remove(activity); }
+        if (controller != null) controller.detach();
+    }
+
+    public static void applyPageInsets(Object activity, Object view, Object insets) {
+        if (!isLogActivity(activity)) return;
+        Controller controller;
+        synchronized (LOCK) { controller = CONTROLLERS.get(activity); }
+        if (controller != null && controller.host instanceof AndroidHost) {
+            ((AndroidHost) controller.host).applyPageInsets(view, insets);
+        }
+    }
+
+    static void setPageLaunchCallsForTest(PageLaunchCalls calls) {
+        pageLaunchCalls = calls == null ? new ReflectivePageLaunchCalls() : calls;
+    }
+
+    static void setAndroidUiCallsForTest(AndroidUiCalls calls) {
+        androidUiCalls = calls == null ? new ReflectiveAndroidUiCalls() : calls;
+    }
+
+    static void setAndroidCallsForTest(AndroidCalls calls) {
+        androidCalls = calls == null ? new ReflectiveAndroidCalls() : calls;
+    }
+
+    private static void safeToastAndFinish(Object activity) {
+        try { androidUiCalls.toast(activity, "日志页暂不可用"); } catch (Throwable ignored) { }
+        safeFinish(activity);
+    }
+
+    private static void safeFinish(Object activity) {
+        finishActivityOnce(activity, androidUiCalls);
+    }
+
+    private static void finishActivityOnce(Object activity, AndroidUiCalls ui) {
+        if (activity == null) return;
+        synchronized (LOCK) {
+            if (FINISHED_ACTIVITIES.containsKey(activity)) return;
+            FINISHED_ACTIVITIES.put(activity, Boolean.TRUE);
+        }
+        try { ui.finish(activity); }
+        catch (Throwable ignored) {
+            try { activity.getClass().getMethod("finish").invoke(activity); } catch (Throwable ignoredAgain) { }
+        }
+    }
+
     interface ControllerHost {
         void executeIo(Runnable task);
         default void executeCancellation(Runnable task) { CANCELLATION.execute(task); }
         void postMain(Runnable task);
         void open();
         void dismiss();
+        default void detach() { dismiss(); }
         void render(PageState state);
         void toast(String message);
         void copy(String text) throws Exception;
@@ -258,8 +355,8 @@ public final class LogPage {
                 generation++;
                 render();
             } else {
-                Object fragment = owner.get();
-                if (fragment != null) LogPage.close(fragment);
+                Object activity = owner.get();
+                if (activity != null) LogPage.close(activity);
                 else close();
             }
         }
@@ -398,7 +495,11 @@ public final class LogPage {
             return true;
         }
 
-        void close() {
+        void close() { close(true); }
+
+        void detach() { close(false); }
+
+        private void close(boolean finishPage) {
             if (closed) return;
             closed = true;
             generation++;
@@ -410,7 +511,8 @@ public final class LogPage {
                     host.executeCancellation(new Runnable() { @Override public void run() { finishSession(current, null, null, false); } });
                 }
             }
-            host.dismiss();
+            if (finishPage) host.dismiss();
+            else host.detach();
             presented = false;
         }
 
@@ -667,7 +769,45 @@ public final class LogPage {
         } catch (Throwable ignored) { }
     }
 
-    /** Reflection-only Android dialog and local SAF/clipboard adapters. */
+    interface PageLaunchCalls {
+        Class<?> settingsActivityClass() throws Exception;
+        Object newExplicitIntent(Object context, Class<?> targetClass) throws Exception;
+        void putBooleanExtra(Object intent, String key, boolean value) throws Exception;
+        void addFlags(Object intent, int flags) throws Exception;
+        void startActivity(Object fragment, Object intent) throws Exception;
+        boolean isSettingsActivity(Object activity) throws Exception;
+        Object activityIntent(Object activity) throws Exception;
+        boolean booleanExtraIsTrue(Object intent, String key) throws Exception;
+    }
+
+    private static final class ReflectivePageLaunchCalls implements PageLaunchCalls {
+        @Override public Class<?> settingsActivityClass() throws Exception { return Class.forName(SETTINGS_ACTIVITY); }
+        @Override public Object newExplicitIntent(Object context, Class<?> targetClass) throws Exception {
+            return Class.forName("android.content.Intent")
+                .getConstructor(Class.forName("android.content.Context"), Class.class).newInstance(context, targetClass);
+        }
+        @Override public void putBooleanExtra(Object intent, String key, boolean value) throws Exception {
+            intent.getClass().getMethod("putExtra", String.class, boolean.class).invoke(intent, key, value);
+        }
+        @Override public void addFlags(Object intent, int flags) throws Exception {
+            intent.getClass().getMethod("addFlags", int.class).invoke(intent, flags);
+        }
+        @Override public void startActivity(Object fragment, Object intent) throws Exception {
+            fragment.getClass().getMethod("startActivity", Class.forName("android.content.Intent")).invoke(fragment, intent);
+        }
+        @Override public boolean isSettingsActivity(Object activity) throws Exception { return settingsActivityClass().isInstance(activity); }
+        @Override public Object activityIntent(Object activity) throws Exception {
+            return activity.getClass().getMethod("getIntent").invoke(activity);
+        }
+        @Override public boolean booleanExtraIsTrue(Object intent, String key) throws Exception {
+            if (intent == null) return false;
+            Object extras = intent.getClass().getMethod("getExtras").invoke(intent);
+            if (extras == null) return false;
+            Object value = extras.getClass().getMethod("get", String.class).invoke(extras, key);
+            return value instanceof Boolean && ((Boolean) value).booleanValue();
+        }
+    }
+
     interface AndroidCalls {
         Object newIntent(String action) throws Exception;
         void addCategory(Object intent, String category) throws Exception;
@@ -679,25 +819,94 @@ public final class LogPage {
         int deleteTarget(Object context, Object uri) throws Exception;
     }
 
+    static final class ThemeColors {
+        final Object background;
+        final Object surface;
+        final Object onSurface;
+        final Object secondary;
+        final Object divider;
+        final int backgroundColor;
+        final int surfaceColor;
+        final int dividerColor;
+        ThemeColors(Object background, Object surface, Object onSurface, Object secondary, Object divider,
+                    int backgroundColor, int surfaceColor, int dividerColor) {
+            this.background = background; this.surface = surface; this.onSurface = onSurface;
+            this.secondary = secondary; this.divider = divider; this.backgroundColor = backgroundColor;
+            this.surfaceColor = surfaceColor; this.dividerColor = dividerColor;
+        }
+    }
+
+    static final class PageInsets {
+        final int left;
+        final int top;
+        final int right;
+        final int systemBottom;
+        final int imeBottom;
+        PageInsets(int left, int top, int right, int systemBottom, int imeBottom) {
+            this.left = left; this.top = top; this.right = right;
+            this.systemBottom = systemBottom; this.imeBottom = imeBottom;
+        }
+    }
+
+    static final class NativePage {
+        final Object activity;
+        final Object coordinator;
+        final Object appBar;
+        final Object toolbar;
+        final Object recycler;
+        final Object root;
+        final Object body;
+        final Object layoutParams;
+        final Object behavior;
+        NativePage(Object activity, Object coordinator, Object appBar, Object toolbar, Object recycler,
+                   Object root, Object body, Object layoutParams, Object behavior) {
+            this.activity = activity; this.coordinator = coordinator; this.appBar = appBar; this.toolbar = toolbar;
+            this.recycler = recycler; this.root = root; this.body = body; this.layoutParams = layoutParams; this.behavior = behavior;
+        }
+    }
+
+    interface AndroidUiCalls {
+        Object invoke(Object receiver, String method, String[] parameterTypes, Object[] arguments) throws Exception;
+        Object construct(String className, String[] parameterTypes, Object[] arguments) throws Exception;
+        boolean isInstance(Object value, String className) throws Exception;
+        Object staticField(String className, String name) throws Exception;
+        Object clickListener(Runnable callback) throws Exception;
+        float density(Object context) throws Exception;
+        int sdkInt();
+        Object registerBack(Object activity, Runnable callback) throws Exception;
+        void unregisterBack(Object activity, Object registration) throws Exception;
+        PageInsets readInsets(Object insets) throws Exception;
+        int[] padding(Object view) throws Exception;
+        void setPadding(Object view, int left, int top, int right, int bottom) throws Exception;
+        boolean isAttached(Object view) throws Exception;
+        void requestApplyInsets(Object view) throws Exception;
+        void finish(Object activity) throws Exception;
+        void toast(Object activity, String message) throws Exception;
+    }
+
     static final class AndroidHost implements ControllerHost {
-        private final WeakReference<Object> fragment;
+        private final WeakReference<Object> owner;
         private final WeakReference<Object> activity;
         private final AndroidCalls calls;
+        private final AndroidUiCalls ui;
         private Controller controller;
-        private Object dialog;
-        private Object root;
-        private Object body;
-        private Object title;
-        private Object refreshButton;
-        private Object backCallback;
-        private Object backDispatcher;
+        private NativePage page;
+        private ThemeColors colors;
+        private Object backRegistration;
+        private int[] rootBasePadding;
+        private int[] bodyBasePadding;
+        private boolean detached;
+        private boolean failed;
+        private boolean finished;
         private File cacheDirectory;
 
-        AndroidHost(Object fragment, Object activity) { this(fragment, activity, new ReflectiveAndroidCalls()); }
-        AndroidHost(Object fragment, Object activity, AndroidCalls calls) {
-            this.fragment = new WeakReference<Object>(fragment);
+        AndroidHost(Object owner, Object activity) { this(owner, activity, new ReflectiveAndroidCalls(), androidUiCalls); }
+        AndroidHost(Object owner, Object activity, AndroidCalls calls) { this(owner, activity, calls, androidUiCalls); }
+        AndroidHost(Object owner, Object activity, AndroidCalls calls, AndroidUiCalls ui) {
+            this.owner = new WeakReference<Object>(owner);
             this.activity = new WeakReference<Object>(activity);
             this.calls = calls;
+            this.ui = ui;
             try { cacheDirectory = (File) activity.getClass().getMethod("getCacheDir").invoke(activity); }
             catch (Throwable ignored) { }
         }
@@ -713,40 +922,89 @@ public final class LogPage {
         }
         @Override public void open() {
             Object context = activity.get();
-            if (context == null || dialog != null) return;
+            if (context == null || page != null || detached || failed) return;
             try {
-                Class<?> dialogClass = Class.forName("android.app.Dialog");
-                dialog = dialogClass.getConstructor(Class.forName("android.content.Context")).newInstance(context);
-                buildDialog(context);
-                dialogClass.getMethod("setContentView", Class.forName("android.view.View")).invoke(dialog, root);
-                dialogClass.getMethod("setCancelable", boolean.class).invoke(dialog, true);
-                try { dialogClass.getMethod("setCanceledOnTouchOutside", boolean.class).invoke(dialog, false); } catch (Throwable ignored) { }
-                installBackHandling();
-                dialogClass.getMethod("show").invoke(dialog);
-                Object window = dialogClass.getMethod("getWindow").invoke(dialog);
-                window.getClass().getMethod("setLayout", int.class, int.class).invoke(window, -1, -1);
-                applyInsets(context, window, root);
-            } catch (Throwable failure) {
-                dismiss();
-                toast("日志页暂不可用");
-            }
+                colors = resolveThemeColors(context, ui);
+                page = NativePageUi.openPage(context, colors, new Runnable() {
+                    @Override public void run() { if (controller != null) controller.back(); }
+                }, ui);
+                if (page == null || page.root == null || page.body == null) throw new IOException("日志页不可用");
+                rootBasePadding = ui.padding(page.root);
+                bodyBasePadding = ui.padding(page.body);
+                if (ui.sdkInt() >= 33) backRegistration = ui.registerBack(context, new Runnable() {
+                    @Override public void run() { if (controller != null) controller.back(); }
+                });
+                ui.requestApplyInsets(page.root);
+            } catch (Throwable failure) { failPage(); }
         }
         @Override public void dismiss() {
-            unregisterBack();
-            if (dialog != null) try { dialog.getClass().getMethod("dismiss").invoke(dialog); } catch (Throwable ignored) { }
-            dialog = null; root = null; body = null; title = null; refreshButton = null;
+            releasePage();
+            Object context = activity.get();
+            if (!finished && context != null) {
+                finished = true;
+                finishActivityOnce(context, ui);
+            }
         }
-        @Override public void render(PageState state) {
-            if (dialog == null || body == null) return;
+        static void toast(Object context, String message) { try { androidUiCalls.toast(context, message); } catch (Throwable ignored) { } }
+        @Override public void detach() {
+            detached = true;
+            releasePage();
+        }
+        private void releasePage() {
+            Object context = activity.get();
+            if (context != null && backRegistration != null) {
+                Object registration = backRegistration;
+                backRegistration = null;
+                try { ui.unregisterBack(context, registration); } catch (Throwable ignored) { }
+            } else backRegistration = null;
+            if (page != null) {
+                NativePage previous = page;
+                page = null;
+                try { NativePageUi.detachPage(previous, ui); } catch (Throwable ignored) { }
+            }
+            rootBasePadding = null;
+            bodyBasePadding = null;
+            colors = null;
+        }
+        private void failPage() {
+            if (failed) return;
+            failed = true;
+            releasePage();
+            Object context = activity.get();
+            if (context == null) return;
+            try { ui.toast(context, "日志页暂不可用"); } catch (Throwable ignored) { }
+            if (!finished) {
+                finished = true;
+                finishActivityOnce(context, ui);
+            }
+        }
+        @Override public void render(final PageState state) {
+            if (page == null || colors == null || detached || failed) return;
             try {
-                body.getClass().getMethod("removeAllViews").invoke(body);
-                setText(title, state.detail && state.selected != null ? state.selected.fileName : "本地日志");
-                if (state.detail && state.selected != null) renderDetail(state);
-                else renderList(state);
-                if (refreshButton != null) setText(refreshButton, state.exportPending ? "导出中" : "刷新");
+                NativePageUi.renderPage(page, state, colors, controller,
+                    new Runnable() { @Override public void run() { if (controller != null) controller.refresh(); } },
+                    new Runnable() { @Override public void run() { if (controller != null) controller.copySelected(); } },
+                    new Runnable() { @Override public void run() { if (controller != null) controller.exportSelected(cacheDirectory); } }, ui);
+            } catch (Throwable failure) { failPage(); }
+        }
+        @Override public void toast(String message) {
+            Object context = activity.get();
+            if (context != null) try { ui.toast(context, message); } catch (Throwable ignored) { }
+        }
+        void applyPageInsets(Object callbackView, Object insets) {
+            if (page == null || detached || failed || insets == null) return;
+            try {
+                if (!ui.isAttached(page.root) || rootBasePadding == null || bodyBasePadding == null) return;
+                PageInsets value = ui.readInsets(insets);
+                if (value == null) return;
+                pagePadding(page.root, value.left, rootBasePadding[1], value.right, value.imeBottom);
+                int contentBottom = bodyBasePadding[3] + (value.imeBottom == 0 ? value.systemBottom : 0);
+                pagePadding(page.body, bodyBasePadding[0], bodyBasePadding[1], bodyBasePadding[2], contentBottom);
             } catch (Throwable ignored) { }
         }
-        @Override public void toast(String message) { Object context = activity.get(); if (context != null) toast(context, message); }
+        private void pagePadding(Object view, int left, int top, int right, int bottom) throws Exception {
+            ui.setPadding(view, left, top, right, bottom);
+        }
         @Override public void copy(String text) throws Exception {
             Object context = activity.get();
             if (context == null) throw new IOException("宿主已关闭");
@@ -756,10 +1014,10 @@ public final class LogPage {
             manager.getClass().getMethod("setPrimaryClip", clipData).invoke(manager, clip);
         }
         @Override public void launchDocument(String title, int requestCode) throws Exception {
-            Object owner = fragment.get();
+            Object activityOwner = owner.get();
             Object context = activity.get();
-            if (owner == null || context == null) throw new IOException("宿主已关闭");
-            launchDocumentRequest(calls, owner, title, requestCode);
+            if (activityOwner == null || context == null || activityOwner != context) throw new IOException("宿主已关闭");
+            launchDocumentRequest(calls, activityOwner, title, requestCode);
         }
         @Override public boolean isContentUri(Object uri) {
             if (uri == null) return false;
@@ -779,229 +1037,367 @@ public final class LogPage {
             if (context == null) throw new IOException("宿主已关闭");
             return calls.deleteTarget(context, uri) > 0;
         }
-
-        private static Object launchDocumentRequest(AndroidCalls calls, Object fragment, String title, int requestCode) throws Exception {
+        private static Object launchDocumentRequest(AndroidCalls calls, Object activity, String title, int requestCode) throws Exception {
             Object intent = calls.newIntent("android.intent.action.CREATE_DOCUMENT");
             calls.addCategory(intent, "android.intent.category.OPENABLE");
             calls.setType(intent, "text/plain");
             calls.putStringExtra(intent, "android.intent.extra.TITLE", title);
             calls.putBooleanExtra(intent, "android.intent.extra.LOCAL_ONLY", true);
-            calls.startActivityForResult(fragment, intent, requestCode);
+            calls.startActivityForResult(activity, intent, requestCode);
             return intent;
         }
+    }
 
-        private void buildDialog(final Object context) throws Exception {
-            Class<?> linear = Class.forName("android.widget.LinearLayout");
-            root = construct(linear, Class.forName("android.content.Context"), context);
-            call(root, "setOrientation", new Class<?>[] { int.class }, new Object[] { 1 });
-            call(root, "setPadding", new Class<?>[] { int.class, int.class, int.class, int.class }, new Object[] { dp(context, 16), dp(context, 8), dp(context, 16), dp(context, 12) });
-            int background = color(context, "mine_page_background", 0xfffafafa);
-            call(root, "setBackgroundColor", new Class<?>[] { int.class }, new Object[] { background });
-            Object bar = construct(linear, Class.forName("android.content.Context"), context);
-            call(bar, "setOrientation", new Class<?>[] { int.class }, new Object[] { 0 });
-            Object back = text(context, "‹", 32, color(context, "mine_text_primary", 0xff222222));
-            styleTextControl(back, context, 56, 17);
-            call(back, "setMinWidth", new Class<?>[] { int.class }, new Object[] { dp(context, 48) });
-            setClick(back, new Runnable() { @Override public void run() { if (controller != null) controller.back(); } });
-            add(bar, back, linearParams(context, -2, -2, 0));
-            title = text(context, "本地日志", 20, color(context, "mine_text_primary", 0xff222222));
-            styleTextControl(title, context, 56, 16);
-            add(bar, title, linearParams(context, 0, -2, 1));
-            refreshButton = text(context, "刷新", 16, color(context, "mine_text_primary", 0xff222222));
-            styleTextControl(refreshButton, context, 56, 17);
-            call(refreshButton, "setMinWidth", new Class<?>[] { int.class }, new Object[] { dp(context, 56) });
-            setClick(refreshButton, new Runnable() { @Override public void run() { if (controller != null) controller.refresh(); } });
-            add(bar, refreshButton, linearParams(context, -2, -2, 0));
-            add(root, bar, linearParams(context, -1, -2, 0));
-            Class<?> scroll = Class.forName("android.widget.ScrollView");
-            Object scroller = construct(scroll, Class.forName("android.content.Context"), context);
-            body = construct(linear, Class.forName("android.content.Context"), context);
-            call(body, "setOrientation", new Class<?>[] { int.class }, new Object[] { 1 });
-            add(scroller, body, newLayoutParams(-1, -2));
-            add(root, scroller, linearParams(context, -1, 0, 1));
-            Object window = dialog.getClass().getMethod("getWindow").invoke(dialog);
-            if (window != null) {
-                try { window.getClass().getMethod("setBackgroundDrawable", Class.forName("android.graphics.drawable.Drawable"))
-                    .invoke(window, Class.forName("android.graphics.drawable.ColorDrawable").getConstructor(int.class).newInstance(background)); }
-                catch (Throwable ignored) { }
-                try { window.getClass().getMethod("setStatusBarColor", int.class).invoke(window, 0); } catch (Throwable ignored) { }
-                try { window.getClass().getMethod("setNavigationBarColor", int.class).invoke(window, 0); } catch (Throwable ignored) { }
+    private static ThemeColors resolveThemeColors(Object context, AndroidUiCalls ui) throws Exception {
+        String packageName = String.valueOf(ui.invoke(context, "getPackageName", new String[0], new Object[0]));
+        Object background = resolveThemeColorStateList(context, "android", "colorBackground", ui);
+        Object surface = resolveThemeColorStateList(context, packageName, "colorSurface", ui);
+        Object onSurface = resolveThemeColorStateList(context, packageName, "colorOnSurface", ui);
+        Object secondary = resolveThemeColorStateList(context, packageName, "colorOnSurfaceVariant", ui);
+        Object divider = resolveThemeColorStateList(context, packageName, "colorOutlineVariant", ui);
+        return new ThemeColors(background, surface, onSurface, secondary, divider,
+            ((Number) ui.invoke(background, "getDefaultColor", new String[0], new Object[0])).intValue(),
+            ((Number) ui.invoke(surface, "getDefaultColor", new String[0], new Object[0])).intValue(),
+            ((Number) ui.invoke(divider, "getDefaultColor", new String[0], new Object[0])).intValue());
+    }
+
+    private static Object resolveThemeColorStateList(Object context, String resourcePackage, String attribute,
+                                                      AndroidUiCalls ui) throws Exception {
+        Object resources = ui.invoke(context, "getResources", new String[0], new Object[0]);
+        int id = ((Number) ui.invoke(resources, "getIdentifier", new String[] {
+            "java.lang.String", "java.lang.String", "java.lang.String"
+        }, new Object[] { attribute, "attr", resourcePackage })).intValue();
+        if (id == 0) throw new IOException("主题属性不可用");
+        Object theme = ui.invoke(context, "getTheme", new String[0], new Object[0]);
+        Object typed = ui.invoke(theme, "obtainStyledAttributes", new String[] { "[I" },
+            new Object[] { new int[] { id } });
+        try {
+            Object value = ui.invoke(typed, "getColorStateList", new String[] { "int" }, new Object[] { 0 });
+            if (value == null) throw new IOException("主题颜色不可用");
+            return value;
+        } finally { ui.invoke(typed, "recycle", new String[0], new Object[0]); }
+    }
+
+    private static final class NativePageUi {
+        private static final String VIEW = "android.view.View";
+        private static final String VIEW_GROUP = "android.view.ViewGroup";
+        private static final String VIEW_PARAMS = "android.view.ViewGroup$LayoutParams";
+        private static final String CONTEXT = "android.content.Context";
+        private static final String COLOR_STATE_LIST = "android.content.res.ColorStateList";
+        private static final String APP_BAR = "com.google.android.material.appbar.AppBarLayout";
+        private static final String TOOLBAR = "com.google.android.material.appbar.MaterialToolbar";
+        private static final String RECYCLER = "androidx.recyclerview.widget.RecyclerView";
+
+        static NativePage openPage(Object activity, ThemeColors colors, Runnable toolbarBack, AndroidUiCalls ui) throws Exception {
+            Object coordinator = invoke(ui, activity, "o00O0O");
+            Object recycler = invoke(ui, activity, "o0OoOo0");
+            if (coordinator == null || recycler == null || !ui.isInstance(recycler, RECYCLER)
+                || invoke(ui, recycler, "getParent") != coordinator) throw new IOException("原生页面容器不可用");
+
+            Object appBar = null;
+            int childCount = ((Number) invoke(ui, coordinator, "getChildCount")).intValue();
+            for (int index = 0; index < childCount; index++) {
+                Object child = invoke(ui, coordinator, "getChildAt", new String[] { "int" }, new Object[] { index });
+                if (ui.isInstance(child, APP_BAR)) {
+                    if (appBar != null) throw new IOException("原生页面容器不可用");
+                    appBar = child;
+                }
             }
+            Object toolbar = appBar == null ? null : findDescendant(appBar, TOOLBAR, ui);
+            if (appBar == null || toolbar == null || invoke(ui, appBar, "getParent") != coordinator
+                || invoke(ui, toolbar, "getParent") == null) throw new IOException("原生页面容器不可用");
+
+            Object params = invoke(ui, recycler, "getLayoutParams");
+            String coordinatorParams = "androidx.coordinatorlayout.widget.CoordinatorLayout$LayoutParams";
+            String coordinatorBehavior = "androidx.coordinatorlayout.widget.CoordinatorLayout$Behavior";
+            if (params == null || !ui.isInstance(params, coordinatorParams)) throw new IOException("原生页面布局不可用");
+            Object behavior = invoke(ui, params, "getBehavior");
+            if (behavior != null) invoke(ui, params, "setBehavior", new String[] { coordinatorBehavior }, new Object[] { behavior });
+
+            Object scroll = construct(ui, "androidx.core.widget.NestedScrollView", CONTEXT, activity);
+            invoke(ui, scroll, "setFillViewport", new String[] { "boolean" }, new Object[] { Boolean.TRUE });
+            invoke(ui, scroll, "setClipToPadding", new String[] { "boolean" }, new Object[] { Boolean.TRUE });
+            invoke(ui, scroll, "setBackgroundColor", new String[] { "int" }, new Object[] { colors.backgroundColor });
+            Object body = construct(ui, "android.widget.LinearLayout", CONTEXT, activity);
+            invoke(ui, body, "setOrientation", new String[] { "int" }, new Object[] { 1 });
+            invoke(ui, body, "setPadding", new String[] { "int", "int", "int", "int" },
+                new Object[] { dp(activity, 16, ui), dp(activity, 8, ui), dp(activity, 16, ui), dp(activity, 12, ui) });
+            invoke(ui, body, "setClipToPadding", new String[] { "boolean" }, new Object[] { Boolean.TRUE });
+            add(ui, scroll, body, newLayoutParams(ui, -1, -2));
+
+            Object recyclerParent = invoke(ui, recycler, "getParent");
+            invoke(ui, recyclerParent, "removeView", new String[] { VIEW }, new Object[] { recycler });
+            invoke(ui, scroll, "setLayoutParams", new String[] { VIEW_PARAMS }, new Object[] { params });
+            invoke(ui, coordinator, "addView", new String[] { VIEW, VIEW_PARAMS }, new Object[] { scroll, params });
+            invoke(ui, toolbar, "setTitle", new String[] { "java.lang.CharSequence" }, new Object[] { "本地日志" });
+            setNavigationClick(ui, toolbar, toolbarBack);
+            return new NativePage(activity, coordinator, appBar, toolbar, recycler, scroll, body, params, behavior);
         }
 
-        private void renderList(PageState state) throws Exception {
-            addLabel(SANITIZED_NOTICE, 14, false);
-            if (state.result.entries.isEmpty() && !state.result.hasErrors()) addLabel("暂无日志", 16, false);
-            for (String error : state.result.sourceErrors) addLabel(error, 14, false);
+        static void renderPage(NativePage page, PageState state, ThemeColors colors, Controller controller,
+                               Runnable refresh, Runnable copy, Runnable export, AndroidUiCalls ui) throws Exception {
+            invoke(ui, page.body, "removeAllViews");
+            String title = state.detail && state.selected != null ? "日志详情" : "本地日志";
+            invoke(ui, page.toolbar, "setTitle", new String[] { "java.lang.CharSequence" }, new Object[] { title });
+            Object refreshButton = button(page.activity, state.exportPending ? "导出中" : "刷新", colors, ui);
+            setClick(ui, refreshButton, refresh);
+            add(ui, page.body, refreshButton, linearParams(ui, -2, -2, 0));
+            if (state.detail && state.selected != null) renderDetail(page, state, colors, copy, export, ui);
+            else renderList(page, state, colors, controller, ui);
+        }
+
+        private static void renderList(NativePage page, PageState state, ThemeColors colors, Controller controller,
+                                       AndroidUiCalls ui) throws Exception {
+            addLabel(page, LogPage.SANITIZED_NOTICE, 14, colors.onSurface, ui);
+            if (state.result.entries.isEmpty() && !state.result.hasErrors()) addLabel(page, "暂无日志", 16, colors.onSurface, ui);
+            for (String error : state.result.sourceErrors) addLabel(page, error, 14, colors.secondary, ui);
             for (final LogStore.Entry entry : state.result.entries) {
+                Object card = construct(ui, "com.google.android.material.card.MaterialCardView", CONTEXT, page.activity);
+                invoke(ui, card, "setCardBackgroundColor", new String[] { COLOR_STATE_LIST }, new Object[] { colors.surface });
                 String label = entry.fileName + "\n" + entry.kind() + " · " + CrashLog.formatTime(entry.modifiedMillis)
                     + "\n" + entry.sourceLabel;
-                Object row = text(activity.get(), label, 15, color(activity.get(), "mine_text_primary", 0xff222222));
-                call(row, "setPadding", new Class<?>[] { int.class, int.class, int.class, int.class }, new Object[] { dp(activity.get(), 8), dp(activity.get(), 12), dp(activity.get(), 8), dp(activity.get(), 12) });
-                setClick(row, new Runnable() { @Override public void run() { if (controller != null) controller.select(entry); } });
-                add(body, row, newLayoutParams(-1, -2));
-                addDivider(activity.get());
+                Object text = text(page.activity, label, 15, colors.onSurface, ui);
+                invoke(ui, text, "setPadding", new String[] { "int", "int", "int", "int" },
+                    new Object[] { dp(page.activity, 12, ui), dp(page.activity, 12, ui), dp(page.activity, 12, ui), dp(page.activity, 12, ui) });
+                add(ui, card, text, newLayoutParams(ui, -1, -2));
+                setClick(ui, card, new Runnable() { @Override public void run() { if (controller != null) controller.select(entry); } });
+                add(ui, page.body, card, cardParams(page.activity, ui));
+                addDivider(page, colors.dividerColor, ui);
             }
-            if (!state.message.isEmpty() && !(state.result.isEmpty() && !state.result.hasErrors() && "暂无日志".equals(state.message))) addLabel(state.message, 14, false);
-        }
-
-        private void renderDetail(PageState state) throws Exception {
-            addLabel(SANITIZED_NOTICE, 14, false);
-            addLabel(state.selected.kind() + " · " + state.selected.sourceLabel, 14, false);
-            Object actions = construct(Class.forName("android.widget.LinearLayout"), Class.forName("android.content.Context"), activity.get());
-            call(actions, "setOrientation", new Class<?>[] { int.class }, new Object[] { 0 });
-            Object copy = text(activity.get(), "复制", 16, color(activity.get(), "mine_text_primary", 0xff222222));
-            styleTextControl(copy, activity.get(), 48, 17);
-            setClick(copy, new Runnable() { @Override public void run() { if (controller != null) controller.copySelected(); } });
-            Object export = text(activity.get(), "导出", 16, color(activity.get(), "mine_text_primary", 0xff222222));
-            styleTextControl(export, activity.get(), 48, 17);
-            setClick(export, new Runnable() { @Override public void run() { if (controller != null) controller.exportSelected(cacheDirectory); } });
-            add(actions, copy, linearParams(activity.get(), 0, -2, 1));
-            add(actions, export, linearParams(activity.get(), 0, -2, 1));
-            add(body, actions, newLayoutParams(-1, -2));
-            Object text = text(activity.get(), state.preview, 14, color(activity.get(), "mine_text_primary", 0xff222222));
-            call(text, "setTextIsSelectable", new Class<?>[] { boolean.class }, new Object[] { true });
-            Object typeface = Class.forName("android.graphics.Typeface").getField("MONOSPACE").get(null);
-            call(text, "setTypeface", new Class<?>[] { Class.forName("android.graphics.Typeface") }, new Object[] { typeface });
-            call(text, "setPadding", new Class<?>[] { int.class, int.class, int.class, int.class }, new Object[] { dp(activity.get(), 4), dp(activity.get(), 12), dp(activity.get(), 4), dp(activity.get(), 12) });
-            add(body, text, newLayoutParams(-1, -2));
-            if (!state.message.isEmpty()) addLabel(state.message, 14, false);
-        }
-
-        private void addLabel(String value, int size, boolean monospace) throws Exception {
-            Object view = text(activity.get(), value, size, color(activity.get(), "mine_text_primary", 0xff222222));
-            call(view, "setPadding", new Class<?>[] { int.class, int.class, int.class, int.class }, new Object[] { dp(activity.get(), 8), dp(activity.get(), 12), dp(activity.get(), 8), dp(activity.get(), 12) });
-            add(body, view, newLayoutParams(-1, -2));
-        }
-        private void addDivider(Object context) throws Exception {
-            Object divider = construct(Class.forName("android.view.View"), Class.forName("android.content.Context"), context);
-            call(divider, "setBackgroundColor", new Class<?>[] { int.class }, new Object[] { color(context, "mine_divider", 0xffdddddd) });
-            add(body, divider, newLayoutParams(-1, dp(context, 1)));
-        }
-
-        private void installBackHandling() {
-            if (dialog == null) return;
-            int sdk = sdkInt();
-            if (sdk >= 33) {
-                try {
-                    backDispatcher = dialog.getClass().getMethod("getOnBackInvokedDispatcher").invoke(dialog);
-                    Class<?> callbackType = Class.forName("android.window.OnBackInvokedCallback");
-                    backCallback = Proxy.newProxyInstance(callbackType.getClassLoader(), new Class<?>[] { callbackType },
-                        (proxy, method, args) -> { if ("onBackInvoked".equals(method.getName()) && controller != null) controller.back(); return null; });
-                    backDispatcher.getClass().getMethod("registerOnBackInvokedCallback", int.class, callbackType).invoke(backDispatcher, 0, backCallback);
-                    return;
-                } catch (Throwable ignored) { unregisterBack(); }
+            if (!state.message.isEmpty() && !(state.result.isEmpty() && !state.result.hasErrors() && "暂无日志".equals(state.message))) {
+                addLabel(page, state.message, 14, colors.secondary, ui);
             }
-            try {
-                Class<?> keyListener = Class.forName("android.content.DialogInterface$OnKeyListener");
-                Object listener = Proxy.newProxyInstance(keyListener.getClassLoader(), new Class<?>[] { keyListener },
-                    (proxy, method, args) -> {
-                        if ("onKey".equals(method.getName()) && args != null && args.length == 3) {
-                            int key = ((Number) args[1]).intValue();
-                            Object event = args[2];
-                            int action = ((Number) event.getClass().getMethod("getAction").invoke(event)).intValue();
-                            if (key == 4 && action == 1 && controller != null) { controller.back(); return Boolean.TRUE; }
-                        }
-                        return Boolean.FALSE;
-                    });
-                dialog.getClass().getMethod("setOnKeyListener", keyListener).invoke(dialog, listener);
-            } catch (Throwable ignored) { }
         }
-        private void unregisterBack() {
-            if (backDispatcher != null && backCallback != null) try {
-                backDispatcher.getClass().getMethod("unregisterOnBackInvokedCallback", Class.forName("android.window.OnBackInvokedCallback")).invoke(backDispatcher, backCallback);
-            } catch (Throwable ignored) { }
-            backDispatcher = null; backCallback = null;
+
+        private static void renderDetail(NativePage page, PageState state, ThemeColors colors, Runnable copy, Runnable export,
+                                         AndroidUiCalls ui) throws Exception {
+            addLabel(page, LogPage.SANITIZED_NOTICE, 14, colors.onSurface, ui);
+            addLabel(page, state.selected.fileName, 16, colors.onSurface, ui);
+            addLabel(page, state.selected.kind() + " · " + state.selected.sourceLabel, 14, colors.secondary, ui);
+            Object actions = construct(ui, "android.widget.LinearLayout", CONTEXT, page.activity);
+            invoke(ui, actions, "setOrientation", new String[] { "int" }, new Object[] { 0 });
+            Object copyButton = button(page.activity, "复制", colors, ui);
+            Object exportButton = button(page.activity, "导出", colors, ui);
+            setClick(ui, copyButton, copy);
+            setClick(ui, exportButton, export);
+            add(ui, actions, copyButton, linearParams(ui, -2, -2, 0));
+            add(ui, actions, exportButton, linearParams(ui, -2, -2, 0));
+            add(ui, page.body, actions, newLayoutParams(ui, -1, -2));
+            Object preview = text(page.activity, state.preview, 14, colors.onSurface, ui);
+            invoke(ui, preview, "setTextIsSelectable", new String[] { "boolean" }, new Object[] { Boolean.TRUE });
+            Object typeface = ui.staticField("android.graphics.Typeface", "MONOSPACE");
+            invoke(ui, preview, "setTypeface", new String[] { "android.graphics.Typeface" }, new Object[] { typeface });
+            invoke(ui, preview, "setPadding", new String[] { "int", "int", "int", "int" },
+                new Object[] { dp(page.activity, 4, ui), dp(page.activity, 12, ui), dp(page.activity, 4, ui), dp(page.activity, 12, ui) });
+            add(ui, page.body, preview, newLayoutParams(ui, -1, -2));
+            if (!state.message.isEmpty()) addLabel(page, state.message, 14, colors.secondary, ui);
         }
-        private static void applyInsets(Object context, Object window, Object view) {
-            if (sdkInt() >= 30) try { window.getClass().getMethod("setDecorFitsSystemWindows", boolean.class).invoke(window, false); } catch (Throwable ignored) { }
-            try {
-                Class<?> listenerType = Class.forName("android.view.View$OnApplyWindowInsetsListener");
-                final int left = ((Number) view.getClass().getMethod("getPaddingLeft").invoke(view)).intValue();
-                final int top = ((Number) view.getClass().getMethod("getPaddingTop").invoke(view)).intValue();
-                final int right = ((Number) view.getClass().getMethod("getPaddingRight").invoke(view)).intValue();
-                final int bottom = ((Number) view.getClass().getMethod("getPaddingBottom").invoke(view)).intValue();
-                Object listener = Proxy.newProxyInstance(listenerType.getClassLoader(), new Class<?>[] { listenerType },
-                    (proxy, method, args) -> {
-                        if ("onApplyWindowInsets".equals(method.getName())) {
-                            Object insets = args[1];
-                            int l = ((Number) insets.getClass().getMethod("getSystemWindowInsetLeft").invoke(insets)).intValue();
-                            int t = ((Number) insets.getClass().getMethod("getSystemWindowInsetTop").invoke(insets)).intValue();
-                            int r = ((Number) insets.getClass().getMethod("getSystemWindowInsetRight").invoke(insets)).intValue();
-                            int b = ((Number) insets.getClass().getMethod("getSystemWindowInsetBottom").invoke(insets)).intValue();
-                            view.getClass().getMethod("setPadding", int.class, int.class, int.class, int.class).invoke(view, left + l, top + t, right + r, bottom + b);
-                            return insets;
-                        }
-                        return null;
-                    });
-                view.getClass().getMethod("setOnApplyWindowInsetsListener", listenerType).invoke(view, listener);
-                view.getClass().getMethod("requestApplyInsets").invoke(view);
-            } catch (Throwable ignored) { }
+
+        static void detachPage(NativePage page, AndroidUiCalls ui) throws Exception {
+            setNavigationClick(ui, page.toolbar, null);
+            Object parent = invoke(ui, page.root, "getParent");
+            if (parent == page.coordinator) invoke(ui, parent, "removeView", new String[] { VIEW }, new Object[] { page.root });
         }
-        private static Object text(Object context, String value, int size, int color) throws Exception {
-            Object view = construct(Class.forName("android.widget.TextView"), Class.forName("android.content.Context"), context);
-            setText(view, value);
-            call(view, "setTextSize", new Class<?>[] { int.class, float.class }, new Object[] { 2, (float) size });
-            call(view, "setTextColor", new Class<?>[] { int.class }, new Object[] { color });
+
+        private static Object findDescendant(Object root, String className, AndroidUiCalls ui) throws Exception {
+            if (ui.isInstance(root, className)) return root;
+            int count = ((Number) invoke(ui, root, "getChildCount")).intValue();
+            Object found = null;
+            for (int index = 0; index < count; index++) {
+                Object child = invoke(ui, root, "getChildAt", new String[] { "int" }, new Object[] { index });
+                Object candidate = findDescendant(child, className, ui);
+                if (candidate != null) {
+                    if (found != null) throw new IOException("原生页面容器不可用");
+                    found = candidate;
+                }
+            }
+            return found;
+        }
+        private static Object cardParams(Object context, AndroidUiCalls ui) throws Exception {
+            Object params = linearParams(ui, -1, -2, 0);
+            invoke(ui, params, "setMargins", new String[] { "int", "int", "int", "int" },
+                new Object[] { dp(context, 8, ui), dp(context, 4, ui), dp(context, 8, ui), dp(context, 4, ui) });
+            return params;
+        }
+        private static void addLabel(NativePage page, String value, int size, Object color, AndroidUiCalls ui) throws Exception {
+            Object label = text(page.activity, value, size, color, ui);
+            invoke(ui, label, "setPadding", new String[] { "int", "int", "int", "int" },
+                new Object[] { dp(page.activity, 8, ui), dp(page.activity, 8, ui), dp(page.activity, 8, ui), dp(page.activity, 8, ui) });
+            add(ui, page.body, label, newLayoutParams(ui, -1, -2));
+        }
+        private static void addDivider(NativePage page, int color, AndroidUiCalls ui) throws Exception {
+            Object divider = construct(ui, VIEW, CONTEXT, page.activity);
+            invoke(ui, divider, "setBackgroundColor", new String[] { "int" }, new Object[] { color });
+            add(ui, page.body, divider, newLayoutParams(ui, -1, dp(page.activity, 1, ui)));
+        }
+        private static Object button(Object context, String value, ThemeColors colors, AndroidUiCalls ui) throws Exception {
+            Object button = construct(ui, "com.google.android.material.button.MaterialButton", CONTEXT, context);
+            setText(ui, button, value);
+            invoke(ui, button, "setTextSize", new String[] { "int", "float" }, new Object[] { 2, 16.0f });
+            invoke(ui, button, "setMinimumHeight", new String[] { "int" }, new Object[] { dp(context, 48, ui) });
+            invoke(ui, button, "setTextColor", new String[] { COLOR_STATE_LIST }, new Object[] { colors.onSurface });
+            invoke(ui, button, "setBackgroundTintList", new String[] { COLOR_STATE_LIST }, new Object[] { colors.surface });
+            invoke(ui, button, "setPadding", new String[] { "int", "int", "int", "int" },
+                new Object[] { dp(context, 12, ui), dp(context, 8, ui), dp(context, 12, ui), dp(context, 8, ui) });
+            invoke(ui, button, "setAllCaps", new String[] { "boolean" }, new Object[] { Boolean.FALSE });
+            return button;
+        }
+        private static Object text(Object context, String value, int size, Object color, AndroidUiCalls ui) throws Exception {
+            Object view = construct(ui, "android.widget.TextView", CONTEXT, context);
+            setText(ui, view, value);
+            invoke(ui, view, "setTextSize", new String[] { "int", "float" }, new Object[] { 2, (float) size });
+            invoke(ui, view, "setTextColor", new String[] { COLOR_STATE_LIST }, new Object[] { color });
+            invoke(ui, view, "setMinimumHeight", new String[] { "int" }, new Object[] { dp(context, 56, ui) });
             return view;
         }
+        private static void setClick(AndroidUiCalls ui, Object view, Runnable action) throws Exception {
+            invoke(ui, view, "setOnClickListener", new String[] { "android.view.View$OnClickListener" },
+                new Object[] { ui.clickListener(action) });
+        }
+        private static void setNavigationClick(AndroidUiCalls ui, Object toolbar, Runnable action) throws Exception {
+            invoke(ui, toolbar, "setNavigationOnClickListener", new String[] { "android.view.View$OnClickListener" },
+                new Object[] { ui.clickListener(action) });
+        }
+        private static void setText(AndroidUiCalls ui, Object view, String value) throws Exception {
+            invoke(ui, view, "setText", new String[] { "java.lang.CharSequence" }, new Object[] { value });
+        }
+        private static void add(AndroidUiCalls ui, Object parent, Object child, Object params) throws Exception {
+            invoke(ui, parent, "addView", new String[] { VIEW, VIEW_PARAMS }, new Object[] { child, params });
+        }
+        private static Object construct(AndroidUiCalls ui, String className, String parameterType, Object argument) throws Exception {
+            return ui.construct(className, new String[] { parameterType }, new Object[] { argument });
+        }
+        private static Object newLayoutParams(AndroidUiCalls ui, int width, int height) throws Exception {
+            return ui.construct(VIEW_PARAMS, new String[] { "int", "int" }, new Object[] { width, height });
+        }
+        private static Object linearParams(AndroidUiCalls ui, int width, int height, float weight) throws Exception {
+            return ui.construct("android.widget.LinearLayout$LayoutParams", new String[] { "int", "int", "float" },
+                new Object[] { width, height, weight });
+        }
+        private static int dp(Object context, int value, AndroidUiCalls ui) throws Exception {
+            return (int) (value * ui.density(context) + 0.5f);
+        }
+        private static Object invoke(AndroidUiCalls ui, Object receiver, String method) throws Exception {
+            return ui.invoke(receiver, method, new String[0], new Object[0]);
+        }
+        private static Object invoke(AndroidUiCalls ui, Object receiver, String method, String[] types, Object[] args) throws Exception {
+            return ui.invoke(receiver, method, types, args);
+        }
+    }
 
-        private static void styleTextControl(Object view, Object context, int minimumHeightDp, int gravity) throws Exception {
-            call(view, "setMinHeight", new Class<?>[] { int.class }, new Object[] { dp(context, minimumHeightDp) });
-            call(view, "setPadding", new Class<?>[] { int.class, int.class, int.class, int.class },
-                new Object[] { dp(context, 8), dp(context, 8), dp(context, 8), dp(context, 8) });
-            call(view, "setGravity", new Class<?>[] { int.class }, new Object[] { gravity });
+    private static final class ReflectiveAndroidUiCalls implements AndroidUiCalls {
+        @Override public Object invoke(Object receiver, String method, String[] parameterTypes, Object[] arguments) throws Exception {
+            Class<?>[] types = new Class<?>[parameterTypes.length];
+            for (int index = 0; index < parameterTypes.length; index++) types[index] = classForName(parameterTypes[index]);
+            return receiver.getClass().getMethod(method, types).invoke(receiver, arguments);
         }
-        private static void setClick(final Object view, final Runnable action) throws Exception {
+        @Override public Object construct(String className, String[] parameterTypes, Object[] arguments) throws Exception {
+            Class<?>[] types = new Class<?>[parameterTypes.length];
+            for (int index = 0; index < parameterTypes.length; index++) types[index] = classForName(parameterTypes[index]);
+            return Class.forName(className).getConstructor(types).newInstance(arguments);
+        }
+        @Override public boolean isInstance(Object value, String className) throws Exception {
+            return value != null && Class.forName(className).isInstance(value);
+        }
+        @Override public Object staticField(String className, String name) throws Exception {
+            return Class.forName(className).getField(name).get(null);
+        }
+        @Override public Object clickListener(final Runnable callback) throws Exception {
+            if (callback == null) return null;
             Class<?> listenerType = Class.forName("android.view.View$OnClickListener");
-            Object listener = Proxy.newProxyInstance(listenerType.getClassLoader(), new Class<?>[] { listenerType },
-                (proxy, method, args) -> { if ("onClick".equals(method.getName())) action.run(); return null; });
-            view.getClass().getMethod("setOnClickListener", listenerType).invoke(view, listener);
+            return Proxy.newProxyInstance(listenerType.getClassLoader(), new Class<?>[] { listenerType },
+                (proxy, method, args) -> {
+                    if ("onClick".equals(method.getName())) callback.run();
+                    if ("hashCode".equals(method.getName())) return System.identityHashCode(proxy);
+                    if ("equals".equals(method.getName())) return proxy == args[0];
+                    if ("toString".equals(method.getName())) return "LogPageClickListener";
+                    return null;
+                });
         }
-        private static void setText(Object view, String value) throws Exception {
-            view.getClass().getMethod("setText", CharSequence.class).invoke(view, value);
+        @Override public float density(Object context) throws Exception {
+            Object resources = invoke(context, "getResources", new String[0], new Object[0]);
+            Object metrics = invoke(resources, "getDisplayMetrics", new String[0], new Object[0]);
+            return metrics.getClass().getField("density").getFloat(metrics);
         }
-        private static void add(Object parent, Object child, Object params) throws Exception {
-            parent.getClass().getMethod("addView", Class.forName("android.view.View"), Class.forName("android.view.ViewGroup$LayoutParams"))
-                .invoke(parent, child, params);
+        private static Class<?> classForName(String name) throws ClassNotFoundException {
+            if ("int".equals(name)) return int.class;
+            if ("boolean".equals(name)) return boolean.class;
+            if ("float".equals(name)) return float.class;
+            if ("[I".equals(name)) return int[].class;
+            return Class.forName(name);
         }
-        private static Object construct(Class<?> type, Class<?> argType, Object arg) throws Exception { return type.getConstructor(argType).newInstance(arg); }
-        private static Object newLayoutParams(int width, int height) throws Exception {
-            return Class.forName("android.view.ViewGroup$LayoutParams").getConstructor(int.class, int.class).newInstance(width, height);
-        }
-        private static Object linearParams(Object context, int width, int height, float weight) throws Exception {
-            return Class.forName("android.widget.LinearLayout$LayoutParams").getConstructor(int.class, int.class, float.class).newInstance(width, height, weight);
-        }
-        private static int dp(Object context, int value) {
-            try {
-                Object resources = context.getClass().getMethod("getResources").invoke(context);
-                Object metrics = resources.getClass().getMethod("getDisplayMetrics").invoke(resources);
-                float density = metrics.getClass().getField("density").getFloat(metrics);
-                return (int) (value * density + 0.5f);
-            } catch (Throwable ignored) { return value; }
-        }
-        private static int color(Object context, String name, int fallback) {
-            try {
-                String packageName = (String) context.getClass().getMethod("getPackageName").invoke(context);
-                Object resources = context.getClass().getMethod("getResources").invoke(context);
-                int id = ((Number) resources.getClass().getMethod("getIdentifier", String.class, String.class, String.class).invoke(resources, name, "color", packageName)).intValue();
-                if (id == 0) return fallback;
-                return ((Number) resources.getClass().getMethod("getColor", int.class).invoke(resources, id)).intValue();
-            } catch (Throwable ignored) { return fallback; }
-        }
-        private static void toast(Object context, String message) {
-            try {
-                Class<?> toast = Class.forName("android.widget.Toast");
-                Object value = toast.getMethod("makeText", Class.forName("android.content.Context"), CharSequence.class, int.class).invoke(null, context, message, 0);
-                toast.getMethod("show").invoke(value);
-            } catch (Throwable ignored) { }
-        }
-        private static int sdkInt() {
+        @Override public int sdkInt() {
             try { return Class.forName("android.os.Build$VERSION").getField("SDK_INT").getInt(null); }
             catch (Throwable ignored) { return 0; }
         }
-        private static Object call(Object receiver, String name, Class<?>[] types, Object[] args) throws Exception {
-            return receiver.getClass().getMethod(name, types).invoke(receiver, args);
+        @Override public Object registerBack(Object activity, Runnable callback) throws Exception {
+            if (sdkInt() < 33) return null;
+            Object dispatcher = activity.getClass().getMethod("getOnBackInvokedDispatcher").invoke(activity);
+            Class<?> callbackType = Class.forName("android.window.OnBackInvokedCallback");
+            Object proxy = Proxy.newProxyInstance(callbackType.getClassLoader(), new Class<?>[] { callbackType },
+                (proxyObject, method, args) -> {
+                    if ("onBackInvoked".equals(method.getName())) callback.run();
+                    if ("hashCode".equals(method.getName())) return System.identityHashCode(proxyObject);
+                    if ("equals".equals(method.getName())) return proxyObject == args[0];
+                    if ("toString".equals(method.getName())) return "LogPageBackCallback";
+                    return null;
+                });
+            dispatcher.getClass().getMethod("registerOnBackInvokedCallback", int.class, callbackType).invoke(dispatcher, 0, proxy);
+            return new BackRegistration(dispatcher, proxy, callbackType);
+        }
+        @Override public void unregisterBack(Object activity, Object registration) throws Exception {
+            if (!(registration instanceof BackRegistration)) return;
+            BackRegistration value = (BackRegistration) registration;
+            value.dispatcher.getClass().getMethod("unregisterOnBackInvokedCallback", value.callbackType)
+                .invoke(value.dispatcher, value.callback);
+        }
+        @Override public PageInsets readInsets(Object insets) throws Exception {
+            Class<?> type = Class.forName("androidx.core.view.WindowInsetsCompat$Type");
+            int barsType = ((Number) type.getMethod("systemBars").invoke(null)).intValue();
+            int imeType = ((Number) type.getMethod("ime").invoke(null)).intValue();
+            Object bars = insets.getClass().getMethod("getInsets", int.class).invoke(insets, barsType);
+            Object ime = insets.getClass().getMethod("getInsets", int.class).invoke(insets, imeType);
+            int left = ((Number) bars.getClass().getField("left").get(bars)).intValue();
+            int top = ((Number) bars.getClass().getField("top").get(bars)).intValue();
+            int right = ((Number) bars.getClass().getField("right").get(bars)).intValue();
+            int systemBottom = ((Number) bars.getClass().getField("bottom").get(bars)).intValue();
+            int imeBottom = ((Number) ime.getClass().getField("bottom").get(ime)).intValue();
+            return new PageInsets(left, top, right, systemBottom, imeBottom);
+        }
+        @Override public int[] padding(Object view) throws Exception {
+            return new int[] {
+                ((Number) view.getClass().getMethod("getPaddingLeft").invoke(view)).intValue(),
+                ((Number) view.getClass().getMethod("getPaddingTop").invoke(view)).intValue(),
+                ((Number) view.getClass().getMethod("getPaddingRight").invoke(view)).intValue(),
+                ((Number) view.getClass().getMethod("getPaddingBottom").invoke(view)).intValue()
+            };
+        }
+        @Override public void setPadding(Object view, int left, int top, int right, int bottom) throws Exception {
+            invoke(view, "setPadding", new String[] { "int", "int", "int", "int" },
+                new Object[] { left, top, right, bottom });
+        }
+        @Override public boolean isAttached(Object view) throws Exception {
+            return Boolean.TRUE.equals(view.getClass().getMethod("isAttachedToWindow").invoke(view));
+        }
+        @Override public void requestApplyInsets(Object view) throws Exception { invoke(view, "requestApplyInsets", new String[0], new Object[0]); }
+        @Override public void finish(Object activity) throws Exception { activity.getClass().getMethod("finish").invoke(activity); }
+        @Override public void toast(Object activity, String message) { toastNative(activity, message); }
+        private static void toastNative(Object context, String message) {
+            try {
+                Class<?> toast = Class.forName("android.widget.Toast");
+                Object value = toast.getMethod("makeText", Class.forName("android.content.Context"), CharSequence.class, int.class)
+                    .invoke(null, context, message, 0);
+                toast.getMethod("show").invoke(value);
+            } catch (Throwable ignored) { }
+        }
+    }
+
+    private static final class BackRegistration {
+        final Object dispatcher;
+        final Object callback;
+        final Class<?> callbackType;
+        BackRegistration(Object dispatcher, Object callback, Class<?> callbackType) {
+            this.dispatcher = dispatcher; this.callback = callback; this.callbackType = callbackType;
         }
     }
 

@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Collections;
 import java.util.concurrent.Executor;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -40,6 +41,12 @@ public final class CrashLogTest {
         testLegacyDownloadHeaderOwnership();
         testLogPageControllerCopiesAndExportsSanitizedSnapshot();
         testLogPageFailuresAndBridgeAbi();
+        testLogPageExplicitActivityLaunchAndMode();
+        testActivityOwnedPageThemeInsetsAndDetach();
+        testProductionLogPageRendererStatesAndInitializationFailure();
+        testActivityOwnedBackAndStaleCallbacks();
+        testActivityOwnedSafResultAndFailure();
+        testActivityOwnedExportStagesSurviveRecreation();
         testExportSessionCancellationAndStaleResults();
         testReadCloseFailuresAreNotSuccess();
         testMediaStoreProductionAdapterAndStates();
@@ -52,7 +59,7 @@ public final class CrashLogTest {
         testAndroidHostOpenFailuresUseControllerPath();
         testDeleteExceptionUsesFixedResidualMessage();
         testOrphanCleanupDuringWritingAndCancellation();
-        System.out.println("CrashLogTest passed (10 legacy + 6 round-1 + 7 round-2 + 7 round-3 groups)");
+        System.out.println("CrashLogTest passed (10 legacy + 6 round-1 + 7 round-2 + 7 round-3 + 5 round-4 + 1 round-5 groups)");
     }
 
     private static void testCrashReportCarriesHeaderThreadAndCauses() {
@@ -777,6 +784,13 @@ public final class CrashLogTest {
         check(bind.getReturnType() == void.class && show.getReturnType() == void.class && close.getReturnType() == void.class
             && result.getReturnType() == void.class, "four public bridges retain the Smali ABI parameter and return signatures");
         check(bind.getParameterTypes().length == 2 && result.getParameterTypes().length == 4, "bridge arity is fixed");
+        check(LogPage.class.getMethod("isLogActivity", Object.class).getReturnType() == boolean.class
+            && LogPage.class.getMethod("prepareActivity", Object.class).getReturnType() == void.class
+            && LogPage.class.getMethod("attachActivity", Object.class).getReturnType() == void.class
+            && LogPage.class.getMethod("onBackPressed", Object.class).getReturnType() == boolean.class
+            && LogPage.class.getMethod("onDestroy", Object.class).getReturnType() == void.class
+            && LogPage.class.getMethod("applyPageInsets", Object.class, Object.class, Object.class).getReturnType() == void.class,
+            "all six Activity-owned bridges keep their exact public Object-only signatures");
         check("日志已脱敏".equals(LogPage.SANITIZED_NOTICE), "the static page notice states that every displayed log is sanitized");
 
         File root = cacheTemp("calendar-tab-page-fail-");
@@ -1441,7 +1455,7 @@ public final class CrashLogTest {
                 Object owner = new Object(); FakeAndroidCalls calls = new FakeAndroidCalls();
                 calls.openThrows = throwsOpen; calls.openReturnsNull = !throwsOpen; calls.deleteResult = 1;
                 ManualHost host = new ManualHost();
-                host.targetAdapter = new LogPage.AndroidHost(owner, new Object(), calls);
+                host.targetAdapter = new LogPage.AndroidHost(owner, owner, calls);
                 LogPage.Controller controller = new LogPage.Controller(owner, store, host);
                 readyController(controller, host, entry);
                 controller.exportSelected(root); host.runNextIo();
@@ -1457,6 +1471,617 @@ public final class CrashLogTest {
         } finally { deleteTree(root); }
     }
 
+    private static void testLogPageExplicitActivityLaunchAndMode() throws Exception {
+        FakePageLaunchCalls launch = new FakePageLaunchCalls();
+        FakeAndroidUiCalls ui = new FakeAndroidUiCalls(1, 32);
+        LogPage.setPageLaunchCallsForTest(launch);
+        LogPage.setAndroidUiCallsForTest(ui);
+        try {
+            FakeSettingsActivity activity = new FakeSettingsActivity(null, null, 1, true);
+            FakePageFragment fragment = new FakePageFragment(activity);
+            LogPage.show(fragment);
+            check(launch.startedFragment == fragment && launch.lastIntent != null
+                && launch.lastIntent.targetClass == FakeSettingsActivity.class
+                && Boolean.TRUE.equals(launch.lastIntent.extras.get("wakeup_noads_log_page"))
+                && launch.lastIntent.flags == 0x20000000,
+                "production show starts the explicit SettingsActivity with the fixed boolean and only SINGLE_TOP");
+            check(ui.openCount == 0 && ui.finishCount == 0, "the source Mine host is neither opened as a page nor finished");
+
+            check(LogPage.isLogActivity(activity), "the typed true extra on the SettingsActivity is accepted");
+            activity.intent.extras.remove("wakeup_noads_log_page");
+            check(!LogPage.isLogActivity(activity), "a missing log extra is rejected");
+            activity.intent.extras.put("wakeup_noads_log_page", Boolean.FALSE);
+            check(!LogPage.isLogActivity(activity), "a false boolean log extra is rejected");
+            activity.intent.extras.put("wakeup_noads_log_page", "true");
+            check(!LogPage.isLogActivity(activity), "a string that looks like true is rejected as the wrong type");
+            FakeOtherActivity other = new FakeOtherActivity(null, null, 1, true);
+            check(!LogPage.isLogActivity(other) && !LogPage.isLogActivity(null), "another host and null are rejected even with a true extra");
+            activity.intent.extras.put("wakeup_noads_log_page", Boolean.TRUE);
+            LogPage.prepareActivity(activity);
+            check("本地日志".contentEquals(activity.title), "the log Activity bridge sets the short native Toolbar title");
+
+            launch.failStart = true;
+            launch.failureText = "intent path-secret content://private";
+            LogPage.show(fragment);
+            check(ui.toasts.size() == 1 && "日志页暂不可用".equals(ui.toasts.get(0))
+                && !ui.toasts.get(0).contains("path-secret") && !ui.toasts.get(0).contains("content://")
+                && ui.openCount == 0 && ui.finishCount == 0,
+                "launch failure displays only the fixed notice and leaves the source Activity open");
+        } finally {
+            LogPage.setPageLaunchCallsForTest(null);
+            LogPage.setAndroidUiCallsForTest(null);
+        }
+    }
+
+    private static void testActivityOwnedPageThemeInsetsAndDetach() throws Exception {
+        File root = cacheTemp("calendar-tab-r4-theme-insets-");
+        try {
+            File external = new File(root, "external"); check(external.mkdirs(), "the Activity external-files fixture exists");
+            File cache = new File(root, "cache"); check(cache.mkdirs(), "the Activity cache fixture exists");
+            File logs = CrashLog.logDirectory(external); check(logs.mkdirs(), "the app-owned log directory fixture exists");
+            String longName = "crash-20261014-010203-004-" + repeat('7', 180) + ".txt";
+            writeUtf8(new File(logs, longName),
+                "wakeup-noads crash log\npackage: io.github.wakeupnoads\nstudent=827361 password=page-secret\n");
+
+            LogPage.setPageLaunchCallsForTest(new FakePageLaunchCalls());
+            FakeAndroidUiCalls ui = new FakeAndroidUiCalls(1, 33);
+            LogPage.setAndroidUiCallsForTest(ui);
+            FakeSettingsActivity activity = new FakeSettingsActivity(external, cache, 1, true);
+            Object originalToolbar = activity.toolbar;
+            Object originalRecycler = activity.recycler;
+            Object originalParams = activity.recycler.getLayoutParams();
+            Object originalBehavior = ((FakeLayoutParams) originalParams).behavior;
+            LogPage.attachActivity(activity);
+            LogPage.attachActivity(activity);
+            ui.awaitRenderCount(1);
+            check(ui.openCount == 1 && ui.backRegistrations == 1 && ui.requestInsetsCount == 1,
+                "repeated Activity attach reuses one native page, one API 33 callback and one inset request");
+            int beforeRepeatedOpen = ui.lastScroll.addViewCalls;
+            registeredHost(activity).open();
+            check(activity.toolbar == originalToolbar && activity.toolbar.text.equals("本地日志")
+                && activity.toolbar.parent == activity.appBar && activity.appBar.parent == activity.coordinator
+                && activity.factoryCalls == 0 && activity.supportActionBarCalls == 0
+                && countClass(activity.coordinator, "com.google.android.material.appbar.AppBarLayout") == 1
+                && activity.recycler == originalRecycler && activity.recycler.parent == null
+                && activity.coordinator.removeViewCalls == 1 && ui.lastScroll.addViewCalls == beforeRepeatedOpen
+                && ui.lastScroll.layoutParams == originalParams && ((FakeLayoutParams) ui.lastScroll.layoutParams).behavior == originalBehavior,
+                "production page reuses the attached base Toolbar and Recycler layout objects without factory, action-bar reset, duplicate removal, or duplicate body");
+            check(ui.attributes.equals(Arrays.asList("android:colorBackground", "io.github.wakeupnoads:colorSurface",
+                    "io.github.wakeupnoads:colorOnSurface", "io.github.wakeupnoads:colorOnSurfaceVariant",
+                    "io.github.wakeupnoads:colorOutlineVariant")) && ui.resolved.size() == 5 && ui.recycledArrays == 5,
+                "the production theme resolver requests the Activity background and all four Material theme attributes");
+            check(((FakeColorStateList) ui.resolved.get(0)).color == 0xff110101
+                && ((FakeColorStateList) ui.resolved.get(1)).color == 0xff110202
+                && ((FakeColorStateList) ui.resolved.get(2)).color == 0xff110303
+                && ((FakeColorStateList) ui.resolved.get(3)).color == 0xff110404
+                && ((FakeColorStateList) ui.resolved.get(4)).color == 0xff110505,
+                "the injected TypedArray returns the five independent literal theme colors");
+            check(ui.lastScroll.backgroundColor == 0xff110101, "production page background equals the literal Activity background attribute");
+            check(containsText(ui.lastBody, longName), "production list body includes the complete long filename");
+            check(activity.toolbar.text.equals("本地日志"), "the visible base Toolbar receives the list title");
+            check(verifyRenderedTheme(ui.lastBody, 1), "actual production list render binds surface, foreground, divider, and partial-source colors");
+            FakeView rootView = ui.lastScroll;
+            FakeView bodyView = ui.lastBody;
+            LogPage.applyPageInsets(activity, rootView, new LogPage.PageInsets(10, 24, 12, 30, 0));
+            check(Arrays.equals(rootView.padding, new int[] { 10, 3, 12, 0 })
+                && Arrays.equals(bodyView.padding, new int[] { 16, 8, 16, 42 }),
+                "production inset bridge sends system-bar sides to the root and system bottom to the content baseline");
+            LogPage.applyPageInsets(activity, rootView, new LogPage.PageInsets(10, 24, 12, 30, 0));
+            check(Arrays.equals(rootView.padding, new int[] { 10, 3, 12, 0 })
+                && Arrays.equals(bodyView.padding, new int[] { 16, 8, 16, 42 }),
+                "repeating system-bar insets does not accumulate content padding or add a second top inset");
+            LogPage.applyPageInsets(activity, rootView, new LogPage.PageInsets(14, 25, 16, 28, 280));
+            check(Arrays.equals(rootView.padding, new int[] { 14, 3, 16, 280 })
+                && Arrays.equals(bodyView.padding, new int[] { 16, 8, 16, 12 }),
+                "IME bottom replaces the root bottom and suppresses the system bottom in the content");
+            int paddingWrites = ui.paddingWrites;
+            ui.attached = false;
+            LogPage.applyPageInsets(activity, rootView, new LogPage.PageInsets(9, 9, 9, 9, 9));
+            check(ui.paddingWrites == paddingWrites, "an unattached page is a no-op for inset padding");
+            ui.attached = true;
+
+            LogPage.Controller controller = registeredController(activity);
+            LogStore.Entry entry = controllerResult(controller).entries.get(0);
+            controller.select(entry);
+            ui.awaitRenderCount(3);
+            ui.awaitBodyText(longName);
+            check(activity.toolbar.text.equals("日志详情"), "the visible base Toolbar receives the detail title");
+            check(containsText(ui.lastBody, longName), "detail body keeps the complete selected filename");
+            check(verifyRenderedTheme(ui.lastBody, 1), "actual production detail controls keep the Activity theme colors");
+            int beforeBack = ui.renderCount;
+            ui.platformBack.run();
+            ui.awaitRenderCount(beforeBack + 1);
+            check(activity.toolbar.text.equals("本地日志") && ui.finishCount == 0,
+                "the API 33 dispatcher callback uses Controller.back to return from detail to list");
+
+            int beforeDestroyWrites = ui.paddingWrites;
+            LogPage.onDestroy(activity);
+            LogPage.applyPageInsets(activity, rootView, new LogPage.PageInsets(1, 1, 1, 1, 1));
+            check(ui.backUnregistrations == 1 && ui.detachCount == 1 && ui.finishCount == 0
+                && ui.paddingWrites == beforeDestroyWrites && rootView.parent == null,
+                "Activity destruction unregisters once, detaches without finish, and prevents later inset writes");
+
+            FakeAndroidUiCalls secondUi = new FakeAndroidUiCalls(2, 32);
+            LogPage.setAndroidUiCallsForTest(secondUi);
+            FakeSettingsActivity second = new FakeSettingsActivity(external, cache, 2, true);
+            LogPage.attachActivity(second);
+            secondUi.awaitRenderCount(1);
+            secondUi.awaitBodyText(longName);
+            check(secondUi.lastScroll.backgroundColor == 0xff220101
+                && ((FakeColorStateList) secondUi.resolved.get(1)).themeId == 2
+                && second.toolbar.text.equals("本地日志") && verifyRenderedTheme(secondUi.lastBody, 2)
+                && secondUi.backRegistrations == 0,
+                "a recreated Activity resolves its own theme and API 24–32 installs no dispatcher callback");
+            LogPage.onDestroy(second);
+        } finally {
+            LogPage.setPageLaunchCallsForTest(null);
+            LogPage.setAndroidUiCallsForTest(null);
+            deleteTree(root);
+        }
+    }
+
+    private static void testProductionLogPageRendererStatesAndInitializationFailure() throws Exception {
+        for (int themeId : new int[] { 1, 2 }) {
+            File root = cacheTemp("calendar-tab-r5-render-" + themeId + "-");
+            try {
+                File cache = new File(root, "cache"); check(cache.mkdirs(), "the render cache directory exists");
+                File listDirectory = new File(root, "list"); check(listDirectory.mkdirs(), "the partial-list source exists");
+                String longName = "crash-20261014-010203-004-" + repeat('8', 180) + ".txt";
+                FixtureSource listSource = new FixtureSource("app", "应用目录", listDirectory);
+                LogStore.Entry listEntry = listSource.add(longName, 4L,
+                    "wakeup-noads crash log\npackage: io.github.wakeupnoads\nstudent=827361 password=page-secret\n");
+                FixtureSource failedSource = new FixtureSource("legacy-download", "历史 Download", new File(root, "failed-list"));
+                failedSource.scanFailure = new IOException("source path private");
+                FakeAndroidUiCalls listUi = new FakeAndroidUiCalls(themeId, 32);
+                FakeSettingsActivity listActivity = new FakeSettingsActivity(root, cache, themeId, true);
+                LogPage.Controller listController = startNativeController(listActivity,
+                    new LogStore(Arrays.<LogStore.Source>asList(listSource, failedSource)), listUi);
+                listUi.awaitRenderCount(1);
+                listUi.awaitBodyText("部分历史日志无法读取");
+                check(listActivity.toolbar.text.equals("本地日志") && listUi.bodyContainsText(LogPage.SANITIZED_NOTICE)
+                    && listUi.bodyContainsText(longName) && verifyRenderedTheme(listUi.lastBody, themeId)
+                    && verifyRenderedControlContracts(listUi.lastBody),
+                    "both independent themes bind list, partial-source warning, long wrappable filename, SP sizing, and expandable controls in production");
+                FakeView longNameView = findTextContaining(listUi.lastBody, longName);
+                check(longNameView != null && longNameView.layoutParams instanceof FakeLayoutParams
+                    && ((FakeLayoutParams) longNameView.layoutParams).width == -1
+                    && ((FakeLayoutParams) longNameView.layoutParams).height == -2
+                    && longNameView.singleLineCalls == 0 && longNameView.maxLinesCalls == 0,
+                    "the complete filename stays in a full-width wrapping TextView with WRAP_CONTENT height and no line cap");
+                FakeView originalScroll = listUi.lastScroll;
+                int bodyAdds = listUi.lastBody.addViewCalls;
+                int coordinatorAdds = listActivity.coordinator.addViewCalls;
+                androidHost(listController).open();
+                check(listActivity.factoryCalls == 0 && listActivity.supportActionBarCalls == 0
+                    && countClass(listActivity.coordinator, "com.google.android.material.appbar.AppBarLayout") == 1
+                    && listActivity.coordinator.removeViewCalls == 1 && listUi.lastBody.addViewCalls == bodyAdds
+                    && originalScroll.addViewCalls == 1
+                    && listActivity.coordinator.addViewCalls == coordinatorAdds && originalScroll == listUi.lastScroll,
+                    "a repeated production open keeps one AppBar, one original Recycler removal, one page body, and no factory/action-bar mutation");
+                listController.detach();
+
+                final CountDownLatch previewEntered = new CountDownLatch(1);
+                final CountDownLatch allowPreview = new CountDownLatch(1);
+                File detailDirectory = new File(root, "detail"); check(detailDirectory.mkdirs(), "the detail source exists");
+                FixtureSource detailSource = new FixtureSource("app", "应用目录", detailDirectory) {
+                    @Override public InputStream open(LogStore.Entry entry) throws Exception {
+                        previewEntered.countDown();
+                        if (!allowPreview.await(5, java.util.concurrent.TimeUnit.SECONDS)) throw new IOException("preview test gate timeout");
+                        return super.open(entry);
+                    }
+                };
+                LogStore.Entry detailEntry = detailSource.add(longName, 5L,
+                    "wakeup-noads crash log\npackage: io.github.wakeupnoads\nstudent=827361 password=detail-secret\n");
+                FakeAndroidUiCalls detailUi = new FakeAndroidUiCalls(themeId, 32);
+                FakeSettingsActivity detailActivity = new FakeSettingsActivity(root, cache, themeId, true);
+                LogPage.Controller detailController = startNativeController(detailActivity,
+                    new LogStore(Collections.<LogStore.Source>singletonList(detailSource)), detailUi);
+                detailUi.awaitRenderCount(1);
+                detailUi.awaitBodyText(longName);
+                detailController.select(detailEntry);
+                check(previewEntered.await(5, java.util.concurrent.TimeUnit.SECONDS), "the production detail read reaches the controlled source");
+                detailUi.awaitBodyText("正在读取日志…");
+                check(detailActivity.toolbar.text.equals("日志详情") && verifyRenderedTheme(detailUi.lastBody, themeId)
+                    && detailUi.bodyContainsText(LogPage.SANITIZED_NOTICE)
+                    && verifyRenderedControlContracts(detailUi.lastBody),
+                    "loading detail keeps the Activity theme and uses the original Toolbar title");
+                allowPreview.countDown();
+                detailUi.awaitBodyText("[redacted]");
+                check(verifyRenderedTheme(detailUi.lastBody, themeId)
+                    && detailUi.bodyContainsText("package: io.github.wakeupnoads"),
+                    "sanitized detail preview text and status controls receive the independent theme colors");
+                Files.delete(((File) detailEntry.handle).toPath());
+                detailController.select(detailEntry);
+                detailUi.awaitBodyText("日志已消失或不可读取，请刷新重试");
+                check(verifyRenderedTheme(detailUi.lastBody, themeId),
+                    "failed detail message uses the same theme secondary color while the sanitization notice remains readable");
+                detailController.detach();
+
+                FixtureSource emptySource = new FixtureSource("app", "应用目录", new File(root, "empty"));
+                FakeAndroidUiCalls emptyUi = new FakeAndroidUiCalls(themeId, 32);
+                FakeSettingsActivity emptyActivity = new FakeSettingsActivity(root, cache, themeId, true);
+                LogPage.Controller emptyController = startNativeController(emptyActivity,
+                    new LogStore(Collections.<LogStore.Source>singletonList(emptySource)), emptyUi);
+                emptyUi.awaitRenderCount(1);
+                emptyUi.awaitBodyText("暂无日志");
+                check(verifyRenderedTheme(emptyUi.lastBody, themeId), "empty-list text and sanitization notice use the independent theme colors");
+                emptyController.detach();
+
+                FixtureSource unreadableSource = new FixtureSource("app", "应用目录", new File(root, "unreadable"));
+                unreadableSource.unavailableMessage = "private path";
+                FakeAndroidUiCalls unreadableUi = new FakeAndroidUiCalls(themeId, 32);
+                FakeSettingsActivity unreadableActivity = new FakeSettingsActivity(root, cache, themeId, true);
+                LogPage.Controller unreadableController = startNativeController(unreadableActivity,
+                    new LogStore(Collections.<LogStore.Source>singletonList(unreadableSource)), unreadableUi);
+                unreadableUi.awaitRenderCount(1);
+                unreadableUi.awaitBodyText("日志来源不可读取");
+                check(verifyRenderedTheme(unreadableUi.lastBody, themeId),
+                    "complete source failure and sanitization notice use their independent theme colors");
+                unreadableController.detach();
+            } finally { deleteTree(root); }
+        }
+
+        File failureRoot = cacheTemp("calendar-tab-r5-no-toolbar-");
+        try {
+            File cache = new File(failureRoot, "cache"); check(cache.mkdirs(), "the unavailable-toolbar cache exists");
+            FakeAndroidUiCalls ui = new FakeAndroidUiCalls(1, 33);
+            FakeSettingsActivity activity = new FakeSettingsActivity(failureRoot, cache, 1, true);
+            activity.coordinator.removeView(activity.appBar);
+            FixtureSource emptySource = new FixtureSource("app", "应用目录", new File(failureRoot, "logs"));
+            LogPage.Controller controller = startNativeController(activity,
+                new LogStore(Collections.<LogStore.Source>singletonList(emptySource)), ui);
+            check(ui.toasts.equals(Collections.singletonList("日志页暂不可用")) && ui.finishCount == 1
+                && ui.dialogConstructCount == 0 && activity.factoryCalls == 0 && activity.supportActionBarCalls == 0,
+                "missing original Toolbar exits with the fixed notice and finish, without Dialog or factory fallback");
+            controller.detach();
+        } finally { deleteTree(failureRoot); }
+    }
+
+    private static void testActivityOwnedBackAndStaleCallbacks() throws Exception {
+        File root = cacheTemp("calendar-tab-r4-back-stale-");
+        try {
+            File external = new File(root, "external"); check(external.mkdirs(), "the back fixture external-files root exists");
+            File cache = new File(root, "cache"); check(cache.mkdirs(), "the back fixture cache exists");
+            File logs = CrashLog.logDirectory(external); check(logs.mkdirs(), "the back fixture app log folder exists");
+            writeUtf8(new File(logs, "crash-20261014-020304-005-13.txt"), "wakeup-noads crash log\nthread: main\n");
+            FakePageLaunchCalls launcher = new FakePageLaunchCalls();
+            FakeAndroidUiCalls ui = new FakeAndroidUiCalls(3, 32);
+            LogPage.setPageLaunchCallsForTest(launcher);
+            LogPage.setAndroidUiCallsForTest(ui);
+            FakeSettingsActivity first = new FakeSettingsActivity(external, cache, 3, true);
+            LogPage.attachActivity(first);
+            ui.awaitRenderCount(1);
+            FakeClickListener oldToolbarBack = (FakeClickListener) first.toolbar.navigationClickListener;
+            LogPage.Controller controller = registeredController(first);
+            LogStore.Entry entry = controllerResult(controller).entries.get(0);
+            controller.select(entry);
+            ui.awaitRenderCount(3);
+            oldToolbarBack.run();
+            ui.awaitRenderCount(3);
+            check(!controllerState(controller).detail, "the original Toolbar callback returns from detail through Controller.back");
+
+            controller.select(entry);
+            ui.awaitRenderCount(6);
+            check(LogPage.onBackPressed(first), "the API 24–32 Activity bridge consumes system return in log mode");
+            ui.awaitRenderCount(7);
+            check(!controllerState(controller).detail, "the Activity back bridge returns detail to the log list");
+            check(LogPage.onBackPressed(first) && ui.finishCount == 1,
+                "list back finishes the log Activity once and returns to the prior host");
+            check(LogPage.onBackPressed(first) && ui.finishCount == 1,
+                "repeated list back is consumed without finishing the Activity twice");
+            LogPage.onDestroy(first);
+
+            FakeSettingsActivity recreated = new FakeSettingsActivity(external, cache, 4, true);
+            LogPage.attachActivity(recreated);
+            ui.awaitRenderCount(8);
+            ui.awaitBodyText("crash-20261014-020304-005-13.txt");
+            String beforeOldCallback = viewSnapshot(ui.lastBody);
+            int beforeOldRenderCount = ui.renderCount;
+            oldToolbarBack.run();
+            check(ui.renderCount == beforeOldRenderCount && beforeOldCallback.equals(viewSnapshot(ui.lastBody))
+                && !controllerState(registeredController(recreated)).detail,
+                "a detached old Toolbar callback cannot update or close the new Activity's list instance");
+            check(ui.openCount == 2 && !controllerState(registeredController(recreated)).detail,
+                "Activity recreation opens one fresh page at the log list without restoring old detail state");
+            LogPage.onDestroy(recreated);
+        } finally {
+            LogPage.setPageLaunchCallsForTest(null);
+            LogPage.setAndroidUiCallsForTest(null);
+            deleteTree(root);
+        }
+    }
+
+    private static void testActivityOwnedSafResultAndFailure() throws Exception {
+        File root = cacheTemp("calendar-tab-r4-saf-failure-");
+        try {
+            File external = new File(root, "external"); check(external.mkdirs(), "the SAF fixture external-files root exists");
+            File cache = new File(root, "cache"); check(cache.mkdirs(), "the SAF fixture cache exists");
+            File logs = CrashLog.logDirectory(external); check(logs.mkdirs(), "the SAF fixture app log folder exists");
+            writeUtf8(new File(logs, "crash-20261014-030405-006-14.txt"),
+                "wakeup-noads crash log\npackage: io.github.wakeupnoads\nstudent=827361 password=saf-secret\n");
+
+            FakePageLaunchCalls launcher = new FakePageLaunchCalls();
+            FakeAndroidUiCalls ui = new FakeAndroidUiCalls(5, 33);
+            FakeAndroidCalls calls = new FakeAndroidCalls(); calls.deleteResult = 1;
+            LogPage.setPageLaunchCallsForTest(launcher);
+            LogPage.setAndroidUiCallsForTest(ui);
+            LogPage.setAndroidCallsForTest(calls);
+            FakeSettingsActivity activity = new FakeSettingsActivity(external, cache, 5, true);
+            LogPage.attachActivity(activity);
+            ui.awaitRenderCount(1);
+            LogPage.Controller controller = registeredController(activity);
+            LogStore.Entry entry = controllerResult(controller).entries.get(0);
+            FakeOtherActivity otherHost = new FakeOtherActivity(external, cache, 5, true);
+            LogPage.onActivityResult(otherHost, LogPage.EXPORT_REQUEST_CODE, LogPage.RESULT_OK,
+                new FakeResultIntent(new AndroidFakeUri("content", "content://private/other-host")));
+            LogPage.onActivityResult(activity, LogPage.EXPORT_REQUEST_CODE + 1, LogPage.RESULT_OK,
+                new FakeResultIntent(new AndroidFakeUri("content", "content://private/other-request")));
+            check(calls.openCalls == 0 && calls.activity == null,
+                "a different Activity and request code cannot open or consume the current SAF target");
+
+            controller.select(entry);
+            ui.awaitRenderCount(3);
+            controller.exportSelected(cache);
+            check(calls.startedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS),
+                "the production Controller and AndroidHost reach the injected SAF platform call");
+            check(calls.activity == activity && calls.requestCode == 0x6c67
+                && "android.intent.action.CREATE_DOCUMENT".equals(calls.intent.action)
+                && "android.intent.category.OPENABLE".equals(calls.intent.category)
+                && "text/plain".equals(calls.intent.mime)
+                && Boolean.TRUE.equals(calls.intent.extras.get("android.intent.extra.LOCAL_ONLY"))
+                && calls.intent.extras.get("android.intent.extra.TITLE") instanceof String,
+                "the current log Activity receives the existing CREATE_DOCUMENT action, request, MIME and typed extras");
+            FakeSettingsActivity wrongSettingsOwner = new FakeSettingsActivity(external, cache, 6, true);
+            LogPage.onActivityResult(wrongSettingsOwner, LogPage.EXPORT_REQUEST_CODE, LogPage.RESULT_OK,
+                new FakeResultIntent(new AndroidFakeUri("content", "content://private/wrong-owner")));
+            check(calls.openCalls == 0, "a second valid log Activity cannot consume the first Activity's session");
+
+            AndroidFakeUri uri = new AndroidFakeUri("content", "content://private/target/path-secret");
+            FakeResultIntent result = new FakeResultIntent(uri);
+            LogPage.onActivityResult(activity, 0x6c67, LogPage.RESULT_OK, result);
+            awaitCondition("the Activity-owned SAF output closes", new Condition() {
+                @Override public boolean ready() { return calls.output.closed; }
+            });
+            check(calls.openCalls == 1 && calls.output.allWritesSafe("saf-secret", "student=827361", "content://private", "path-secret")
+                && ui.toasts.contains("导出成功"),
+                "the Activity-owned Controller writes only sanitized snapshot bytes and reports fixed success");
+            LogPage.onActivityResult(activity, 0x6c67, LogPage.RESULT_OK, result);
+            LogPage.onActivityResult(new FakePageFragment(activity), 0x6c67, LogPage.RESULT_OK, result);
+            check(calls.openCalls == 1 && calls.output.closeCalls == 1,
+                "duplicate and original Mine Fragment callbacks cannot write or close the completed target again");
+            LogPage.onDestroy(activity);
+            LogPage.onActivityResult(activity, 0x6c67, LogPage.RESULT_OK, result);
+            check(calls.openCalls == 1 && ui.backUnregistrations == 1,
+                "destroy removes the Activity registry and unregisters the API 33 callback once");
+
+            FakeAndroidUiCalls brokenUi = new FakeAndroidUiCalls(7, 33); brokenUi.failOpen = true;
+            LogPage.setAndroidUiCallsForTest(brokenUi);
+            FakeSettingsActivity broken = new FakeSettingsActivity(external, cache, 7, true);
+            LogPage.attachActivity(broken);
+            check(brokenUi.toasts.equals(Collections.singletonList("日志页暂不可用"))
+                && brokenUi.finishCount == 1 && brokenUi.openCount == 1
+                && brokenUi.toasts.toString().indexOf("view-path-secret") < 0,
+                "native page initialization failure exits through the one fixed notice without exposing exception text");
+            LogPage.onDestroy(broken);
+        } finally {
+            LogPage.setPageLaunchCallsForTest(null);
+            LogPage.setAndroidUiCallsForTest(null);
+            LogPage.setAndroidCallsForTest(null);
+            deleteTree(root);
+        }
+    }
+
+    private static void testActivityOwnedExportStagesSurviveRecreation() throws Exception {
+        File root = cacheTemp("calendar-tab-r4-export-recreation-");
+        try {
+            File external = new File(root, "external"); check(external.mkdirs(), "the export lifecycle external-files root exists");
+            File cache = new File(root, "cache"); check(cache.mkdirs(), "the export lifecycle cache exists");
+            File logs = CrashLog.logDirectory(external); check(logs.mkdirs(), "the export lifecycle log folder exists");
+            writeUtf8(new File(logs, "crash-20261014-040506-007-15.txt"),
+                "wakeup-noads crash log\npackage: io.github.wakeupnoads\nstudent=827361 password=lifecycle-secret\n");
+            LogPage.setPageLaunchCallsForTest(new FakePageLaunchCalls());
+
+            FakeAndroidCalls waitingCalls = new FakeAndroidCalls(); waitingCalls.deleteResult = 1;
+            FakeAndroidUiCalls waitingUi = new FakeAndroidUiCalls(8, 33);
+            LogPage.setAndroidCallsForTest(waitingCalls);
+            LogPage.setAndroidUiCallsForTest(waitingUi);
+            FakeSettingsActivity waitingActivity = new FakeSettingsActivity(external, cache, 8, true);
+            LogPage.attachActivity(waitingActivity);
+            waitingUi.awaitRenderCount(1);
+            LogPage.Controller waitingController = registeredController(waitingActivity);
+            LogStore.Entry entry = controllerResult(waitingController).entries.get(0);
+            waitingController.select(entry);
+            waitingUi.awaitRenderCount(2);
+            waitingController.exportSelected(cache);
+            check(waitingCalls.startedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS),
+                "the production Activity enters the SAF waiting phase after creating its snapshot");
+            Object waitingSession = activeSession(waitingController);
+            File waitingSnapshot = activeSnapshot(waitingSession);
+            check("WAITING_RESULT".equals(activeSessionState(waitingSession)) && waitingSnapshot != null && waitingSnapshot.isFile(),
+                "the Activity-owned production session is WAITING_RESULT with a retained frozen snapshot");
+
+            LogPage.onDestroy(waitingActivity);
+            FakeAndroidUiCalls waitingRecreatedUi = new FakeAndroidUiCalls(9, 33);
+            LogPage.setAndroidUiCallsForTest(waitingRecreatedUi);
+            FakeSettingsActivity waitingRecreated = new FakeSettingsActivity(external, cache, 9, true);
+            LogPage.attachActivity(waitingRecreated);
+            waitingRecreatedUi.awaitRenderCount(1);
+            awaitCondition("the WAITING_RESULT recreation finishes its fresh list read", new Condition() {
+                @Override public boolean ready() {
+                    try { return controllerResult(registeredController(waitingRecreated)).entries.size() == 1; }
+                    catch (Exception failure) { return false; }
+                }
+            });
+            String waitingFreshSnapshot = viewSnapshot(waitingRecreatedUi.lastBody);
+            int waitingFreshRenderCount = waitingRecreatedUi.renderCount;
+            LogPage.onActivityResult(waitingActivity, LogPage.EXPORT_REQUEST_CODE, LogPage.RESULT_OK,
+                new FakeResultIntent(new AndroidFakeUri("content", "content://private/waiting-stale")));
+            awaitCondition("destroying WAITING_RESULT removes its production snapshot", new Condition() {
+                @Override public boolean ready() { return !waitingSnapshot.exists(); }
+            });
+            check(waitingCalls.openCalls == 0 && viewSnapshot(waitingRecreatedUi.lastBody).equals(waitingFreshSnapshot)
+                && waitingRecreatedUi.renderCount == waitingFreshRenderCount && waitingRecreatedUi.finishCount == 0,
+                "the stale WAITING_RESULT callback cannot write or change the recreated Activity's fresh list");
+            LogPage.onDestroy(waitingRecreated);
+
+            FakeAndroidCalls writingCalls = new FakeAndroidCalls(); writingCalls.deleteResult = 1;
+            BlockingOutput writingOutput = new BlockingOutput(); writingCalls.targetOutput = writingOutput;
+            FakeAndroidUiCalls writingUi = new FakeAndroidUiCalls(10, 32);
+            LogPage.setAndroidCallsForTest(writingCalls);
+            LogPage.setAndroidUiCallsForTest(writingUi);
+            FakeSettingsActivity writingActivity = new FakeSettingsActivity(external, cache, 10, true);
+            LogPage.attachActivity(writingActivity);
+            writingUi.awaitRenderCount(1);
+            LogPage.Controller writingController = registeredController(writingActivity);
+            LogStore.Entry writingEntry = controllerResult(writingController).entries.get(0);
+            writingController.select(writingEntry);
+            writingUi.awaitRenderCount(2);
+            writingController.exportSelected(cache);
+            check(writingCalls.startedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS),
+                "the second production Activity reaches its SAF waiting phase");
+            Object writingSession = activeSession(writingController);
+            File writingSnapshot = activeSnapshot(writingSession);
+            LogPage.onActivityResult(writingActivity, LogPage.EXPORT_REQUEST_CODE, LogPage.RESULT_OK,
+                new FakeResultIntent(new AndroidFakeUri("content", "content://private/writing-target")));
+            check(writingOutput.entered.await(5, java.util.concurrent.TimeUnit.SECONDS),
+                "the actual Activity result advances the production AndroidHost into a blocked target write");
+            check("WRITING".equals(activeSessionState(writingSession)),
+                "the production session is observably WRITING while its target stream is active");
+            LogPage.onDestroy(writingActivity);
+            FakeAndroidUiCalls writingRecreatedUi = new FakeAndroidUiCalls(11, 33);
+            LogPage.setAndroidUiCallsForTest(writingRecreatedUi);
+            FakeSettingsActivity writingRecreated = new FakeSettingsActivity(external, cache, 11, true);
+            LogPage.attachActivity(writingRecreated);
+            writingRecreatedUi.awaitRenderCount(1);
+            awaitCondition("the WRITING recreation finishes its fresh list read", new Condition() {
+                @Override public boolean ready() {
+                    try { return controllerResult(registeredController(writingRecreated)).entries.size() == 1; }
+                    catch (Exception failure) { return false; }
+                }
+            });
+            String writingFreshSnapshot = viewSnapshot(writingRecreatedUi.lastBody);
+            int writingFreshRenderCount = writingRecreatedUi.renderCount;
+            LogPage.onActivityResult(writingActivity, LogPage.EXPORT_REQUEST_CODE, LogPage.RESULT_OK,
+                new FakeResultIntent(new AndroidFakeUri("content", "content://private/writing-stale")));
+            check(writingOutput.closed.await(5, java.util.concurrent.TimeUnit.SECONDS)
+                && writingCalls.deletedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS),
+                "destroying WRITING closes the active target stream and deletes the possibly partial target");
+            awaitCondition("destroying WRITING removes its production snapshot", new Condition() {
+                @Override public boolean ready() { return writingSnapshot != null && !writingSnapshot.exists(); }
+            });
+            check(writingOutput.closeCalls == 1 && writingCalls.openCalls == 1 && writingCalls.deleteCalls == 1
+                && viewSnapshot(writingRecreatedUi.lastBody).equals(writingFreshSnapshot)
+                && writingRecreatedUi.renderCount == writingFreshRenderCount
+                && writingRecreatedUi.finishCount == 0,
+                "the stale WRITING result cannot repeat resource cleanup or change the recreated list");
+            LogPage.onDestroy(writingRecreated);
+
+            FakeAndroidCalls finalizingCalls = new FakeAndroidCalls(); finalizingCalls.deleteResult = 1;
+            FakeAndroidUiCalls finalizingUi = new FakeAndroidUiCalls(12, 32);
+            LogPage.setAndroidCallsForTest(finalizingCalls);
+            LogPage.setAndroidUiCallsForTest(finalizingUi);
+            FakeSettingsActivity finalizingActivity = new FakeSettingsActivity(external, cache, 12, true);
+            LogPage.attachActivity(finalizingActivity);
+            finalizingUi.awaitRenderCount(1);
+            LogPage.Controller finalizingController = registeredController(finalizingActivity);
+            LogStore.Entry finalizingEntry = controllerResult(finalizingController).entries.get(0);
+            finalizingController.select(finalizingEntry);
+            finalizingUi.awaitRenderCount(2);
+            finalizingController.exportSelected(cache);
+            check(finalizingCalls.startedLatch.await(5, java.util.concurrent.TimeUnit.SECONDS),
+                "the third production Activity reaches its SAF waiting phase");
+            final Object finalizingSession = activeSession(finalizingController);
+            final Object finalizingLock = activeSessionLock(finalizingSession);
+            final CountDownLatch finalizingLockHeld = new CountDownLatch(1);
+            final CountDownLatch releaseFinalizingLock = new CountDownLatch(1);
+            final AtomicReference<Throwable> phaseFailure = new AtomicReference<Throwable>();
+            final AtomicReference<Throwable> callbackFailure = new AtomicReference<Throwable>();
+            final Thread finalizingObserver = new Thread(new Runnable() {
+                @Override public void run() {
+                    long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+                    try {
+                        while (System.nanoTime() < deadline) {
+                            if ("FINALIZING".equals(activeSessionState(finalizingSession))) {
+                                synchronized (finalizingLock) {
+                                    finalizingLockHeld.countDown();
+                                    if (!releaseFinalizingLock.await(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                                        throw new IOException("finalizing test latch timeout");
+                                    }
+                                }
+                                return;
+                            }
+                            Thread.yield();
+                        }
+                        throw new IOException("production FINALIZING state was not observed");
+                    } catch (Throwable failure) {
+                        phaseFailure.set(failure);
+                        finalizingLockHeld.countDown();
+                    }
+                }
+            }, "calendar-tab-r4-finalizing-observer");
+            finalizingObserver.setDaemon(true);
+            finalizingObserver.start();
+            Thread finalizingCallback = new Thread(new Runnable() {
+                @Override public void run() {
+                    try {
+                        LogPage.onActivityResult(finalizingActivity, LogPage.EXPORT_REQUEST_CODE, 0, null);
+                    } catch (Throwable failure) { callbackFailure.set(failure); }
+                }
+            }, "calendar-tab-r4-finalizing-callback");
+            finalizingCallback.setDaemon(true);
+            finalizingCallback.start();
+            Thread finalizingDestroy = null;
+            try {
+                check(finalizingLockHeld.await(5, java.util.concurrent.TimeUnit.SECONDS) && phaseFailure.get() == null,
+                    "the real Activity result enters FINALIZING and the test holds that production phase for lifecycle overlap");
+
+                finalizingDestroy = new Thread(new Runnable() {
+                    @Override public void run() { LogPage.onDestroy(finalizingActivity); }
+                }, "calendar-tab-r4-finalizing-destroy");
+                finalizingDestroy.setDaemon(true);
+                finalizingDestroy.start();
+                awaitCondition("FINALIZING Activity is removed from the production registry before detach completes", new Condition() {
+                    @Override public boolean ready() {
+                        try { return !hasRegisteredController(finalizingActivity); }
+                        catch (Exception failure) { throw new AssertionError(failure); }
+                    }
+                });
+                FakeAndroidUiCalls finalizingRecreatedUi = new FakeAndroidUiCalls(13, 33);
+                LogPage.setAndroidUiCallsForTest(finalizingRecreatedUi);
+                FakeSettingsActivity finalizingRecreated = new FakeSettingsActivity(external, cache, 13, true);
+                LogPage.attachActivity(finalizingRecreated);
+                finalizingRecreatedUi.awaitRenderCount(1);
+                awaitCondition("the FINALIZING recreation finishes its fresh list read", new Condition() {
+                    @Override public boolean ready() {
+                        try { return controllerResult(registeredController(finalizingRecreated)).entries.size() == 1; }
+                        catch (Exception failure) { return false; }
+                    }
+                });
+                String finalizingFreshSnapshot = viewSnapshot(finalizingRecreatedUi.lastBody);
+                int finalizingFreshRenderCount = finalizingRecreatedUi.renderCount;
+                LogPage.onActivityResult(finalizingActivity, LogPage.EXPORT_REQUEST_CODE, 0, null);
+                check(viewSnapshot(finalizingRecreatedUi.lastBody).equals(finalizingFreshSnapshot)
+                    && finalizingRecreatedUi.renderCount == finalizingFreshRenderCount
+                    && finalizingRecreatedUi.finishCount == 0,
+                    "the production FINALIZING cancellation and old Activity callback do not alter the recreated list");
+                LogPage.onDestroy(finalizingRecreated);
+            } finally {
+                releaseFinalizingLock.countDown();
+                finalizingCallback.join(5000L);
+                if (finalizingDestroy != null) finalizingDestroy.join(5000L);
+                finalizingObserver.join(5000L);
+            }
+            check(!finalizingCallback.isAlive() && (finalizingDestroy == null || !finalizingDestroy.isAlive())
+                && !finalizingObserver.isAlive() && callbackFailure.get() == null && phaseFailure.get() == null,
+                "the production finalization and Activity detach both complete once the controlled phase is released");
+        } finally {
+            LogPage.setPageLaunchCallsForTest(null);
+            LogPage.setAndroidUiCallsForTest(null);
+            LogPage.setAndroidCallsForTest(null);
+            deleteTree(root);
+        }
+    }
+
     private static void testDeleteExceptionUsesFixedResidualMessage() throws Exception {
         File root = cacheTemp("calendar-tab-r3-delete-exception-");
         try {
@@ -1467,7 +2092,7 @@ public final class CrashLogTest {
             LogStore store = new LogStore(Collections.<LogStore.Source>singletonList(source));
             Object owner = new Object(); FakeAndroidCalls calls = new FakeAndroidCalls(); calls.openThrows = false; calls.deleteThrows = true;
             calls.output.failWrite = true;
-            ManualHost host = new ManualHost(); host.targetAdapter = new LogPage.AndroidHost(owner, new Object(), calls);
+            ManualHost host = new ManualHost(); host.targetAdapter = new LogPage.AndroidHost(owner, owner, calls);
             LogPage.Controller controller = new LogPage.Controller(owner, store, host);
             readyController(controller, host, entry);
             controller.exportSelected(root); host.runNextIo();
@@ -1486,7 +2111,7 @@ public final class CrashLogTest {
             AtomicInteger inputCloses = new AtomicInteger();
             Object closeOwner = new Object(); FakeAndroidCalls closeCalls = new FakeAndroidCalls();
             closeCalls.output.failClose = true; closeCalls.deleteResult = 1;
-            ManualHost suppressedHost = new ManualHost(); suppressedHost.targetAdapter = new LogPage.AndroidHost(closeOwner, new Object(), closeCalls);
+            ManualHost suppressedHost = new ManualHost(); suppressedHost.targetAdapter = new LogPage.AndroidHost(closeOwner, closeOwner, closeCalls);
             FaultInput suppressedInput = new FaultInput("sanitized snapshot\n".getBytes("UTF-8"), false, true, inputCloses);
             suppressedHost.snapshotInputOverride = suppressedInput;
             LogPage.Controller suppressed = new LogPage.Controller(closeOwner, store, suppressedHost);
@@ -1766,18 +2391,18 @@ public final class CrashLogTest {
             LogPage.cleanupOrphanSnapshots(cache, escaping);
             check(escapedTarget.exists(), "cleanup with an escaped canonical export root leaves all files untouched");
 
-            final Object fragment = new Object(), activity = new Object(), uri = new Object();
+            final Object activity = new Object(), uri = new Object();
             FakeAndroidCalls calls = new FakeAndroidCalls();
-            LogPage.AndroidHost androidHost = new LogPage.AndroidHost(fragment, activity, calls);
+            LogPage.AndroidHost androidHost = new LogPage.AndroidHost(activity, activity, calls);
             androidHost.launchDocument("wakeup-noads-crash.txt", LogPage.EXPORT_REQUEST_CODE);
             check("android.intent.action.CREATE_DOCUMENT".equals(calls.intent.action)
                 && "android.intent.category.OPENABLE".equals(calls.intent.category)
                 && "text/plain".equals(calls.intent.mime)
                 && "wakeup-noads-crash.txt".equals(calls.intent.extras.get("android.intent.extra.TITLE"))
                 && Boolean.TRUE.equals(calls.intent.extras.get("android.intent.extra.LOCAL_ONLY"))
-                && calls.fragment == fragment && calls.startedIntent == calls.intent
+                && calls.activity == activity && calls.startedIntent == calls.intent
                 && calls.requestCode == 0x6c67,
-                "production AndroidHost.launchDocument builds and starts the same Intent with exact action/category/MIME/typed extras/request/fragment");
+                "production AndroidHost.launchDocument builds and starts the same Intent with exact action/category/MIME/typed extras/request/current Activity owner");
             check(androidHost.openTarget(uri) == calls.output && calls.openedUri == uri,
                 "production AndroidHost target adapter calls the injected platform with the selected URI");
             calls.deleteResult = 0;
@@ -1793,6 +2418,214 @@ public final class CrashLogTest {
 
     private static void readyController(LogPage.Controller controller, ManualHost host, LogStore.Entry entry) {
         controller.present(); host.runAllIo(); controller.select(entry); host.runAllIo();
+    }
+
+    private static LogPage.Controller registeredController(Object activity) throws Exception {
+        java.lang.reflect.Field field = LogPage.class.getDeclaredField("CONTROLLERS");
+        field.setAccessible(true);
+        @SuppressWarnings("unchecked") Map<Object, LogPage.Controller> controllers = (Map<Object, LogPage.Controller>) field.get(null);
+        LogPage.Controller controller = controllers.get(activity);
+        check(controller != null, "the production Activity registry owns the attached Controller");
+        return controller;
+    }
+
+    private static LogPage.AndroidHost registeredHost(Object activity) throws Exception {
+        LogPage.Controller controller = registeredController(activity);
+        return androidHost(controller);
+    }
+
+    private static LogPage.AndroidHost androidHost(LogPage.Controller controller) throws Exception {
+        java.lang.reflect.Field field = LogPage.Controller.class.getDeclaredField("host");
+        field.setAccessible(true);
+        return (LogPage.AndroidHost) field.get(controller);
+    }
+
+    private static LogPage.Controller startNativeController(FakeSettingsActivity activity, LogStore store,
+                                                             FakeAndroidUiCalls ui) throws Exception {
+        LogPage.AndroidHost host = new LogPage.AndroidHost(activity, activity, new FakeAndroidCalls(), ui);
+        LogPage.Controller controller = new LogPage.Controller(activity, store, host);
+        java.lang.reflect.Field field = LogPage.AndroidHost.class.getDeclaredField("controller");
+        field.setAccessible(true);
+        field.set(host, controller);
+        controller.present();
+        return controller;
+    }
+
+    private static LogStore.Result controllerResult(LogPage.Controller controller) throws Exception {
+        java.lang.reflect.Field field = LogPage.Controller.class.getDeclaredField("result");
+        field.setAccessible(true);
+        return (LogStore.Result) field.get(controller);
+    }
+
+    private static LogPage.PageState controllerState(LogPage.Controller controller) throws Exception {
+        java.lang.reflect.Field[] fields = LogPage.Controller.class.getDeclaredFields();
+        java.lang.reflect.Field resultField = LogPage.Controller.class.getDeclaredField("result");
+        resultField.setAccessible(true);
+        java.lang.reflect.Field selectedField = LogPage.Controller.class.getDeclaredField("selected");
+        selectedField.setAccessible(true);
+        java.lang.reflect.Field previewField = LogPage.Controller.class.getDeclaredField("preview");
+        previewField.setAccessible(true);
+        java.lang.reflect.Field detailField = LogPage.Controller.class.getDeclaredField("detail");
+        detailField.setAccessible(true);
+        java.lang.reflect.Field exportPendingField = LogPage.Controller.class.getDeclaredField("session");
+        exportPendingField.setAccessible(true);
+        java.lang.reflect.Field messageField = LogPage.Controller.class.getDeclaredField("message");
+        messageField.setAccessible(true);
+        Object session = exportPendingField.get(controller);
+        boolean busy = session != null && !activeSessionFinalized(session);
+        return new LogPage.PageState((LogStore.Result) resultField.get(controller),
+            (LogStore.Entry) selectedField.get(controller), (String) previewField.get(controller),
+            detailField.getBoolean(controller), busy, (String) messageField.get(controller));
+    }
+
+    private static boolean activeSessionFinalized(Object session) throws Exception {
+        java.lang.reflect.Field field = session.getClass().getDeclaredField("finalized");
+        field.setAccessible(true);
+        return field.getBoolean(session);
+    }
+
+    private static boolean containsText(FakeView root, String expected) {
+        if (root == null) return false;
+        if (root.text != null && root.text.contains(expected)) return true;
+        for (FakeView child : new ArrayList<FakeView>(root.children)) if (containsText(child, expected)) return true;
+        return false;
+    }
+
+    private static FakeView findTextContaining(FakeView root, String expected) {
+        if (root == null) return null;
+        if ("android.widget.TextView".equals(root.className) && root.text != null && root.text.contains(expected)) return root;
+        for (FakeView child : new ArrayList<FakeView>(root.children)) {
+            FakeView found = findTextContaining(child, expected);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private static int countClass(FakeView root, String className) {
+        if (root == null) return 0;
+        int count = className.equals(root.className) ? 1 : 0;
+        for (FakeView child : new ArrayList<FakeView>(root.children)) count += countClass(child, className);
+        return count;
+    }
+
+    private static void collectViews(FakeView root, List<FakeView> output) {
+        if (root == null) return;
+        output.add(root);
+        for (FakeView child : new ArrayList<FakeView>(root.children)) collectViews(child, output);
+    }
+
+    private static boolean isSecondaryLogText(String value) {
+        return value.startsWith("正在") || value.startsWith("部分") || value.startsWith("日志来源")
+            || value.startsWith("日志已消失") || value.startsWith("Java 崩溃 ·") || value.startsWith("系统退出 ·")
+            || value.startsWith("历史 Download") || value.startsWith("应用目录不可读取");
+    }
+
+    private static boolean verifyRenderedTheme(FakeView body, int themeId) {
+        if (body == null || body.parent == null) return false;
+        FakeView scroll = (FakeView) body.parent;
+        if (scroll.backgroundColor != expectedThemeColor(themeId, 1)) return false;
+        List<FakeView> views = new ArrayList<FakeView>();
+        collectViews(body, views);
+        boolean sawText = false;
+        for (FakeView view : views) {
+            if ("android.widget.TextView".equals(view.className)) {
+                sawText = true;
+                int attribute = isSecondaryLogText(view.text == null ? "" : view.text) ? 4 : 3;
+                if (!(view.textColor instanceof FakeColorStateList)
+                    || ((FakeColorStateList) view.textColor).attributeId != attribute
+                    || ((FakeColorStateList) view.textColor).color != expectedThemeColor(themeId, attribute)) return false;
+            } else if ("com.google.android.material.button.MaterialButton".equals(view.className)) {
+                if (!(view.textColor instanceof FakeColorStateList) || !(view.backgroundTint instanceof FakeColorStateList)
+                    || ((FakeColorStateList) view.textColor).attributeId != 3
+                    || ((FakeColorStateList) view.backgroundTint).attributeId != 2
+                    || ((FakeColorStateList) view.textColor).color != expectedThemeColor(themeId, 3)
+                    || ((FakeColorStateList) view.backgroundTint).color != expectedThemeColor(themeId, 2)) return false;
+            } else if ("com.google.android.material.card.MaterialCardView".equals(view.className)) {
+                if (!(view.cardBackgroundColor instanceof FakeColorStateList)
+                    || ((FakeColorStateList) view.cardBackgroundColor).attributeId != 2
+                    || ((FakeColorStateList) view.cardBackgroundColor).color != expectedThemeColor(themeId, 2)) return false;
+            } else if ("android.view.View".equals(view.className)
+                && view.backgroundColor != expectedThemeColor(themeId, 5)) return false;
+        }
+        return sawText;
+    }
+
+    private static boolean verifyRenderedControlContracts(FakeView body) {
+        List<FakeView> views = new ArrayList<FakeView>();
+        collectViews(body, views);
+        boolean sawText = false, sawButton = false;
+        for (FakeView view : views) {
+            if (!(view.layoutParams instanceof FakeLayoutParams)) continue;
+            FakeLayoutParams params = (FakeLayoutParams) view.layoutParams;
+            if ("android.widget.TextView".equals(view.className)) {
+                sawText = true;
+                if (view.textSizeUnit != 2 || params.height != -2 || view.minimumHeight < 56
+                    || view.singleLineCalls != 0 || view.maxLinesCalls != 0) return false;
+            }
+            if ("com.google.android.material.button.MaterialButton".equals(view.className)) {
+                sawButton = true;
+                if (view.textSizeUnit != 2 || params.width != -2 || params.height != -2 || view.minimumHeight < 48
+                    || view.singleLineCalls != 0 || view.maxLinesCalls != 0) return false;
+            }
+        }
+        return sawText && sawButton;
+    }
+
+    private static String viewSnapshot(FakeView root) {
+        StringBuilder result = new StringBuilder();
+        appendSnapshot(root, result);
+        return result.toString();
+    }
+
+    private static void appendSnapshot(FakeView view, StringBuilder result) {
+        if (view == null) return;
+        result.append(view.className).append('|').append(view.text).append('|').append(view.backgroundColor).append(';');
+        for (FakeView child : new ArrayList<FakeView>(view.children)) appendSnapshot(child, result);
+    }
+
+    private static Object activeSession(LogPage.Controller controller) throws Exception {
+        java.lang.reflect.Field field = LogPage.Controller.class.getDeclaredField("session");
+        field.setAccessible(true);
+        Object value = field.get(controller);
+        check(value != null, "the production Controller owns the active export session");
+        return value;
+    }
+
+    private static String activeSessionState(Object session) throws Exception {
+        java.lang.reflect.Field field = session.getClass().getDeclaredField("state");
+        field.setAccessible(true);
+        Object value = field.get(session);
+        return value == null ? "" : value.toString();
+    }
+
+    private static File activeSnapshot(Object session) throws Exception {
+        java.lang.reflect.Field field = session.getClass().getDeclaredField("snapshot");
+        field.setAccessible(true);
+        return (File) field.get(session);
+    }
+
+    private static Object activeSessionLock(Object session) throws Exception {
+        java.lang.reflect.Field field = session.getClass().getDeclaredField("lock");
+        field.setAccessible(true);
+        return field.get(session);
+    }
+
+    private static boolean hasRegisteredController(Object activity) throws Exception {
+        java.lang.reflect.Field lockField = LogPage.class.getDeclaredField("LOCK");
+        java.lang.reflect.Field controllersField = LogPage.class.getDeclaredField("CONTROLLERS");
+        lockField.setAccessible(true);
+        controllersField.setAccessible(true);
+        @SuppressWarnings("unchecked") Map<Object, LogPage.Controller> controllers =
+            (Map<Object, LogPage.Controller>) controllersField.get(null);
+        synchronized (lockField.get(null)) { return controllers.containsKey(activity); }
+    }
+
+    private interface Condition { boolean ready(); }
+
+    private static void awaitCondition(String label, Condition condition) throws Exception {
+        long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+        while (!condition.ready() && System.nanoTime() < deadline) Thread.sleep(10L);
+        check(condition.ready(), label);
     }
 
     private static String last(List<String> values) { return values.isEmpty() ? "" : values.get(values.size() - 1); }
@@ -1931,6 +2764,432 @@ public final class CrashLogTest {
         @Override public void close() throws Exception { closeCalls++; if (failClose) throw new IOException("cursor-close-secret"); }
     }
 
+    public static class FakeActivityBase {
+        final File externalFiles;
+        final File cache;
+        final int themeId;
+        public FakeExplicitIntent intent;
+        CharSequence title;
+        int finishCalls;
+        int factoryCalls, supportActionBarCalls;
+        final FakeView coordinator = new FakeView("androidx.coordinatorlayout.widget.CoordinatorLayout");
+        final FakeView appBar = new FakeView("com.google.android.material.appbar.AppBarLayout");
+        final FakeView toolbar = new FakeView("com.google.android.material.appbar.MaterialToolbar");
+        final FakeView recycler = new FakeView("androidx.recyclerview.widget.RecyclerView");
+        FakeActivityBase(File externalFiles, File cache, int themeId, boolean logMode) {
+            this.externalFiles = externalFiles; this.cache = cache; this.themeId = themeId;
+            intent = new FakeExplicitIntent(null, FakeSettingsActivity.class);
+            if (logMode) intent.extras.put("wakeup_noads_log_page", Boolean.TRUE);
+            appBar.addView(toolbar, new FakeLayoutParams("android.view.ViewGroup$LayoutParams", -1, -2, 0));
+            coordinator.addView(appBar, new FakeLayoutParams("androidx.coordinatorlayout.widget.CoordinatorLayout$LayoutParams", -1, -2, 0));
+            FakeLayoutParams original = new FakeLayoutParams("androidx.coordinatorlayout.widget.CoordinatorLayout$LayoutParams", -1, -1, 0);
+            original.behavior = new Object();
+            recycler.setLayoutParams(original);
+            coordinator.addView(recycler, original);
+        }
+        public FakeExplicitIntent getIntent() { return intent; }
+        public File getExternalFilesDir(String type) { return externalFiles; }
+        public File getCacheDir() { return cache; }
+        public String getPackageName() { return "io.github.wakeupnoads"; }
+        public FakeView o00O0O() { return coordinator; }
+        public FakeView o0OoOo0() { return recycler; }
+        public FakeView Oooooo0() {
+            factoryCalls++;
+            FakeView made = new FakeView("com.google.android.material.appbar.AppBarLayout");
+            made.addView(new FakeView("com.google.android.material.appbar.MaterialToolbar"),
+                new FakeLayoutParams("android.view.ViewGroup$LayoutParams", -1, -2, 0));
+            coordinator.addView(made, new FakeLayoutParams("androidx.coordinatorlayout.widget.CoordinatorLayout$LayoutParams", -1, -2, 0));
+            return made;
+        }
+        public void setSupportActionBar(Object value) { supportActionBarCalls++; }
+        public void setTitle(CharSequence value) { title = value; }
+        public void finish() { finishCalls++; }
+    }
+
+    public static final class FakeSettingsActivity extends FakeActivityBase {
+        public FakeSettingsActivity(File externalFiles, File cache, int themeId, boolean logMode) {
+            super(externalFiles, cache, themeId, logMode);
+        }
+    }
+
+    public static final class FakeOtherActivity extends FakeActivityBase {
+        public FakeOtherActivity(File externalFiles, File cache, int themeId, boolean logMode) {
+            super(externalFiles, cache, themeId, logMode);
+        }
+    }
+
+    public static final class FakePageFragment {
+        private final Object activity;
+        public FakePageFragment(Object activity) { this.activity = activity; }
+        public Object getActivity() { return activity; }
+    }
+
+    public static final class FakeExplicitIntent {
+        final Object context;
+        final Class<?> targetClass;
+        final Map<String, Object> extras = new LinkedHashMap<String, Object>();
+        int flags;
+        FakeExplicitIntent(Object context, Class<?> targetClass) { this.context = context; this.targetClass = targetClass; }
+    }
+
+    public static final class FakeResultIntent {
+        private final Object data;
+        public FakeResultIntent(Object data) { this.data = data; }
+        public Object getData() { return data; }
+    }
+
+    private static final class FakePageLaunchCalls implements LogPage.PageLaunchCalls {
+        FakeExplicitIntent lastIntent;
+        Object startedFragment;
+        boolean failStart;
+        String failureText = "launch failed";
+        @Override public Class<?> settingsActivityClass() { return FakeSettingsActivity.class; }
+        @Override public Object newExplicitIntent(Object context, Class<?> targetClass) {
+            lastIntent = new FakeExplicitIntent(context, targetClass); return lastIntent;
+        }
+        @Override public void putBooleanExtra(Object intent, String key, boolean value) {
+            ((FakeExplicitIntent) intent).extras.put(key, Boolean.valueOf(value));
+        }
+        @Override public void addFlags(Object intent, int flags) { ((FakeExplicitIntent) intent).flags |= flags; }
+        @Override public void startActivity(Object fragment, Object intent) throws Exception {
+            startedFragment = fragment;
+            if (failStart) throw new IOException(failureText);
+        }
+        @Override public boolean isSettingsActivity(Object activity) { return activity instanceof FakeSettingsActivity; }
+        @Override public Object activityIntent(Object activity) {
+            return activity instanceof FakeActivityBase ? ((FakeActivityBase) activity).getIntent() : null;
+        }
+        @Override public boolean booleanExtraIsTrue(Object intent, String key) {
+            if (!(intent instanceof FakeExplicitIntent)) return false;
+            Object value = ((FakeExplicitIntent) intent).extras.get(key);
+            return value instanceof Boolean && ((Boolean) value).booleanValue();
+        }
+    }
+
+    private static final class FakeColorStateList {
+        final int themeId, attributeId, color;
+        FakeColorStateList(int themeId, int attributeId, int color) {
+            this.themeId = themeId; this.attributeId = attributeId; this.color = color;
+        }
+        public int getDefaultColor() { return color; }
+    }
+
+    private static final class FakeLayoutParams {
+        final String className;
+        final int width, height;
+        final float weight;
+        Object behavior;
+        int[] margins = new int[4];
+        FakeLayoutParams(String className, int width, int height, float weight) {
+            this.className = className; this.width = width; this.height = height; this.weight = weight;
+        }
+        public Object getBehavior() { return behavior; }
+        public void setBehavior(Object value) { behavior = value; }
+        public void setMargins(int left, int top, int right, int bottom) { margins = new int[] { left, top, right, bottom }; }
+    }
+
+    private static final class FakeClickListener {
+        final Runnable callback;
+        FakeClickListener(Runnable callback) { this.callback = callback; }
+        void run() { if (callback != null) callback.run(); }
+    }
+
+    private static final class FakeView {
+        final String className;
+        final List<FakeView> children = new ArrayList<FakeView>();
+        Object parent, layoutParams, textColor, cardBackgroundColor, backgroundTint, clickListener, navigationClickListener, typeface;
+        String text;
+        int backgroundColor, textSizeUnit = -1, minimumHeight, orientation, singleLineCalls, maxLinesCalls;
+        float textSize;
+        int[] padding = new int[] { 1, 3, 2, 5 };
+        boolean fillViewport, clipToPadding, selectable, allCaps;
+        int addViewCalls, removeViewCalls, removeAllViewsCalls;
+        FakeView(String className) { this.className = className; }
+        public Object getParent() { return parent; }
+        public Object getLayoutParams() { return layoutParams; }
+        public void setLayoutParams(Object value) { layoutParams = value; }
+        public int getChildCount() { return children.size(); }
+        public Object getChildAt(int index) { return index < 0 || index >= children.size() ? null : children.get(index); }
+        public void addView(Object child, Object params) {
+            FakeView view = (FakeView) child;
+            if (view.parent != null) throw new AssertionError("a view cannot have two parents");
+            view.parent = this; view.layoutParams = params; children.add(view); addViewCalls++;
+        }
+        public void removeView(Object child) {
+            FakeView view = (FakeView) child;
+            if (children.remove(view)) { view.parent = null; removeViewCalls++; }
+        }
+        public void removeAllViews() {
+            removeAllViewsCalls++;
+            for (FakeView child : children) child.parent = null;
+            children.clear();
+        }
+        public void setText(CharSequence value) { text = value == null ? null : value.toString(); }
+        public void setTextSize(int unit, float size) { textSizeUnit = unit; textSize = size; }
+        public void setTextColor(Object value) { textColor = value; }
+        public void setMinimumHeight(int value) { minimumHeight = value; }
+        public void setBackgroundColor(int value) { backgroundColor = value; }
+        public void setCardBackgroundColor(Object value) { cardBackgroundColor = value; }
+        public void setBackgroundTintList(Object value) { backgroundTint = value; }
+        public void setPadding(int left, int top, int right, int bottom) { padding = new int[] { left, top, right, bottom }; }
+        public int getPaddingLeft() { return padding[0]; }
+        public int getPaddingTop() { return padding[1]; }
+        public int getPaddingRight() { return padding[2]; }
+        public int getPaddingBottom() { return padding[3]; }
+        public void setOrientation(int value) { orientation = value; }
+        public void setFillViewport(boolean value) { fillViewport = value; }
+        public void setClipToPadding(boolean value) { clipToPadding = value; }
+        public void setTextIsSelectable(boolean value) { selectable = value; }
+        public void setTypeface(Object value) { typeface = value; }
+        public void setAllCaps(boolean value) { allCaps = value; }
+        public void setOnClickListener(Object value) { clickListener = value; }
+        public void setNavigationOnClickListener(Object value) { navigationClickListener = value; }
+        public void setTitle(CharSequence value) { text = value == null ? null : value.toString(); }
+        public boolean isAttachedToWindow() { return parent != null; }
+        public void requestApplyInsets() { }
+        public void setSingleLine(boolean value) { singleLineCalls++; }
+        public void setMaxLines(int value) { maxLinesCalls++; }
+    }
+
+    private static final class FakeResources {
+        final FakeAndroidUiCalls calls;
+        FakeResources(FakeAndroidUiCalls calls) { this.calls = calls; }
+        public int getIdentifier(String name, String type, String resourcePackage) {
+            calls.attributes.add(resourcePackage + ":" + name);
+            if (!"attr".equals(type)) return 0;
+            if ("colorBackground".equals(name)) return 1;
+            if ("colorSurface".equals(name)) return 2;
+            if ("colorOnSurface".equals(name)) return 3;
+            if ("colorOnSurfaceVariant".equals(name)) return 4;
+            if ("colorOutlineVariant".equals(name)) return 5;
+            return 0;
+        }
+        public FakeMetrics getDisplayMetrics() { return new FakeMetrics(); }
+    }
+
+    private static final class FakeMetrics { public float density = 1.0f; }
+
+    private static final class FakeTheme {
+        final FakeAndroidUiCalls calls;
+        final int themeId;
+        FakeTheme(FakeAndroidUiCalls calls, int themeId) { this.calls = calls; this.themeId = themeId; }
+        public FakeTypedArray obtainStyledAttributes(int[] ids) { return new FakeTypedArray(calls, themeId, ids[0]); }
+    }
+
+    private static final class FakeTypedArray {
+        final FakeAndroidUiCalls calls;
+        final int themeId, attributeId;
+        boolean recycled;
+        FakeTypedArray(FakeAndroidUiCalls calls, int themeId, int attributeId) {
+            this.calls = calls; this.themeId = themeId; this.attributeId = attributeId;
+        }
+        public Object getColorStateList(int index) {
+            check(index == 0, "production reads the requested theme item");
+            FakeColorStateList value = new FakeColorStateList(themeId, attributeId, expectedThemeColor(themeId, attributeId));
+            calls.resolved.add(value);
+            return value;
+        }
+        public void recycle() { recycled = true; calls.recycledArrays++; }
+    }
+
+    private static int expectedThemeColor(int themeId, int attributeId) {
+        if (themeId == 1) {
+            switch (attributeId) {
+                case 1: return 0xff110101;
+                case 2: return 0xff110202;
+                case 3: return 0xff110303;
+                case 4: return 0xff110404;
+                case 5: return 0xff110505;
+                default: throw new AssertionError("unknown theme attribute id " + attributeId);
+            }
+        }
+        if (themeId == 2) {
+            switch (attributeId) {
+                case 1: return 0xff220101;
+                case 2: return 0xff220202;
+                case 3: return 0xff220303;
+                case 4: return 0xff220404;
+                case 5: return 0xff220505;
+                default: throw new AssertionError("unknown theme attribute id " + attributeId);
+            }
+        }
+        return 0xff330000 | (attributeId << 8);
+    }
+
+    private static final class FakeAndroidUiCalls implements LogPage.AndroidUiCalls {
+        final List<String> attributes = Collections.synchronizedList(new ArrayList<String>());
+        final List<Object> resolved = Collections.synchronizedList(new ArrayList<Object>());
+        final List<String> toasts = Collections.synchronizedList(new ArrayList<String>());
+        final Object backToken = new Object();
+        final Object renderMonitor = new Object();
+        final int themeId, sdk;
+        int openCount, backRegistrations, backUnregistrations, requestInsetsCount, detachCount, finishCount, paddingWrites;
+        int recycledArrays, renderCount, dialogConstructCount;
+        boolean attached = true, failOpen;
+        FakeView lastScroll, lastBody;
+        Runnable platformBack;
+
+        FakeAndroidUiCalls(int themeId, int sdk) { this.themeId = themeId; this.sdk = sdk; }
+        @Override public Object invoke(Object receiver, String method, String[] types, Object[] args) throws Exception {
+            if (receiver instanceof FakeActivityBase) {
+                FakeActivityBase activity = (FakeActivityBase) receiver;
+                if ("getPackageName".equals(method)) return activity.getPackageName();
+                if ("getResources".equals(method)) return new FakeResources(this);
+                if ("getTheme".equals(method)) return new FakeTheme(this, activity.themeId);
+                if ("o00O0O".equals(method)) {
+                    openCount++;
+                    if (failOpen) throw new IOException("open /private/view-path-secret");
+                    return activity.o00O0O();
+                }
+                if ("o0OoOo0".equals(method)) return activity.o0OoOo0();
+                if ("Oooooo0".equals(method)) return activity.Oooooo0();
+                if ("setSupportActionBar".equals(method)) { activity.setSupportActionBar(args[0]); return null; }
+                if ("finish".equals(method)) { activity.finish(); return null; }
+                throw new AssertionError("unexpected production Activity call " + method);
+            }
+            if (receiver instanceof FakeResources) {
+                FakeResources resources = (FakeResources) receiver;
+                if ("getIdentifier".equals(method)) return resources.getIdentifier((String) args[0], (String) args[1], (String) args[2]);
+                if ("getDisplayMetrics".equals(method)) return resources.getDisplayMetrics();
+            }
+            if (receiver instanceof FakeMetrics && "density".equals(method)) return ((FakeMetrics) receiver).density;
+            if (receiver instanceof FakeTheme && "obtainStyledAttributes".equals(method)) {
+                FakeTheme value = (FakeTheme) receiver; return value.obtainStyledAttributes((int[]) args[0]);
+            }
+            if (receiver instanceof FakeTypedArray) {
+                FakeTypedArray value = (FakeTypedArray) receiver;
+                if ("getColorStateList".equals(method)) return value.getColorStateList(((Integer) args[0]).intValue());
+                if ("recycle".equals(method)) { value.recycle(); return null; }
+            }
+            if (receiver instanceof FakeColorStateList && "getDefaultColor".equals(method)) return ((FakeColorStateList) receiver).getDefaultColor();
+            if (receiver instanceof FakeLayoutParams) {
+                FakeLayoutParams params = (FakeLayoutParams) receiver;
+                if ("getBehavior".equals(method)) return params.getBehavior();
+                if ("setBehavior".equals(method)) { params.setBehavior(args[0]); return null; }
+                if ("setMargins".equals(method)) { params.setMargins(intAt(args, 0), intAt(args, 1), intAt(args, 2), intAt(args, 3)); return null; }
+            }
+            if (receiver instanceof FakeView) return invokeView((FakeView) receiver, method, args);
+            throw new AssertionError("unexpected platform receiver for " + method + ": " + receiver);
+        }
+        private Object invokeView(FakeView view, String method, Object[] args) {
+            if ("getParent".equals(method)) return view.getParent();
+            if ("getLayoutParams".equals(method)) return view.getLayoutParams();
+            if ("getChildCount".equals(method)) return view.getChildCount();
+            if ("getChildAt".equals(method)) return view.getChildAt(intAt(args, 0));
+            if ("addView".equals(method)) {
+                FakeView child = (FakeView) args[0]; view.addView(child, args[1]);
+                if ("androidx.core.widget.NestedScrollView".equals(child.className)) {
+                    lastScroll = child;
+                    if (!child.children.isEmpty()) lastBody = child.children.get(0);
+                }
+                if (view == lastScroll && child.className.equals("android.widget.LinearLayout")) lastBody = child;
+                signalRenderChange();
+                return null;
+            }
+            if ("removeView".equals(method)) {
+                FakeView child = (FakeView) args[0];
+                boolean wasPageRoot = child == lastScroll;
+                view.removeView(child);
+                if (wasPageRoot) detachCount++;
+                return null;
+            }
+            if ("removeAllViews".equals(method)) {
+                view.removeAllViews();
+                if (view == lastBody) { synchronized (renderMonitor) { renderCount++; renderMonitor.notifyAll(); } }
+                return null;
+            }
+            if ("getPaddingLeft".equals(method)) return view.padding[0];
+            if ("getPaddingTop".equals(method)) return view.padding[1];
+            if ("getPaddingRight".equals(method)) return view.padding[2];
+            if ("getPaddingBottom".equals(method)) return view.padding[3];
+            if ("setPadding".equals(method)) { view.setPadding(intAt(args, 0), intAt(args, 1), intAt(args, 2), intAt(args, 3)); paddingWrites++; return null; }
+            if ("setLayoutParams".equals(method)) { view.setLayoutParams(args[0]); return null; }
+            if ("setText".equals(method)) { view.setText((CharSequence) args[0]); signalRenderChange(); return null; }
+            if ("setTitle".equals(method)) { view.setTitle((CharSequence) args[0]); signalRenderChange(); return null; }
+            if ("setTextSize".equals(method)) { view.setTextSize(intAt(args, 0), ((Number) args[1]).floatValue()); return null; }
+            if ("setTextColor".equals(method)) { view.setTextColor(args[0]); return null; }
+            if ("setMinimumHeight".equals(method)) { view.setMinimumHeight(intAt(args, 0)); return null; }
+            if ("setBackgroundColor".equals(method)) { view.setBackgroundColor(intAt(args, 0)); return null; }
+            if ("setCardBackgroundColor".equals(method)) { view.cardBackgroundColor = args[0]; return null; }
+            if ("setBackgroundTintList".equals(method)) { view.backgroundTint = args[0]; return null; }
+            if ("setOrientation".equals(method)) { view.orientation = intAt(args, 0); return null; }
+            if ("setFillViewport".equals(method)) { view.fillViewport = ((Boolean) args[0]).booleanValue(); return null; }
+            if ("setClipToPadding".equals(method)) { view.clipToPadding = ((Boolean) args[0]).booleanValue(); return null; }
+            if ("setTextIsSelectable".equals(method)) { view.selectable = ((Boolean) args[0]).booleanValue(); return null; }
+            if ("setTypeface".equals(method)) { view.typeface = args[0]; return null; }
+            if ("setAllCaps".equals(method)) { view.allCaps = ((Boolean) args[0]).booleanValue(); return null; }
+            if ("setOnClickListener".equals(method)) { view.clickListener = args[0]; return null; }
+            if ("setNavigationOnClickListener".equals(method)) { view.navigationClickListener = args[0]; return null; }
+            if ("setSingleLine".equals(method)) { view.singleLineCalls++; return null; }
+            if ("setMaxLines".equals(method)) { view.maxLinesCalls++; return null; }
+            if ("isAttachedToWindow".equals(method)) return Boolean.valueOf(attached);
+            if ("requestApplyInsets".equals(method)) { requestInsetsCount++; return null; }
+            throw new AssertionError("unexpected production View call " + view.className + "." + method);
+        }
+        @Override public Object construct(String className, String[] parameterTypes, Object[] args) {
+            if (className.contains("Dialog")) dialogConstructCount++;
+            if (className.equals("android.view.ViewGroup$LayoutParams"))
+                return new FakeLayoutParams(className, intAt(args, 0), intAt(args, 1), 0);
+            if (className.equals("android.widget.LinearLayout$LayoutParams"))
+                return new FakeLayoutParams(className, intAt(args, 0), intAt(args, 1), ((Number) args[2]).floatValue());
+            return new FakeView(className);
+        }
+        @Override public boolean isInstance(Object value, String className) {
+            if (value instanceof FakeLayoutParams) return className.equals(((FakeLayoutParams) value).className)
+                || "android.view.ViewGroup$LayoutParams".equals(className);
+            return value instanceof FakeView && (className.equals(((FakeView) value).className)
+                || "android.view.View".equals(className) || "android.view.ViewGroup".equals(className));
+        }
+        @Override public Object staticField(String className, String name) { return className + "." + name; }
+        @Override public Object clickListener(Runnable callback) { return callback == null ? null : new FakeClickListener(callback); }
+        @Override public float density(Object context) { return 1.0f; }
+        @Override public int sdkInt() { return sdk; }
+        @Override public Object registerBack(Object activity, Runnable callback) { backRegistrations++; platformBack = callback; return backToken; }
+        @Override public void unregisterBack(Object activity, Object registration) { if (registration == backToken) backUnregistrations++; }
+        @Override public LogPage.PageInsets readInsets(Object insets) { return (LogPage.PageInsets) insets; }
+        @Override public int[] padding(Object view) { return ((FakeView) view).padding.clone(); }
+        @Override public void setPadding(Object view, int left, int top, int right, int bottom) {
+            ((FakeView) view).setPadding(left, top, right, bottom); paddingWrites++;
+        }
+        @Override public boolean isAttached(Object view) { return attached; }
+        @Override public void requestApplyInsets(Object view) { requestInsetsCount++; }
+        @Override public void finish(Object activity) { finishCount++; ((FakeActivityBase) activity).finish(); }
+        @Override public void toast(Object activity, String message) { toasts.add(message); }
+        void awaitRenderCount(final int minimum) throws Exception {
+            long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+            synchronized (renderMonitor) {
+                while (renderCount < minimum && System.nanoTime() < deadline) {
+                    long remaining = deadline - System.nanoTime();
+                    if (remaining <= 0) break;
+                    long millis = Math.max(1L, Math.min(100L, java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(remaining)));
+                    renderMonitor.wait(millis);
+                }
+            }
+            check(renderCount >= minimum, "production renderer cleared and rebuilt the body at least " + minimum + " times");
+        }
+        void awaitBodyText(final String expected) throws Exception {
+            long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+            synchronized (renderMonitor) {
+                while (!bodyContainsText(expected) && System.nanoTime() < deadline) {
+                    long remaining = deadline - System.nanoTime();
+                    if (remaining <= 0) break;
+                    long millis = Math.max(1L, Math.min(100L, java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(remaining)));
+                    renderMonitor.wait(millis);
+                }
+            }
+            check(bodyContainsText(expected), "production rendered body contains expected text: " + expected);
+        }
+        private void signalRenderChange() { synchronized (renderMonitor) { renderMonitor.notifyAll(); } }
+        boolean bodyContainsText(String expected) { return containsText(lastBody, expected); }
+        private static boolean containsText(FakeView root, String expected) {
+            if (root == null) return false;
+            if (root.text != null && root.text.contains(expected)) return true;
+            for (FakeView child : new ArrayList<FakeView>(root.children)) if (containsText(child, expected)) return true;
+            return false;
+        }
+        private static int intAt(Object[] values, int index) { return ((Number) values[index]).intValue(); }
+    }
+
     private static final class FakeIntent {
         final String action;
         String category, mime;
@@ -1940,27 +3199,32 @@ public final class CrashLogTest {
 
     private static final class FakeAndroidCalls implements LogPage.AndroidCalls {
         FakeIntent intent;
-        Object fragment, startedIntent, openedUri;
+        Object activity, startedIntent, openedUri;
+        final java.util.concurrent.CountDownLatch startedLatch = new java.util.concurrent.CountDownLatch(1);
+        final java.util.concurrent.CountDownLatch deletedLatch = new java.util.concurrent.CountDownLatch(1);
         int requestCode, deleteResult;
         boolean deleteThrows, openThrows, openReturnsNull;
-        int openCalls, deleteCalls;
+        volatile int openCalls, deleteCalls;
         final RecordingOutput output = new RecordingOutput();
+        volatile OutputStream targetOutput = output;
         @Override public Object newIntent(String action) { intent = new FakeIntent(action); return intent; }
         @Override public void addCategory(Object intent, String category) { ((FakeIntent) intent).category = category; }
         @Override public void setType(Object intent, String mimeType) { ((FakeIntent) intent).mime = mimeType; }
         @Override public void putStringExtra(Object intent, String key, String value) { ((FakeIntent) intent).extras.put(key, value); }
         @Override public void putBooleanExtra(Object intent, String key, boolean value) { ((FakeIntent) intent).extras.put(key, Boolean.valueOf(value)); }
-        @Override public void startActivityForResult(Object fragment, Object intent, int requestCode) {
-            this.fragment = fragment; this.startedIntent = intent; this.requestCode = requestCode;
+        @Override public void startActivityForResult(Object activity, Object intent, int requestCode) {
+            this.activity = activity; this.startedIntent = intent; this.requestCode = requestCode;
+            startedLatch.countDown();
         }
         @Override public OutputStream openTarget(Object context, Object uri) throws Exception {
             openCalls++; openedUri = uri;
             if (openThrows) throw new IOException("resolver open secret");
-            return openReturnsNull ? null : output;
+            return openReturnsNull ? null : targetOutput;
         }
         @Override public int deleteTarget(Object context, Object uri) throws Exception {
             deleteCalls++;
             openedUri = uri;
+            deletedLatch.countDown();
             if (deleteThrows) throw new IOException("resolver delete secret");
             return deleteResult;
         }
@@ -2023,6 +3287,31 @@ public final class CrashLogTest {
             return 1;
         }
         @Override public void close() { closeCalls++; released.countDown(); }
+    }
+
+    private static final class BlockingOutput extends OutputStream {
+        final java.util.concurrent.CountDownLatch entered = new java.util.concurrent.CountDownLatch(1);
+        final java.util.concurrent.CountDownLatch released = new java.util.concurrent.CountDownLatch(1);
+        final java.util.concurrent.CountDownLatch closed = new java.util.concurrent.CountDownLatch(1);
+        volatile int closeCalls;
+        volatile boolean isClosed;
+        @Override public void write(int value) throws IOException { write(new byte[] { (byte) value }, 0, 1); }
+        @Override public void write(byte[] bytes, int offset, int length) throws IOException {
+            entered.countDown();
+            try {
+                if (!released.await(5, java.util.concurrent.TimeUnit.SECONDS)) throw new IOException("blocking target write timeout");
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new IOException("blocking target write interrupted");
+            }
+            if (isClosed) throw new IOException("target stream closed");
+        }
+        @Override public void close() {
+            closeCalls++;
+            isClosed = true;
+            released.countDown();
+            closed.countDown();
+        }
     }
 
     private static final class GateInput extends InputStream {

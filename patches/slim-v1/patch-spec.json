@@ -6806,7 +6806,7 @@
         "methodDescriptor": "public static final Ooooooo(Lcom/suda/yzune/wakeupschedule/base_view/OooOO0;Landroid/view/View;Landroidx/core/view/WindowInsetsCompat;)Landroidx/core/view/WindowInsetsCompat;"
       },
       "expectedMethodSha256": "A3A3F7529823FC9C950E23F2DC2597F524AB1B58399551681771CC19D6748A72",
-      "replacementMethod": ".method public static final Ooooooo(Lcom/suda/yzune/wakeupschedule/base_view/OooOO0;Landroid/view/View;Landroidx/core/view/WindowInsetsCompat;)Landroidx/core/view/WindowInsetsCompat;\n    .locals 7\n\n    .line 1\n    const-string v0, \"v\"\n\n    .line 2\n    .line 3\n    invoke-static {p1, v0}, Lkotlin/jvm/internal/o00oO0o;->OooO0oO(Ljava/lang/Object;Ljava/lang/String;)V\n\n    .line 4\n    .line 5\n    .line 6\n    const-string v0, \"insets\"\n\n    .line 7\n    .line 8\n    invoke-static {p2, v0}, Lkotlin/jvm/internal/o00oO0o;->OooO0oO(Ljava/lang/Object;Ljava/lang/String;)V\n\n    .line 9\n    .line 10\n    .line 11\n    invoke-static {}, Landroidx/core/view/WindowInsetsCompat$Type;->systemBars()I\n\n    .line 12\n    .line 13\n    .line 14\n    move-result v0\n\n    .line 15\n    invoke-virtual {p2, v0}, Landroidx/core/view/WindowInsetsCompat;->getInsets(I)Landroidx/core/graphics/Insets;\n\n    .line 16\n    .line 17\n    .line 18\n    move-result-object v0\n\n    .line 19\n    const-string v1, \"getInsets(...)\"\n\n    .line 20\n    .line 21\n    invoke-static {v0, v1}, Lkotlin/jvm/internal/o00oO0o;->OooO0o(Ljava/lang/Object;Ljava/lang/String;)V\n\n    .line 22\n    .line 23\n    .line 24\n    invoke-static {}, Landroidx/core/view/WindowInsetsCompat$Type;->ime()I\n\n    .line 25\n    .line 26\n    .line 27\n    move-result v2\n\n    .line 28\n    invoke-virtual {p2, v2}, Landroidx/core/view/WindowInsetsCompat;->getInsets(I)Landroidx/core/graphics/Insets;\n\n    .line 29\n    .line 30\n    .line 31\n    move-result-object v2\n\n    .line 32\n    invoke-static {v2, v1}, Lkotlin/jvm/internal/o00oO0o;->OooO0o(Ljava/lang/Object;Ljava/lang/String;)V\n\n    .line 33\n    .line 34\n    .line 35\n    iget v1, v0, Landroidx/core/graphics/Insets;->left:I\n\n    .line 36\n    .line 37\n    iget v3, v0, Landroidx/core/graphics/Insets;->right:I\n\n    .line 38\n    .line 39\n    invoke-virtual {p1}, Landroid/view/View;->getPaddingTop()I\n\n    .line 40\n    .line 41\n    .line 42\n    move-result v4\n\n    .line 43\n    invoke-virtual {p1}, Landroid/view/View;->getPaddingBottom()I\n\n    .line 44\n    .line 45\n    .line 46\n    move-result v5\n\n    .line 47\n    invoke-virtual {p1, v1, v4, v3, v5}, Landroid/view/View;->setPadding(IIII)V\n\n    .line 48\n    .line 49\n    .line 50\n    instance-of v6, p0, Lcom/suda/yzune/wakeupschedule/settings/SettingsActivity;\n    invoke-virtual {p0}, Lcom/suda/yzune/wakeupschedule/base_view/OooOO0;->o0OoOo0()Landroidx/recyclerview/widget/RecyclerView;\n\n    .line 51\n    .line 52\n    .line 53\n    move-result-object p0\n\n    .line 54\n    invoke-virtual {p0, v6}, Landroidx/recyclerview/widget/RecyclerView;->setClipToPadding(Z)V\n\n    const/4 v1, 0x0\n\n    .line 56\n    .line 57\n    .line 58\n    iget v3, v2, Landroidx/core/graphics/Insets;->bottom:I\n\n    .line 59\n    .line 60\n    if-nez v3, :cond_0\n\n    .line 61\n    .line 62\n    iget v0, v0, Landroidx/core/graphics/Insets;->bottom:I\n\n    .line 63\n    .line 64\n    invoke-virtual {p0}, Landroid/view/View;->getPaddingLeft()I\n\n    .line 65\n    .line 66\n    .line 67\n    move-result v1\n\n    .line 68\n    invoke-virtual {p0}, Landroid/view/View;->getPaddingTop()I\n\n    .line 69\n    .line 70\n    .line 71\n    move-result v3\n\n    .line 72\n    invoke-virtual {p0}, Landroid/view/View;->getPaddingRight()I\n\n    .line 73\n    .line 74\n    .line 75\n    move-result v4\n\n    .line 76\n    invoke-virtual {p0, v1, v3, v4, v0}, Landroid/view/View;->setPadding(IIII)V\n\n    .line 77\n    .line 78\n    .line 79\n    goto :goto_0\n\n    .line 80\n    :cond_0\n    invoke-virtual {p0}, Landroid/view/View;->getPaddingLeft()I\n\n    .line 81\n    .line 82\n    .line 83\n    move-result v0\n\n    .line 84\n    invoke-virtual {p0}, Landroid/view/View;->getPaddingTop()I\n\n    .line 85\n    .line 86\n    .line 87\n    move-result v3\n\n    .line 88\n    invoke-virtual {p0}, Landroid/view/View;->getPaddingRight()I\n\n    .line 89\n    .line 90\n    .line 91\n    move-result v4\n\n    .line 92\n    invoke-virtual {p0, v0, v3, v4, v1}, Landroid/view/View;->setPadding(IIII)V\n\n    .line 93\n    .line 94\n    .line 95\n    :goto_0\n    iget p0, v2, Landroidx/core/graphics/Insets;->bottom:I\n\n    .line 96\n    .line 97\n    invoke-virtual {p1}, Landroid/view/View;->getPaddingLeft()I\n\n    .line 98\n    .line 99\n    .line 100\n    move-result v0\n\n    .line 101\n    invoke-virtual {p1}, Landroid/view/View;->getPaddingTop()I\n\n    .line 102\n    .line 103\n    .line 104\n    move-result v1\n\n    .line 105\n    invoke-virtual {p1}, Landroid/view/View;->getPaddingRight()I\n\n    .line 106\n    .line 107\n    .line 108\n    move-result v2\n\n    .line 109\n    invoke-virtual {p1, v0, v1, v2, p0}, Landroid/view/View;->setPadding(IIII)V\n\n    .line 110\n    .line 111\n    .line 112\n    return-object p2\n.end method",
+      "replacementMethod": ".method public static final Ooooooo(Lcom/suda/yzune/wakeupschedule/base_view/OooOO0;Landroid/view/View;Landroidx/core/view/WindowInsetsCompat;)Landroidx/core/view/WindowInsetsCompat;\n    .locals 7\n\n    .line 1\n    const-string v0, \"v\"\n\n    .line 2\n    .line 3\n    invoke-static {p1, v0}, Lkotlin/jvm/internal/o00oO0o;->OooO0oO(Ljava/lang/Object;Ljava/lang/String;)V\n\n    .line 4\n    .line 5\n    .line 6\n    const-string v0, \"insets\"\n\n    .line 7\n    .line 8\n    invoke-static {p2, v0}, Lkotlin/jvm/internal/o00oO0o;->OooO0oO(Ljava/lang/Object;Ljava/lang/String;)V\n\n    .line 9\n    .line 10\n    .line 11\n    invoke-static {p0}, Lcom/suda/yzune/wakeupschedule/slim/LogPage;->isLogActivity(Ljava/lang/Object;)Z\n    move-result v6\n    if-eqz v6, :slim_settings_clip_ordinary\n    invoke-static {p0, p1, p2}, Lcom/suda/yzune/wakeupschedule/slim/LogPage;->applyPageInsets(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V\n    return-object p2\n    :slim_settings_clip_ordinary\n    invoke-static {}, Landroidx/core/view/WindowInsetsCompat$Type;->systemBars()I\n\n    .line 12\n    .line 13\n    .line 14\n    move-result v0\n\n    .line 15\n    invoke-virtual {p2, v0}, Landroidx/core/view/WindowInsetsCompat;->getInsets(I)Landroidx/core/graphics/Insets;\n\n    .line 16\n    .line 17\n    .line 18\n    move-result-object v0\n\n    .line 19\n    const-string v1, \"getInsets(...)\"\n\n    .line 20\n    .line 21\n    invoke-static {v0, v1}, Lkotlin/jvm/internal/o00oO0o;->OooO0o(Ljava/lang/Object;Ljava/lang/String;)V\n\n    .line 22\n    .line 23\n    .line 24\n    invoke-static {}, Landroidx/core/view/WindowInsetsCompat$Type;->ime()I\n\n    .line 25\n    .line 26\n    .line 27\n    move-result v2\n\n    .line 28\n    invoke-virtual {p2, v2}, Landroidx/core/view/WindowInsetsCompat;->getInsets(I)Landroidx/core/graphics/Insets;\n\n    .line 29\n    .line 30\n    .line 31\n    move-result-object v2\n\n    .line 32\n    invoke-static {v2, v1}, Lkotlin/jvm/internal/o00oO0o;->OooO0o(Ljava/lang/Object;Ljava/lang/String;)V\n\n    .line 33\n    .line 34\n    .line 35\n    iget v1, v0, Landroidx/core/graphics/Insets;->left:I\n\n    .line 36\n    .line 37\n    iget v3, v0, Landroidx/core/graphics/Insets;->right:I\n\n    .line 38\n    .line 39\n    invoke-virtual {p1}, Landroid/view/View;->getPaddingTop()I\n\n    .line 40\n    .line 41\n    .line 42\n    move-result v4\n\n    .line 43\n    invoke-virtual {p1}, Landroid/view/View;->getPaddingBottom()I\n\n    .line 44\n    .line 45\n    .line 46\n    move-result v5\n\n    .line 47\n    invoke-virtual {p1, v1, v4, v3, v5}, Landroid/view/View;->setPadding(IIII)V\n\n    .line 48\n    .line 49\n    .line 50\n    instance-of v6, p0, Lcom/suda/yzune/wakeupschedule/settings/SettingsActivity;\n    invoke-virtual {p0}, Lcom/suda/yzune/wakeupschedule/base_view/OooOO0;->o0OoOo0()Landroidx/recyclerview/widget/RecyclerView;\n\n    .line 51\n    .line 52\n    .line 53\n    move-result-object p0\n\n    .line 54\n    invoke-virtual {p0, v6}, Landroidx/recyclerview/widget/RecyclerView;->setClipToPadding(Z)V\n\n    const/4 v1, 0x0\n\n    .line 56\n    .line 57\n    .line 58\n    iget v3, v2, Landroidx/core/graphics/Insets;->bottom:I\n\n    .line 59\n    .line 60\n    if-nez v3, :cond_0\n\n    .line 61\n    .line 62\n    iget v0, v0, Landroidx/core/graphics/Insets;->bottom:I\n\n    .line 63\n    .line 64\n    invoke-virtual {p0}, Landroid/view/View;->getPaddingLeft()I\n\n    .line 65\n    .line 66\n    .line 67\n    move-result v1\n\n    .line 68\n    invoke-virtual {p0}, Landroid/view/View;->getPaddingTop()I\n\n    .line 69\n    .line 70\n    .line 71\n    move-result v3\n\n    .line 72\n    invoke-virtual {p0}, Landroid/view/View;->getPaddingRight()I\n\n    .line 73\n    .line 74\n    .line 75\n    move-result v4\n\n    .line 76\n    invoke-virtual {p0, v1, v3, v4, v0}, Landroid/view/View;->setPadding(IIII)V\n\n    .line 77\n    .line 78\n    .line 79\n    goto :goto_0\n\n    .line 80\n    :cond_0\n    invoke-virtual {p0}, Landroid/view/View;->getPaddingLeft()I\n\n    .line 81\n    .line 82\n    .line 83\n    move-result v0\n\n    .line 84\n    invoke-virtual {p0}, Landroid/view/View;->getPaddingTop()I\n\n    .line 85\n    .line 86\n    .line 87\n    move-result v3\n\n    .line 88\n    invoke-virtual {p0}, Landroid/view/View;->getPaddingRight()I\n\n    .line 89\n    .line 90\n    .line 91\n    move-result v4\n\n    .line 92\n    invoke-virtual {p0, v0, v3, v4, v1}, Landroid/view/View;->setPadding(IIII)V\n\n    .line 93\n    .line 94\n    .line 95\n    :goto_0\n    iget p0, v2, Landroidx/core/graphics/Insets;->bottom:I\n\n    .line 96\n    .line 97\n    invoke-virtual {p1}, Landroid/view/View;->getPaddingLeft()I\n\n    .line 98\n    .line 99\n    .line 100\n    move-result v0\n\n    .line 101\n    invoke-virtual {p1}, Landroid/view/View;->getPaddingTop()I\n\n    .line 102\n    .line 103\n    .line 104\n    move-result v1\n\n    .line 105\n    invoke-virtual {p1}, Landroid/view/View;->getPaddingRight()I\n\n    .line 106\n    .line 107\n    .line 108\n    move-result v2\n\n    .line 109\n    invoke-virtual {p1, v0, v1, v2, p0}, Landroid/view/View;->setPadding(IIII)V\n\n    .line 110\n    .line 111\n    .line 112\n    return-object p2\n.end method",
       "finalAssertions": [
         {
           "text": "    .locals 7"
@@ -6818,7 +6818,151 @@
           "text": "invoke-virtual {p0, v6}, Landroidx/recyclerview/widget/RecyclerView;->setClipToPadding(Z)V"
         },
         {
-          "text": "return-object p2"
+          "text": "return-object p2",
+          "hits": 2
+        },
+        {
+          "text": "invoke-static {p0}, Lcom/suda/yzune/wakeupschedule/slim/LogPage;->isLogActivity(Ljava/lang/Object;)Z"
+        },
+        {
+          "text": "invoke-static {p0, p1, p2}, Lcom/suda/yzune/wakeupschedule/slim/LogPage;->applyPageInsets(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V"
+        },
+        {
+          "text": ":slim_settings_clip_ordinary",
+          "hits": 2
+        }
+      ]
+    },
+    {
+      "id": "T35-E05-initial-tab-style",
+      "evidence": "E05",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/widget/MainAiTitleTabView.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/widget/MainAiTitleTabView;",
+        "methodDescriptor": "public final setViewPager(Landroidx/viewpager/widget/ViewPager;Lcom/suda/yzune/wakeupschedule/schedule/ScheduleViewModel;)V"
+      },
+      "expectedOriginal": "    invoke-virtual {p1, p2}, Landroidx/viewpager/widget/ViewPager;->addOnPageChangeListener(Landroidx/viewpager/widget/ViewPager$OnPageChangeListener;)V",
+      "replacement": "    invoke-virtual {p1, p2}, Landroidx/viewpager/widget/ViewPager;->addOnPageChangeListener(Landroidx/viewpager/widget/ViewPager$OnPageChangeListener;)V\n    invoke-direct {p0}, Lcom/suda/yzune/wakeupschedule/widget/MainAiTitleTabView;->loadBackground()V",
+      "expectedHits": 1,
+      "finalAssertions": [
+        {
+          "text": "->addOnPageChangeListener(Landroidx/viewpager/widget/ViewPager$OnPageChangeListener;)V",
+          "hits": 1
+        },
+        {
+          "text": "invoke-direct {p0}, Lcom/suda/yzune/wakeupschedule/widget/MainAiTitleTabView;->loadBackground()V",
+          "hits": 1
+        },
+        {
+          "text": "    return-void",
+          "hits": 1
+        }
+      ]
+    },
+    {
+      "id": "T35-E55-log-title-before-create",
+      "evidence": "E55",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/settings/SettingsActivity.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/settings/SettingsActivity;",
+        "methodDescriptor": "public onCreate(Landroid/os/Bundle;)V"
+      },
+      "expectedOriginal": "    invoke-super {p0, p1}, Lcom/suda/yzune/wakeupschedule/base_view/OooOO0;->onCreate(Landroid/os/Bundle;)V",
+      "replacement": "    invoke-static {p0}, Lcom/suda/yzune/wakeupschedule/slim/LogPage;->prepareActivity(Ljava/lang/Object;)V\n    invoke-super {p0, p1}, Lcom/suda/yzune/wakeupschedule/base_view/OooOO0;->onCreate(Landroid/os/Bundle;)V",
+      "expectedHits": 1,
+      "finalAssertions": [
+        {
+          "text": "invoke-static {p0}, Lcom/suda/yzune/wakeupschedule/slim/LogPage;->prepareActivity(Ljava/lang/Object;)V"
+        }
+      ]
+    },
+    {
+      "id": "T35-E55-log-content-mode",
+      "evidence": "E55",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/settings/SettingsActivity.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/settings/SettingsActivity;",
+        "methodDescriptor": "public onCreate(Landroid/os/Bundle;)V"
+      },
+      "expectedOriginal": "    invoke-virtual {p1, v0}, Landroidx/core/view/WindowInsetsControllerCompat;->setAppearanceLightStatusBars(Z)V",
+      "replacement": "    invoke-virtual {p1, v0}, Landroidx/core/view/WindowInsetsControllerCompat;->setAppearanceLightStatusBars(Z)V\n    invoke-static {p0}, Lcom/suda/yzune/wakeupschedule/slim/LogPage;->isLogActivity(Ljava/lang/Object;)Z\n    move-result v0\n    if-eqz v0, :slim_log_content_settings\n    invoke-static {p0}, Lcom/suda/yzune/wakeupschedule/slim/LogPage;->attachActivity(Ljava/lang/Object;)V\n    return-void\n    :slim_log_content_settings",
+      "expectedHits": 1,
+      "finalAssertions": [
+        {
+          "text": "invoke-static {p0}, Lcom/suda/yzune/wakeupschedule/slim/LogPage;->attachActivity(Ljava/lang/Object;)V"
+        },
+        {
+          "text": ":slim_log_content_settings",
+          "hits": 2
+        },
+        {
+          "text": "sget-object p1, Lcom/suda/yzune/wakeupschedule/AppDatabase;->OooO00o:Lcom/suda/yzune/wakeupschedule/AppDatabase$OooOOOO;"
+        }
+      ]
+    },
+    {
+      "id": "T35-E55-log-menu-mode",
+      "evidence": "E55",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/settings/SettingsActivity.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/settings/SettingsActivity;",
+        "methodDescriptor": "public ooOO()Ljava/lang/Integer;"
+      },
+      "expectedMethodSha256": "2339EF1BC94FAEC6CDF82F8BB277B661E5D9D44D3F24D026B0E9973C2646F302",
+      "replacementMethod": ".method public ooOO()Ljava/lang/Integer;\n    .locals 1\n    invoke-static {p0}, Lcom/suda/yzune/wakeupschedule/slim/LogPage;->isLogActivity(Ljava/lang/Object;)Z\n    move-result v0\n    if-nez v0, :slim_log_menu_none\n    const v0, 0x7f0e0002\n    invoke-static {v0}, Ljava/lang/Integer;->valueOf(I)Ljava/lang/Integer;\n    move-result-object v0\n    return-object v0\n    :slim_log_menu_none\n    const/4 v0, 0x0\n    return-object v0\n.end method",
+      "finalAssertions": [
+        {
+          "text": "invoke-static {p0}, Lcom/suda/yzune/wakeupschedule/slim/LogPage;->isLogActivity(Ljava/lang/Object;)Z"
+        },
+        {
+          "text": "const v0, 0x7f0e0002"
+        },
+        {
+          "text": "const/4 v0, 0x0"
+        },
+        {
+          "text": "return-object v0",
+          "hits": 2
+        }
+      ]
+    },
+    {
+      "id": "T35-E55-log-back-and-lifecycle",
+      "evidence": "E55",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/settings/SettingsActivity.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/settings/SettingsActivity;",
+        "methodDescriptor": "public onBackPressed()V"
+      },
+      "expectedMethodSha256": "9F4491F4F297C055137A32A961444DB55C2A101F1F986E1726C24E087EEE278F",
+      "replacementMethod": ".method public onBackPressed()V\n    .locals 2\n    invoke-static {p0}, Lcom/suda/yzune/wakeupschedule/slim/LogPage;->onBackPressed(Ljava/lang/Object;)Z\n    move-result v0\n    if-nez v0, :slim_log_back_consumed\n    new-instance v0, Landroid/content/Intent;\n    invoke-direct {v0}, Landroid/content/Intent;-><init>()V\n    const/4 v1, -0x1\n    invoke-virtual {p0, v1, v0}, Landroid/app/Activity;->setResult(ILandroid/content/Intent;)V\n    invoke-super {p0}, Landroidx/activity/ComponentActivity;->onBackPressed()V\n    :slim_log_back_consumed\n    return-void\n.end method\n\n.method public onActivityResult(IILandroid/content/Intent;)V\n    .locals 1\n    invoke-super {p0, p1, p2, p3}, Landroidx/activity/ComponentActivity;->onActivityResult(IILandroid/content/Intent;)V\n    invoke-static {p0}, Lcom/suda/yzune/wakeupschedule/slim/LogPage;->isLogActivity(Ljava/lang/Object;)Z\n    move-result v0\n    if-eqz v0, :slim_log_result_done\n    invoke-static {p0, p1, p2, p3}, Lcom/suda/yzune/wakeupschedule/slim/LogPage;->onActivityResult(Ljava/lang/Object;IILjava/lang/Object;)V\n    :slim_log_result_done\n    return-void\n.end method\n\n.method public onDestroy()V\n    .locals 0\n    invoke-static {p0}, Lcom/suda/yzune/wakeupschedule/slim/LogPage;->onDestroy(Ljava/lang/Object;)V\n    invoke-super {p0}, Landroidx/appcompat/app/AppCompatActivity;->onDestroy()V\n    return-void\n.end method",
+      "finalAssertions": [
+        {
+          "text": "invoke-static {p0}, Lcom/suda/yzune/wakeupschedule/slim/LogPage;->onBackPressed(Ljava/lang/Object;)Z"
+        },
+        {
+          "text": "invoke-virtual {p0, v1, v0}, Landroid/app/Activity;->setResult(ILandroid/content/Intent;)V"
+        },
+        {
+          "text": "invoke-super {p0}, Landroidx/activity/ComponentActivity;->onBackPressed()V"
+        },
+        {
+          "text": "invoke-super {p0, p1, p2, p3}, Landroidx/activity/ComponentActivity;->onActivityResult(IILandroid/content/Intent;)V"
+        },
+        {
+          "text": "invoke-static {p0, p1, p2, p3}, Lcom/suda/yzune/wakeupschedule/slim/LogPage;->onActivityResult(Ljava/lang/Object;IILjava/lang/Object;)V"
+        },
+        {
+          "text": "invoke-static {p0}, Lcom/suda/yzune/wakeupschedule/slim/LogPage;->onDestroy(Ljava/lang/Object;)V"
+        },
+        {
+          "text": "invoke-super {p0}, Landroidx/appcompat/app/AppCompatActivity;->onDestroy()V"
+        },
+        {
+          "text": ".method public onActivityResult(IILandroid/content/Intent;)V"
+        },
+        {
+          "text": ".method public onDestroy()V"
         }
       ]
     },
