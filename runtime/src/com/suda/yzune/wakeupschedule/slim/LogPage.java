@@ -26,7 +26,8 @@ public final class LogPage {
     static final int EXPORT_REQUEST_CODE = 0x6c67;
     static final int RESULT_OK = -1;
     static final String ENTRY_TAG = "wakeup_noads_logs_entry";
-    static final String SANITIZED_NOTICE = "日志已脱敏";
+    static final String PREVIEW_TRUNCATED = "预览已截断，导出可保存完整日志";
+    static final String EMPTY_HINT = "应用崩溃或异常退出时会自动记录";
     private static final Object LOCK = new Object();
     private static final String LOG_EXTRA = "wakeup_noads_log_page";
     private static final String SETTINGS_ACTIVITY = "com.suda.yzune.wakeupschedule.settings.SettingsActivity";
@@ -337,7 +338,7 @@ public final class LogPage {
                         @Override public void run() {
                             if (closed || ticket != generation || selected != entry) return;
                             preview = loaded.text;
-                            message = loaded.truncated ? "正文已截断；导出可保存完整日志" : "";
+                            message = loaded.truncated ? PREVIEW_TRUNCATED : "";
                             render();
                         }
                     });
@@ -361,22 +362,23 @@ public final class LogPage {
             }
         }
 
-        void copySelected() {
-            if (closed || selected == null) return;
+        void copySelected() { copy(selected); }
+
+        void copy(final LogStore.Entry frozen) {
+            if (closed || frozen == null || !result.entries.contains(frozen)) return;
             if (isBusy()) { host.toast("已有导出正在处理"); return; }
-            final LogStore.Entry frozen = selected;
             final long ticket = generation;
             host.executeIo(new Runnable() {
                 @Override public void run() {
                     final LogStore.CopyText copied;
                     try { copied = store.copyText(frozen); }
                     catch (final Throwable failure) {
-                        host.postMain(new Runnable() { @Override public void run() { if (isCurrent(ticket, frozen)) host.toast("复制失败：日志不可读取"); } });
+                        host.postMain(new Runnable() { @Override public void run() { if (isCurrent(ticket)) host.toast("复制失败：日志不可读取"); } });
                         return;
                     }
                     host.postMain(new Runnable() {
                         @Override public void run() {
-                            if (!isCurrent(ticket, frozen)) return;
+                            if (!isCurrent(ticket)) return;
                             try {
                                 host.copy(copied.text);
                                 host.toast(copied.truncated ? "已复制部分内容，完整日志请导出" : "已复制");
@@ -387,10 +389,11 @@ public final class LogPage {
             });
         }
 
-        void exportSelected(File cacheDirectory) {
-            if (closed || selected == null) return;
+        void exportSelected(File cacheDirectory) { export(selected, cacheDirectory); }
+
+        void export(final LogStore.Entry frozen, final File cacheDirectory) {
+            if (closed || frozen == null || !result.entries.contains(frozen)) return;
             if (isBusy()) { host.toast("已有导出正在处理"); return; }
-            final LogStore.Entry frozen = selected;
             final long ticket = generation;
             final Pending current = new Pending(EXPORT_TOKENS.incrementAndGet(), frozen, null, owner, ticket, cacheDirectory);
             session = current;
@@ -516,13 +519,13 @@ public final class LogPage {
             presented = false;
         }
 
-        private boolean isCurrent(long ticket, LogStore.Entry entry) {
-            return !closed && generation == ticket && selected == entry;
+        private boolean isCurrent(long ticket) {
+            return !closed && generation == ticket;
         }
         private void renderIfOpen() { if (!closed && presented) render(); }
         private boolean isBusy() { return session != null && !session.finalized; }
         private boolean isCurrentSessionResult(Pending value) {
-            return !closed && session == value && value.token > 0 && generation == value.generation && selected == value.entry;
+            return !closed && session == value && value.token > 0 && generation == value.generation;
         }
         private void render() { host.render(new PageState(result, selected, preview, detail, isBusy(), message)); }
 
@@ -566,7 +569,7 @@ public final class LogPage {
             host.postMain(new Runnable() {
                 @Override public void run() {
                     if (closed) return;
-                    boolean current = generation == value.generation && selected == value.entry && session == null;
+                    boolean current = generation == value.generation && session == null;
                     if (presentResult && current && resultMessage != null) {
                         message = resultMessage;
                         if (toastMessage != null) host.toast(toastMessage);
@@ -825,14 +828,30 @@ public final class LogPage {
         final Object onSurface;
         final Object secondary;
         final Object divider;
+        final Object primary;
+        final Object onPrimary;
+        final Object tonal;
+        final Object onTonal;
         final int backgroundColor;
         final int surfaceColor;
         final int dividerColor;
         ThemeColors(Object background, Object surface, Object onSurface, Object secondary, Object divider,
+                    Object primary, Object onPrimary, Object tonal, Object onTonal,
                     int backgroundColor, int surfaceColor, int dividerColor) {
             this.background = background; this.surface = surface; this.onSurface = onSurface;
-            this.secondary = secondary; this.divider = divider; this.backgroundColor = backgroundColor;
+            this.secondary = secondary; this.divider = divider; this.primary = primary; this.onPrimary = onPrimary;
+            this.tonal = tonal; this.onTonal = onTonal; this.backgroundColor = backgroundColor;
             this.surfaceColor = surfaceColor; this.dividerColor = dividerColor;
+        }
+        /** Level colors stay recognisable (red / amber / green) and switch to lighter tones on dark backgrounds. */
+        int levelColor(int level) {
+            boolean dark = luminance(backgroundColor) < 0.5;
+            if (level == LogStore.LEVEL_ERROR) return dark ? 0xfff28b82 : 0xffc5221f;
+            if (level == LogStore.LEVEL_WARNING) return dark ? 0xfffdd663 : 0xffb06000;
+            return dark ? 0xff81c995 : 0xff137333;
+        }
+        private static double luminance(int color) {
+            return (0.299 * ((color >> 16) & 0xff) + 0.587 * ((color >> 8) & 0xff) + 0.114 * (color & 0xff)) / 255.0;
         }
     }
 
@@ -858,10 +877,12 @@ public final class LogPage {
         final Object body;
         final Object layoutParams;
         final Object behavior;
+        final Object refreshButton;
         NativePage(Object activity, Object coordinator, Object appBar, Object toolbar, Object recycler,
-                   Object root, Object body, Object layoutParams, Object behavior) {
+                   Object root, Object body, Object layoutParams, Object behavior, Object refreshButton) {
             this.activity = activity; this.coordinator = coordinator; this.appBar = appBar; this.toolbar = toolbar;
             this.recycler = recycler; this.root = root; this.body = body; this.layoutParams = layoutParams; this.behavior = behavior;
+            this.refreshButton = refreshButton;
         }
     }
 
@@ -927,6 +948,8 @@ public final class LogPage {
                 colors = resolveThemeColors(context, ui);
                 page = NativePageUi.openPage(context, colors, new Runnable() {
                     @Override public void run() { if (controller != null) controller.back(); }
+                }, new Runnable() {
+                    @Override public void run() { if (controller != null) controller.refresh(); }
                 }, ui);
                 if (page == null || page.root == null || page.body == null) throw new IOException("日志页不可用");
                 rootBasePadding = ui.padding(page.root);
@@ -981,10 +1004,7 @@ public final class LogPage {
         @Override public void render(final PageState state) {
             if (page == null || colors == null || detached || failed) return;
             try {
-                NativePageUi.renderPage(page, state, colors, controller,
-                    new Runnable() { @Override public void run() { if (controller != null) controller.refresh(); } },
-                    new Runnable() { @Override public void run() { if (controller != null) controller.copySelected(); } },
-                    new Runnable() { @Override public void run() { if (controller != null) controller.exportSelected(cacheDirectory); } }, ui);
+                NativePageUi.renderPage(page, state, colors, controller, cacheDirectory, ui);
             } catch (Throwable failure) { failPage(); }
         }
         @Override public void toast(String message) {
@@ -1055,7 +1075,11 @@ public final class LogPage {
         Object onSurface = resolveThemeColorStateList(context, packageName, "colorOnSurface", ui);
         Object secondary = resolveThemeColorStateList(context, packageName, "colorOnSurfaceVariant", ui);
         Object divider = resolveThemeColorStateList(context, packageName, "colorOutlineVariant", ui);
-        return new ThemeColors(background, surface, onSurface, secondary, divider,
+        Object primary = resolveThemeColorStateList(context, packageName, "colorPrimary", ui);
+        Object onPrimary = resolveThemeColorStateList(context, packageName, "colorOnPrimary", ui);
+        Object tonal = resolveThemeColorStateList(context, packageName, "colorSecondaryContainer", ui);
+        Object onTonal = resolveThemeColorStateList(context, packageName, "colorOnSecondaryContainer", ui);
+        return new ThemeColors(background, surface, onSurface, secondary, divider, primary, onPrimary, tonal, onTonal,
             ((Number) ui.invoke(background, "getDefaultColor", new String[0], new Object[0])).intValue(),
             ((Number) ui.invoke(surface, "getDefaultColor", new String[0], new Object[0])).intValue(),
             ((Number) ui.invoke(divider, "getDefaultColor", new String[0], new Object[0])).intValue());
@@ -1087,8 +1111,13 @@ public final class LogPage {
         private static final String APP_BAR = "com.google.android.material.appbar.AppBarLayout";
         private static final String TOOLBAR = "com.google.android.material.appbar.MaterialToolbar";
         private static final String RECYCLER = "androidx.recyclerview.widget.RecyclerView";
+        private static final String DRAWABLE = "android.graphics.drawable.Drawable";
+        private static final int GRAVITY_CENTER = 17;
+        private static final int GRAVITY_CENTER_VERTICAL = 16;
+        private static final int GRAVITY_END_VERTICAL = 0x800015;
 
-        static NativePage openPage(Object activity, ThemeColors colors, Runnable toolbarBack, AndroidUiCalls ui) throws Exception {
+        static NativePage openPage(Object activity, ThemeColors colors, Runnable toolbarBack, Runnable refresh,
+                                   AndroidUiCalls ui) throws Exception {
             Object coordinator = invoke(ui, activity, "o00O0O");
             Object recycler = invoke(ui, activity, "o0OoOo0");
             if (coordinator == null || recycler == null || !ui.isInstance(recycler, RECYCLER)
@@ -1131,70 +1160,206 @@ public final class LogPage {
             invoke(ui, coordinator, "addView", new String[] { VIEW, VIEW_PARAMS }, new Object[] { scroll, params });
             invoke(ui, toolbar, "setTitle", new String[] { "java.lang.CharSequence" }, new Object[] { "本地日志" });
             setNavigationClick(ui, toolbar, toolbarBack);
-            return new NativePage(activity, coordinator, appBar, toolbar, recycler, scroll, body, params, behavior);
+            Object refreshButton = iconButton(activity, "ic_outline_refresh_24", "刷新", colors.onSurface,
+                "selectableItemBackgroundBorderless", ui);
+            setClick(ui, refreshButton, refresh);
+            int iconSize = dp(activity, 48, ui);
+            Object toolbarParams = ui.construct("androidx.appcompat.widget.Toolbar$LayoutParams",
+                new String[] { "int", "int", "int" }, new Object[] { iconSize, iconSize, GRAVITY_END_VERTICAL });
+            add(ui, toolbar, refreshButton, toolbarParams);
+            return new NativePage(activity, coordinator, appBar, toolbar, recycler, scroll, body, params, behavior, refreshButton);
         }
 
         static void renderPage(NativePage page, PageState state, ThemeColors colors, Controller controller,
-                               Runnable refresh, Runnable copy, Runnable export, AndroidUiCalls ui) throws Exception {
+                               File cacheDirectory, AndroidUiCalls ui) throws Exception {
             invoke(ui, page.body, "removeAllViews");
-            String title = state.detail && state.selected != null ? "日志详情" : "本地日志";
-            invoke(ui, page.toolbar, "setTitle", new String[] { "java.lang.CharSequence" }, new Object[] { title });
-            Object refreshButton = button(page.activity, state.exportPending ? "导出中" : "刷新", colors, ui);
-            setClick(ui, refreshButton, refresh);
-            add(ui, page.body, refreshButton, linearParams(ui, -2, -2, 0));
-            if (state.detail && state.selected != null) renderDetail(page, state, colors, copy, export, ui);
-            else renderList(page, state, colors, controller, ui);
+            boolean detail = state.detail && state.selected != null;
+            invoke(ui, page.toolbar, "setTitle", new String[] { "java.lang.CharSequence" },
+                new Object[] { detail ? "日志详情" : "本地日志" });
+            invoke(ui, page.refreshButton, "setVisibility", new String[] { "int" }, new Object[] { detail ? 8 : 0 });
+            if (detail) renderDetail(page, state, colors, controller, cacheDirectory, ui);
+            else renderList(page, state, colors, controller, cacheDirectory, ui);
         }
 
-        private static void renderList(NativePage page, PageState state, ThemeColors colors, Controller controller,
-                                       AndroidUiCalls ui) throws Exception {
-            addLabel(page, LogPage.SANITIZED_NOTICE, 14, colors.onSurface, ui);
-            if (state.result.entries.isEmpty() && !state.result.hasErrors()) addLabel(page, "暂无日志", 16, colors.onSurface, ui);
-            for (String error : state.result.sourceErrors) addLabel(page, error, 14, colors.secondary, ui);
-            for (final LogStore.Entry entry : state.result.entries) {
-                Object card = construct(ui, "com.google.android.material.card.MaterialCardView", CONTEXT, page.activity);
-                invoke(ui, card, "setCardBackgroundColor", new String[] { COLOR_STATE_LIST }, new Object[] { colors.surface });
-                String label = entry.fileName + "\n" + entry.kind() + " · " + CrashLog.formatTime(entry.modifiedMillis)
-                    + "\n" + entry.sourceLabel;
-                Object text = text(page.activity, label, 15, colors.onSurface, ui);
-                invoke(ui, text, "setPadding", new String[] { "int", "int", "int", "int" },
-                    new Object[] { dp(page.activity, 12, ui), dp(page.activity, 12, ui), dp(page.activity, 12, ui), dp(page.activity, 12, ui) });
-                add(ui, card, text, newLayoutParams(ui, -1, -2));
-                setClick(ui, card, new Runnable() { @Override public void run() { if (controller != null) controller.select(entry); } });
-                add(ui, page.body, card, cardParams(page.activity, ui));
-                addDivider(page, colors.dividerColor, ui);
+        private static void renderList(NativePage page, PageState state, ThemeColors colors, final Controller controller,
+                                       final File cacheDirectory, AndroidUiCalls ui) throws Exception {
+            Object context = page.activity;
+            LogStore.Result result = state.result;
+            if (result.hasErrors()) addWarning(page, result.stateText(), colors, ui);
+            if (state.exportPending && !state.message.isEmpty()) addLabel(page, state.message, 14, colors.secondary, ui);
+            if (!result.entries.isEmpty()) {
+                Object group = card(context, colors, ui);
+                Object rows = linear(context, 1, ui);
+                add(ui, group, rows, newLayoutParams(ui, -1, -2));
+                boolean first = true;
+                for (final LogStore.Entry entry : result.entries) {
+                    if (!first) addDivider(context, rows, colors.dividerColor, 16, ui);
+                    first = false;
+                    add(ui, rows, entryRow(context, entry, colors, controller, cacheDirectory, ui), newLayoutParams(ui, -1, -2));
+                }
+                add(ui, page.body, group, cardParams(context, ui));
+            } else if (result.readableSources > 0 || !result.hasErrors()) {
+                addEmptyState(page, colors, ui);
             }
-            if (!state.message.isEmpty() && !(state.result.isEmpty() && !state.result.hasErrors() && "暂无日志".equals(state.message))) {
-                addLabel(page, state.message, 14, colors.secondary, ui);
-            }
+            String packageName = String.valueOf(invoke(ui, context, "getPackageName"));
+            Object footer = text(context, "保存位置：Android/data/" + packageName + "/files/" + CrashLog.LOG_DIRECTORY + "/",
+                12, colors.secondary, ui);
+            padding(ui, footer, dp(context, 8, ui), dp(context, 12, ui), dp(context, 8, ui), dp(context, 8, ui));
+            add(ui, page.body, footer, newLayoutParams(ui, -1, -2));
         }
 
-        private static void renderDetail(NativePage page, PageState state, ThemeColors colors, Runnable copy, Runnable export,
-                                         AndroidUiCalls ui) throws Exception {
-            addLabel(page, LogPage.SANITIZED_NOTICE, 14, colors.onSurface, ui);
-            addLabel(page, state.selected.fileName, 16, colors.onSurface, ui);
-            addLabel(page, state.selected.kind() + " · " + state.selected.sourceLabel, 14, colors.secondary, ui);
-            Object actions = construct(ui, "android.widget.LinearLayout", CONTEXT, page.activity);
-            invoke(ui, actions, "setOrientation", new String[] { "int" }, new Object[] { 0 });
-            Object copyButton = button(page.activity, "复制", colors, ui);
-            Object exportButton = button(page.activity, "导出", colors, ui);
-            setClick(ui, copyButton, copy);
-            setClick(ui, exportButton, export);
-            add(ui, actions, copyButton, linearParams(ui, -2, -2, 0));
-            add(ui, actions, exportButton, linearParams(ui, -2, -2, 0));
+        private static Object entryRow(Object context, final LogStore.Entry entry, ThemeColors colors, final Controller controller,
+                                       final File cacheDirectory, AndroidUiCalls ui) throws Exception {
+            LogStore.Summary summary = entry.summary();
+            Object row = linear(context, 0, ui);
+            invoke(ui, row, "setGravity", new String[] { "int" }, new Object[] { GRAVITY_CENTER_VERTICAL });
+            invoke(ui, row, "setMinimumHeight", new String[] { "int" }, new Object[] { dp(context, 64, ui) });
+            padding(ui, row, dp(context, 16, ui), dp(context, 10, ui), dp(context, 4, ui), dp(context, 10, ui));
+            setRipple(context, row, "selectableItemBackground", ui);
+            setClick(ui, row, new Runnable() { @Override public void run() { if (controller != null) controller.select(entry); } });
+
+            Object texts = linear(context, 1, ui);
+            Object headline = linear(context, 0, ui);
+            invoke(ui, headline, "setGravity", new String[] { "int" }, new Object[] { GRAVITY_CENTER_VERTICAL });
+            add(ui, headline, levelTag(context, summary.level, colors, ui), linearParams(ui, -2, -2, 0));
+            Object title = text(context, summary.title, 16, colors.onSurface, ui);
+            add(ui, headline, title, marginParams(context, -2, 8, 0, ui));
+            add(ui, texts, headline, newLayoutParams(ui, -1, -2));
+            String subtitle = shortTime(entry.modifiedMillis) + " · " + entry.sourceLabel
+                + (summary.recordCount() > 1 ? " · 共 " + summary.recordCount() + " 条记录" : "");
+            Object subtitleView = text(context, subtitle, 13, colors.secondary, ui);
+            add(ui, texts, subtitleView, marginParams(context, -1, 0, 4, ui));
+            add(ui, row, texts, linearParams(ui, 0, -2, 1));
+
+            int iconSize = dp(context, 48, ui);
+            Object copyButton = iconButton(context, "ic_twotone_file_copy_24", "复制", colors.secondary,
+                "selectableItemBackgroundBorderless", ui);
+            setClick(ui, copyButton, new Runnable() { @Override public void run() { if (controller != null) controller.copy(entry); } });
+            Object exportButton = iconButton(context, "ic_outline_save_alt_24", "导出", colors.secondary,
+                "selectableItemBackgroundBorderless", ui);
+            setClick(ui, exportButton, new Runnable() {
+                @Override public void run() { if (controller != null) controller.export(entry, cacheDirectory); }
+            });
+            add(ui, row, copyButton, linearParams(ui, iconSize, iconSize, 0));
+            add(ui, row, exportButton, linearParams(ui, iconSize, iconSize, 0));
+            return row;
+        }
+
+        private static void addWarning(NativePage page, String value, ThemeColors colors, AndroidUiCalls ui) throws Exception {
+            Object context = page.activity;
+            int color = colors.levelColor(LogStore.LEVEL_WARNING);
+            Object line = linear(context, 0, ui);
+            invoke(ui, line, "setGravity", new String[] { "int" }, new Object[] { GRAVITY_CENTER_VERTICAL });
+            padding(ui, line, dp(context, 8, ui), dp(context, 8, ui), dp(context, 8, ui), dp(context, 8, ui));
+            Object icon = image(context, "mtrl_ic_error", ui);
+            invoke(ui, icon, "setColorFilter", new String[] { "int" }, new Object[] { color });
+            int iconSize = dp(context, 20, ui);
+            add(ui, line, icon, linearParams(ui, iconSize, iconSize, 0));
+            Object label = construct(ui, "android.widget.TextView", CONTEXT, context);
+            setText(ui, label, value);
+            invoke(ui, label, "setTextSize", new String[] { "int", "float" }, new Object[] { 2, 14.0f });
+            invoke(ui, label, "setTextColor", new String[] { "int" }, new Object[] { color });
+            Object labelParams = linearParams(ui, 0, -2, 1);
+            margins(ui, labelParams, dp(context, 8, ui), 0, 0, 0);
+            add(ui, line, label, labelParams);
+            add(ui, page.body, line, newLayoutParams(ui, -1, -2));
+        }
+
+        private static void addEmptyState(NativePage page, ThemeColors colors, AndroidUiCalls ui) throws Exception {
+            Object context = page.activity;
+            Object box = linear(context, 1, ui);
+            invoke(ui, box, "setGravity", new String[] { "int" }, new Object[] { GRAVITY_CENTER });
+            padding(ui, box, 0, dp(context, 48, ui), 0, dp(context, 48, ui));
+            Object icon = image(context, "ic_outline_sticky_note_2_24", ui);
+            invoke(ui, icon, "setImageTintList", new String[] { COLOR_STATE_LIST }, new Object[] { colors.secondary });
+            int iconSize = dp(context, 48, ui);
+            add(ui, box, icon, linearParams(ui, iconSize, iconSize, 0));
+            Object title = text(context, "暂无日志", 16, colors.onSurface, ui);
+            add(ui, box, title, marginParams(context, -2, 0, 12, ui));
+            Object hint = text(context, EMPTY_HINT, 14, colors.secondary, ui);
+            invoke(ui, hint, "setGravity", new String[] { "int" }, new Object[] { GRAVITY_CENTER });
+            add(ui, box, hint, marginParams(context, -2, 0, 4, ui));
+            add(ui, page.body, box, linearParams(ui, -1, 0, 1));
+        }
+
+        private static void renderDetail(NativePage page, PageState state, ThemeColors colors, final Controller controller,
+                                         final File cacheDirectory, AndroidUiCalls ui) throws Exception {
+            Object context = page.activity;
+            final LogStore.Entry entry = state.selected;
+            LogStore.Summary summary = entry.summary();
+
+            Object info = card(context, colors, ui);
+            Object rows = linear(context, 1, ui);
+            padding(ui, rows, dp(context, 16, ui), dp(context, 6, ui), dp(context, 16, ui), dp(context, 6, ui));
+            Object type = linear(context, 0, ui);
+            invoke(ui, type, "setGravity", new String[] { "int" }, new Object[] { GRAVITY_CENTER_VERTICAL });
+            add(ui, type, levelTag(context, summary.level, colors, ui), linearParams(ui, -2, -2, 0));
+            add(ui, type, text(context, summary.title, 14, colors.onSurface, ui), marginParams(context, -2, 8, 0, ui));
+            addInfoRow(context, rows, "类型", type, colors, ui);
+            if (summary.recordCount() > 1) {
+                StringBuilder records = new StringBuilder();
+                for (int index = summary.records.size() - 1; index >= 0; index--) {
+                    LogStore.Record record = summary.records.get(index);
+                    if (records.length() > 0) records.append('\n');
+                    records.append(record.time).append("  ").append(record.title);
+                }
+                addInfoRow(context, rows, "记录", text(context, records.toString(), 14, colors.onSurface, ui), colors, ui);
+            }
+            addInfoRow(context, rows, "时间", text(context, fullTime(entry.modifiedMillis), 14, colors.onSurface, ui), colors, ui);
+            addInfoRow(context, rows, "来源", text(context, entry.sourceLabel, 14, colors.onSurface, ui), colors, ui);
+            addInfoRow(context, rows, "文件", text(context, entry.fileName, 14, colors.onSurface, ui), colors, ui);
+            add(ui, info, rows, newLayoutParams(ui, -1, -2));
+            add(ui, page.body, info, cardParams(context, ui));
+
+            Object actions = linear(context, 0, ui);
+            padding(ui, actions, dp(context, 8, ui), dp(context, 8, ui), dp(context, 8, ui), dp(context, 4, ui));
+            Object copyButton = button(context, "复制", colors.onTonal, colors.tonal, ui);
+            Object exportButton = button(context, "导出", colors.onPrimary, colors.primary, ui);
+            setClick(ui, copyButton, new Runnable() { @Override public void run() { if (controller != null) controller.copy(entry); } });
+            setClick(ui, exportButton, new Runnable() {
+                @Override public void run() { if (controller != null) controller.export(entry, cacheDirectory); }
+            });
+            Object copyParams = linearParams(ui, 0, -2, 1);
+            margins(ui, copyParams, 0, 0, dp(context, 6, ui), 0);
+            Object exportParams = linearParams(ui, 0, -2, 1);
+            margins(ui, exportParams, dp(context, 6, ui), 0, 0, 0);
+            add(ui, actions, copyButton, copyParams);
+            add(ui, actions, exportButton, exportParams);
             add(ui, page.body, actions, newLayoutParams(ui, -1, -2));
-            Object preview = text(page.activity, state.preview, 14, colors.onSurface, ui);
-            invoke(ui, preview, "setTextIsSelectable", new String[] { "boolean" }, new Object[] { Boolean.TRUE });
-            Object typeface = ui.staticField("android.graphics.Typeface", "MONOSPACE");
-            invoke(ui, preview, "setTypeface", new String[] { "android.graphics.Typeface" }, new Object[] { typeface });
-            invoke(ui, preview, "setPadding", new String[] { "int", "int", "int", "int" },
-                new Object[] { dp(page.activity, 4, ui), dp(page.activity, 12, ui), dp(page.activity, 4, ui), dp(page.activity, 12, ui) });
-            add(ui, page.body, preview, newLayoutParams(ui, -1, -2));
-            if (!state.message.isEmpty()) addLabel(page, state.message, 14, colors.secondary, ui);
+
+            Object section = text(context, "内容预览", 14, colors.secondary, ui);
+            padding(ui, section, dp(context, 8, ui), dp(context, 12, ui), dp(context, 8, ui), dp(context, 4, ui));
+            add(ui, page.body, section, newLayoutParams(ui, -1, -2));
+            boolean hasPreview = !state.preview.isEmpty();
+            Object previewCard = card(context, colors, ui);
+            Object preview = text(context, hasPreview ? state.preview : state.message, hasPreview ? 12 : 14,
+                hasPreview ? colors.onSurface : colors.secondary, ui);
+            if (hasPreview) {
+                invoke(ui, preview, "setTextIsSelectable", new String[] { "boolean" }, new Object[] { Boolean.TRUE });
+                Object typeface = ui.staticField("android.graphics.Typeface", "MONOSPACE");
+                invoke(ui, preview, "setTypeface", new String[] { "android.graphics.Typeface" }, new Object[] { typeface });
+            }
+            padding(ui, preview, dp(context, 12, ui), dp(context, 12, ui), dp(context, 12, ui), dp(context, 12, ui));
+            add(ui, previewCard, preview, newLayoutParams(ui, -1, -2));
+            add(ui, page.body, previewCard, cardParams(context, ui));
+            if (hasPreview && !state.message.isEmpty()) addLabel(page, state.message, 13, colors.secondary, ui);
+        }
+
+        private static void addInfoRow(Object context, Object rows, String name, Object value, ThemeColors colors,
+                                       AndroidUiCalls ui) throws Exception {
+            Object row = linear(context, 0, ui);
+            padding(ui, row, 0, dp(context, 10, ui), 0, dp(context, 10, ui));
+            Object key = text(context, name, 14, colors.secondary, ui);
+            add(ui, row, key, linearParams(ui, dp(context, 56, ui), -2, 0));
+            add(ui, row, value, linearParams(ui, 0, -2, 1));
+            add(ui, rows, row, newLayoutParams(ui, -1, -2));
         }
 
         static void detachPage(NativePage page, AndroidUiCalls ui) throws Exception {
             setNavigationClick(ui, page.toolbar, null);
+            if (page.refreshButton != null && invoke(ui, page.refreshButton, "getParent") == page.toolbar) {
+                invoke(ui, page.toolbar, "removeView", new String[] { VIEW }, new Object[] { page.refreshButton });
+            }
             Object parent = invoke(ui, page.root, "getParent");
             if (parent == page.coordinator) invoke(ui, parent, "removeView", new String[] { VIEW }, new Object[] { page.root });
         }
@@ -1215,30 +1380,104 @@ public final class LogPage {
         }
         private static Object cardParams(Object context, AndroidUiCalls ui) throws Exception {
             Object params = linearParams(ui, -1, -2, 0);
-            invoke(ui, params, "setMargins", new String[] { "int", "int", "int", "int" },
-                new Object[] { dp(context, 8, ui), dp(context, 4, ui), dp(context, 8, ui), dp(context, 4, ui) });
+            margins(ui, params, 0, dp(context, 4, ui), 0, dp(context, 8, ui));
             return params;
+        }
+        private static Object marginParams(Object context, int width, int startDp, int topDp, AndroidUiCalls ui) throws Exception {
+            Object params = linearParams(ui, width, -2, 0);
+            margins(ui, params, dp(context, startDp, ui), dp(context, topDp, ui), 0, 0);
+            return params;
+        }
+        private static void margins(AndroidUiCalls ui, Object params, int left, int top, int right, int bottom) throws Exception {
+            invoke(ui, params, "setMargins", new String[] { "int", "int", "int", "int" }, new Object[] { left, top, right, bottom });
+        }
+        private static void padding(AndroidUiCalls ui, Object view, int left, int top, int right, int bottom) throws Exception {
+            invoke(ui, view, "setPadding", new String[] { "int", "int", "int", "int" }, new Object[] { left, top, right, bottom });
         }
         private static void addLabel(NativePage page, String value, int size, Object color, AndroidUiCalls ui) throws Exception {
             Object label = text(page.activity, value, size, color, ui);
-            invoke(ui, label, "setPadding", new String[] { "int", "int", "int", "int" },
-                new Object[] { dp(page.activity, 8, ui), dp(page.activity, 8, ui), dp(page.activity, 8, ui), dp(page.activity, 8, ui) });
+            padding(ui, label, dp(page.activity, 8, ui), dp(page.activity, 8, ui), dp(page.activity, 8, ui), dp(page.activity, 8, ui));
             add(ui, page.body, label, newLayoutParams(ui, -1, -2));
         }
-        private static void addDivider(NativePage page, int color, AndroidUiCalls ui) throws Exception {
-            Object divider = construct(ui, VIEW, CONTEXT, page.activity);
+        private static void addDivider(Object context, Object parent, int color, int insetDp, AndroidUiCalls ui) throws Exception {
+            Object divider = construct(ui, VIEW, CONTEXT, context);
             invoke(ui, divider, "setBackgroundColor", new String[] { "int" }, new Object[] { color });
-            add(ui, page.body, divider, newLayoutParams(ui, -1, dp(page.activity, 1, ui)));
+            Object params = linearParams(ui, -1, Math.max(1, dp(context, 1, ui) / 2), 0);
+            margins(ui, params, dp(context, insetDp, ui), 0, 0, 0);
+            add(ui, parent, divider, params);
         }
-        private static Object button(Object context, String value, ThemeColors colors, AndroidUiCalls ui) throws Exception {
+        private static Object linear(Object context, int orientation, AndroidUiCalls ui) throws Exception {
+            Object layout = construct(ui, "android.widget.LinearLayout", CONTEXT, context);
+            invoke(ui, layout, "setOrientation", new String[] { "int" }, new Object[] { orientation });
+            return layout;
+        }
+        private static Object card(Object context, ThemeColors colors, AndroidUiCalls ui) throws Exception {
+            Object card = construct(ui, "com.google.android.material.card.MaterialCardView", CONTEXT, context);
+            invoke(ui, card, "setCardBackgroundColor", new String[] { COLOR_STATE_LIST }, new Object[] { colors.surface });
+            invoke(ui, card, "setRadius", new String[] { "float" }, new Object[] { (float) dp(context, 16, ui) });
+            invoke(ui, card, "setCardElevation", new String[] { "float" }, new Object[] { 0.0f });
+            invoke(ui, card, "setStrokeWidth", new String[] { "int" }, new Object[] { 0 });
+            return card;
+        }
+        private static Object levelTag(Object context, int level, ThemeColors colors, AndroidUiCalls ui) throws Exception {
+            int color = colors.levelColor(level);
+            Object tag = construct(ui, "android.widget.TextView", CONTEXT, context);
+            setText(ui, tag, LogStore.Summary.levelText(level));
+            invoke(ui, tag, "setTextSize", new String[] { "int", "float" }, new Object[] { 2, 12.0f });
+            invoke(ui, tag, "setTextColor", new String[] { "int" }, new Object[] { color });
+            padding(ui, tag, dp(context, 6, ui), dp(context, 1, ui), dp(context, 6, ui), dp(context, 1, ui));
+            Object shape = ui.construct("android.graphics.drawable.GradientDrawable", new String[0], new Object[0]);
+            invoke(ui, shape, "setCornerRadius", new String[] { "float" }, new Object[] { (float) dp(context, 6, ui) });
+            invoke(ui, shape, "setColor", new String[] { "int" }, new Object[] { (color & 0x00ffffff) | 0x29000000 });
+            invoke(ui, tag, "setBackground", new String[] { DRAWABLE }, new Object[] { shape });
+            return tag;
+        }
+        private static Object image(Object context, String drawable, AndroidUiCalls ui) throws Exception {
+            Object view = construct(ui, "android.widget.ImageView", CONTEXT, context);
+            invoke(ui, view, "setImageResource", new String[] { "int" }, new Object[] { resourceId(context, drawable, "drawable", ui) });
+            return view;
+        }
+        private static Object iconButton(Object context, String drawable, String description, Object tint, String ripple,
+                                         AndroidUiCalls ui) throws Exception {
+            Object button = construct(ui, "android.widget.ImageButton", CONTEXT, context);
+            invoke(ui, button, "setImageResource", new String[] { "int" }, new Object[] { resourceId(context, drawable, "drawable", ui) });
+            invoke(ui, button, "setImageTintList", new String[] { COLOR_STATE_LIST }, new Object[] { tint });
+            invoke(ui, button, "setContentDescription", new String[] { "java.lang.CharSequence" }, new Object[] { description });
+            padding(ui, button, dp(context, 12, ui), dp(context, 12, ui), dp(context, 12, ui), dp(context, 12, ui));
+            setRipple(context, button, ripple, ui);
+            return button;
+        }
+        private static void setRipple(Object context, Object view, String attribute, AndroidUiCalls ui) throws Exception {
+            Object drawable = null;
+            String packageName = String.valueOf(invoke(ui, context, "getPackageName"));
+            int id = resourceId(context, packageName, attribute, "attr", ui);
+            if (id != 0) {
+                Object theme = invoke(ui, context, "getTheme");
+                Object typed = invoke(ui, theme, "obtainStyledAttributes", new String[] { "[I" }, new Object[] { new int[] { id } });
+                try { drawable = invoke(ui, typed, "getDrawable", new String[] { "int" }, new Object[] { 0 }); }
+                finally { invoke(ui, typed, "recycle"); }
+            }
+            if (drawable != null) invoke(ui, view, "setBackground", new String[] { DRAWABLE }, new Object[] { drawable });
+            else invoke(ui, view, "setBackgroundColor", new String[] { "int" }, new Object[] { 0 });
+        }
+        private static int resourceId(Object context, String name, String type, AndroidUiCalls ui) throws Exception {
+            int id = resourceId(context, String.valueOf(invoke(ui, context, "getPackageName")), name, type, ui);
+            if (id == 0) throw new IOException("页面资源不可用");
+            return id;
+        }
+        private static int resourceId(Object context, String resourcePackage, String name, String type, AndroidUiCalls ui) throws Exception {
+            Object resources = invoke(ui, context, "getResources");
+            return ((Number) invoke(ui, resources, "getIdentifier", new String[] {
+                "java.lang.String", "java.lang.String", "java.lang.String"
+            }, new Object[] { name, type, resourcePackage })).intValue();
+        }
+        private static Object button(Object context, String value, Object textColor, Object background, AndroidUiCalls ui) throws Exception {
             Object button = construct(ui, "com.google.android.material.button.MaterialButton", CONTEXT, context);
             setText(ui, button, value);
             invoke(ui, button, "setTextSize", new String[] { "int", "float" }, new Object[] { 2, 16.0f });
             invoke(ui, button, "setMinimumHeight", new String[] { "int" }, new Object[] { dp(context, 48, ui) });
-            invoke(ui, button, "setTextColor", new String[] { COLOR_STATE_LIST }, new Object[] { colors.onSurface });
-            invoke(ui, button, "setBackgroundTintList", new String[] { COLOR_STATE_LIST }, new Object[] { colors.surface });
-            invoke(ui, button, "setPadding", new String[] { "int", "int", "int", "int" },
-                new Object[] { dp(context, 12, ui), dp(context, 8, ui), dp(context, 12, ui), dp(context, 8, ui) });
+            invoke(ui, button, "setTextColor", new String[] { COLOR_STATE_LIST }, new Object[] { textColor });
+            invoke(ui, button, "setBackgroundTintList", new String[] { COLOR_STATE_LIST }, new Object[] { background });
             invoke(ui, button, "setAllCaps", new String[] { "boolean" }, new Object[] { Boolean.FALSE });
             return button;
         }
@@ -1247,8 +1486,13 @@ public final class LogPage {
             setText(ui, view, value);
             invoke(ui, view, "setTextSize", new String[] { "int", "float" }, new Object[] { 2, (float) size });
             invoke(ui, view, "setTextColor", new String[] { COLOR_STATE_LIST }, new Object[] { color });
-            invoke(ui, view, "setMinimumHeight", new String[] { "int" }, new Object[] { dp(context, 56, ui) });
             return view;
+        }
+        private static String shortTime(long millis) {
+            return new java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.US).format(new java.util.Date(millis));
+        }
+        private static String fullTime(long millis) {
+            return new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(new java.util.Date(millis));
         }
         private static void setClick(AndroidUiCalls ui, Object view, Runnable action) throws Exception {
             invoke(ui, view, "setOnClickListener", new String[] { "android.view.View$OnClickListener" },

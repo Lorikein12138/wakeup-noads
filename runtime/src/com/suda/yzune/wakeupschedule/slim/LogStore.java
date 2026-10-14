@@ -14,6 +14,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /** Local, read-only index of this app's crash and exit logs. Android calls are reflective. */
 final class LogStore {
@@ -24,7 +26,9 @@ final class LogStore {
     static final String EXPORT_FOLDER = "wakeup-noads-log-export";
     static final String EXPORT_PREFIX = "wakeup-noads-log-export-";
     private static final Charset UTF_8 = Charset.forName("UTF-8");
-    private static final String NAME_PATTERN = "^(crash|exit)-[0-9]{8}-[0-9]{6}-[0-9]{3}-[0-9]+\\.txt$";
+    static final String LEGACY_UNREADABLE = "旧版日志（Download 目录）暂时无法读取";
+    static final String APP_UNREADABLE = "应用日志目录暂时无法读取";
+    private static final String NAME_PATTERN ="^(crash|exit)-[0-9]{8}-[0-9]{6}-[0-9]{3}-[0-9]+\\.txt$";
 
     interface Source {
         String key();
@@ -79,6 +83,7 @@ final class LogStore {
         final String ownerPackage;
         final String relativePath;
         final String uriScheme;
+        volatile Summary summary;
 
         Entry(String key, String sourceKey, String sourceLabel, String fileName, long modifiedMillis, Source source,
               Object handle, File boundaryRoot, String ownerPackage, String relativePath, String uriScheme) {
@@ -95,7 +100,118 @@ final class LogStore {
             this.uriScheme = uriScheme;
         }
 
-        String kind() { return fileName.startsWith("crash-") ? "Java 崩溃" : "系统退出"; }
+        boolean isCrashFile() { return fileName.startsWith("crash-"); }
+        Summary summary() {
+            Summary value = summary;
+            return value != null ? value : Summary.fallback(isCrashFile());
+        }
+    }
+
+    static final int LEVEL_NORMAL = 0;
+    static final int LEVEL_WARNING = 1;
+    static final int LEVEL_ERROR = 2;
+    private static final int SUMMARY_SCAN_LIMIT = 1024 * 1024;
+    private static final int MAX_SUMMARY_RECORDS = 16;
+    private static final Pattern RECORD_LINE = Pattern.compile(
+        "== (\\d{4})-(\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2})\\.\\d{3} [+-]\\d{4} (EXIT_SELF|SIGNALED|CRASH|CRASH_NATIVE|ANR|INITIALIZATION_FAILURE|EXCESSIVE_RESOURCE_USAGE|REASON_\\d{1,6}) ==");
+
+    /** One process-exit record of an exit log: its time (MM-dd HH:mm:ss) and readable type. */
+    static final class Record {
+        final String time;
+        final String title;
+        final int level;
+        final int rank;
+        Record(String time, String title, int level, int rank) {
+            this.time = time;
+            this.title = title;
+            this.level = level;
+            this.rank = rank;
+        }
+    }
+
+    /** Readable classification of one log file; the most severe record decides title and level. */
+    static final class Summary {
+        final String title;
+        final int level;
+        final List<Record> records;
+
+        Summary(String title, int level, List<Record> records) {
+            this.title = title;
+            this.level = level;
+            this.records = records == null ? Collections.<Record>emptyList() : records;
+        }
+
+        String levelText() { return levelText(level); }
+        int recordCount() { return Math.max(1, records.size()); }
+
+        static String levelText(int level) { return level == LEVEL_ERROR ? "错误" : level == LEVEL_WARNING ? "警告" : "正常"; }
+
+        static Summary fallback(boolean crashFile) {
+            return crashFile ? new Summary("应用崩溃", LEVEL_ERROR, null) : new Summary("异常退出", LEVEL_WARNING, null);
+        }
+
+        static Summary of(boolean crashFile, List<Record> records) {
+            if (crashFile || records == null || records.isEmpty()) return fallback(crashFile);
+            Record worst = null;
+            for (Record record : records) if (worst == null || record.rank >= worst.rank) worst = record;
+            return new Summary(worst.title, worst.level, Collections.unmodifiableList(new ArrayList<Record>(records)));
+        }
+    }
+
+    static Record record(String time, String reason) {
+        if ("CRASH_NATIVE".equals(reason)) return new Record(time, "底层崩溃", LEVEL_ERROR, 9);
+        if ("CRASH".equals(reason)) return new Record(time, "应用崩溃（系统记录）", LEVEL_ERROR, 8);
+        if ("INITIALIZATION_FAILURE".equals(reason)) return new Record(time, "启动失败", LEVEL_ERROR, 7);
+        if ("ANR".equals(reason)) return new Record(time, "应用无响应", LEVEL_WARNING, 6);
+        if ("EXCESSIVE_RESOURCE_USAGE".equals(reason)) return new Record(time, "资源占用过高", LEVEL_WARNING, 5);
+        if ("SIGNALED".equals(reason)) return new Record(time, "被系统终止", LEVEL_WARNING, 4);
+        if ("EXIT_SELF".equals(reason)) return new Record(time, "自行退出", LEVEL_NORMAL, 1);
+        return new Record(time, "异常退出", LEVEL_WARNING, 3);
+    }
+
+    /** Reads only the record header lines of an exit log; any failure keeps the file-name fallback. */
+    static Summary summarize(Entry entry) {
+        if (entry == null) return Summary.fallback(false);
+        boolean crashFile = entry.isCrashFile();
+        if (crashFile || entry.source == null) return Summary.fallback(crashFile);
+        List<Record> records = new ArrayList<Record>();
+        try {
+            InputStream opened = entry.source.open(entry);
+            if (opened == null) return Summary.fallback(false);
+            try (InputStream input = opened) {
+                byte[] buffer = new byte[8192];
+                StringBuilder line = new StringBuilder();
+                boolean overlong = false;
+                long total = 0;
+                int count;
+                while (total < SUMMARY_SCAN_LIMIT && records.size() < MAX_SUMMARY_RECORDS
+                    && (count = input.read(buffer, 0, (int) Math.min(buffer.length, SUMMARY_SCAN_LIMIT - total))) != -1) {
+                    total += count;
+                    for (int index = 0; index < count && records.size() < MAX_SUMMARY_RECORDS; index++) {
+                        int value = buffer[index] & 0xff;
+                        if (value == '\n') {
+                            if (!overlong) addRecord(records, line);
+                            line.setLength(0);
+                            overlong = false;
+                        } else if (!overlong) {
+                            if (line.length() >= 96) overlong = true;
+                            else line.append((char) value);
+                        }
+                    }
+                }
+                if (!overlong && records.size() < MAX_SUMMARY_RECORDS) addRecord(records, line);
+            }
+        } catch (Throwable ignored) {
+            if (records.isEmpty()) return Summary.fallback(false);
+        }
+        return Summary.of(false, records);
+    }
+
+    private static void addRecord(List<Record> records, StringBuilder line) {
+        int length = line.length();
+        if (length > 0 && line.charAt(length - 1) == '\r') line.setLength(length - 1);
+        Matcher matcher = RECORD_LINE.matcher(line);
+        if (matcher.matches()) records.add(record(matcher.group(2), matcher.group(3)));
     }
 
     static final class Result {
@@ -115,7 +231,9 @@ final class LogStore {
         boolean isEmpty() { return entries.isEmpty(); }
         String stateText() {
             if (sourceErrors.isEmpty()) return entries.isEmpty() ? "暂无日志" : "";
-            return readableSources == 0 ? "日志来源不可读取" : "部分历史日志无法读取";
+            if (readableSources == 0) return "日志来源不可读取";
+            for (String error : sourceErrors) if (error.startsWith("历史 Download")) return LEGACY_UNREADABLE;
+            return APP_UNREADABLE;
         }
     }
 
@@ -203,6 +321,7 @@ final class LogStore {
                 return left.key.compareTo(right.key);
             }
         });
+        for (Entry entry : entries) entry.summary = summarize(entry);
         return new Result(Collections.unmodifiableList(entries), Collections.unmodifiableList(errors), readable, sources.size());
     }
 

@@ -183,6 +183,8 @@ test('T10 layout has two settings rows and a tagged logs row, all supporting enl
   assert.deepEqual(ids, ['mine_user_nested_scrollview', 'll_mine_tab_content_view_new_course_setting', 'll_mine_tab_content_view_global_setting']);
   assert.equal((xml.match(/<View\b/g) ?? []).length, 2, 'three rows use two dividers');
   assert.equal((xml.match(/android:tag="wakeup_noads_logs_entry"/g) ?? []).length, 1, 'the logs row has one stable non-resource tag');
+  assert.match(xml, /android:tag="wakeup_noads_logs_entry"[\s\S]*?android:text="本地日志"/, 'the logs row title matches the page title');
+  assert.doesNotMatch(xml, /android:text="日志"/);
   assert.equal((xml.match(/android:minHeight="52dp"/g) ?? []).length, 3);
   assert.equal((xml.match(/android:layout_height="wrap_content"/g) ?? []).length, 11);
   assert.match(xml, /android:paddingTop="12dp"/);
@@ -295,7 +297,8 @@ test('T35 SettingsActivity runs the true log branch and keeps ordinary initializ
     return world.returnValue;
   };
   assert.equal(menuWorld(true), null, 'the real log menu method returns null in log mode');
-  assert.equal(menuWorld(false), 0x7f0e0002, 'the normal settings menu resource is unchanged');
+  assert.equal(menuWorld(false), null, 'ordinary global settings no longer inflates the donate menu');
+  assert.doesNotMatch(menu, /0x7f0e0002/, 'SettingsActivity no longer references the donate menu resource');
 
   const back = await readSmaliMethod(root, 'smali_classes6/com/suda/yzune/wakeupschedule/settings/SettingsActivity.smali',
     'Lcom/suda/yzune/wakeupschedule/settings/SettingsActivity;', 'public onBackPressed()V');
@@ -332,6 +335,36 @@ test('T35 SettingsActivity runs the true log branch and keeps ordinary initializ
     < destroyExecution.trace.indexOf('Landroidx/appcompat/app/AppCompatActivity;->onDestroy'));
 });
 
+test('T36 course and advanced settings no longer inflate the donate menu', async (t) => {
+  const fullSpec = JSON.parse(await readFile('patches/slim-v1/patch-spec.json', 'utf8'));
+  const targets = [
+    ['T36-E55-advanced-settings-no-donate-menu', 'smali_classes6/com/suda/yzune/wakeupschedule/settings/AdvancedSettingsActivity.smali',
+      'Lcom/suda/yzune/wakeupschedule/settings/AdvancedSettingsActivity;', 'public ooOO()Ljava/lang/Integer;'],
+    ['T36-E55-schedule-settings-no-donate-menu', 'smali_classes6/com/suda/yzune/wakeupschedule/schedule_settings/ScheduleSettingsActivity.smali',
+      'Lcom/suda/yzune/wakeupschedule/schedule_settings/ScheduleSettingsActivity;', 'public o0OoOo0()Ljava/lang/Integer;'],
+  ];
+  const operations = targets.map(([id]) => {
+    const operation = fullSpec.operations.find((candidate) => candidate.id === id);
+    assert.ok(operation, `the production spec contains ${id}`);
+    return operation;
+  });
+  for (const [, relative, owner, descriptor] of targets) {
+    assert.match(await readSmaliMethod(baseline, relative, owner, descriptor), /const v0, 0x7f0e0002/,
+      'the official method returns the donate menu resource');
+  }
+  for (const lineEnding of ['\n', '\r\n']) {
+    const { root, specPath } = await productionPatchFixture(t, operations, lineEnding);
+    const result = await applyPatchSpec({ root, specPath });
+    assert.deepEqual(result.operations.map((operation) => operation.id), targets.map(([id]) => id));
+    for (const [, relative, owner, descriptor] of targets) {
+      const method = await readSmaliMethod(root, relative, owner, descriptor);
+      const body = method.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      assert.deepEqual(body, [`.method ${descriptor}`, '.locals 1', 'const/4 v0, 0x0', 'return-object v0', '.end method'],
+        'the menu method returns null so the base onCreateOptionsMenu inflates nothing');
+    }
+  }
+});
+
 test('T10 click routing preserves both host callbacks and ends every removed menu route', async (t) => {
   const root = await patchedFixture(t);
   const click = await readSmaliMethod(root, fragmentPath, fragmentClass, 'public onClick(Landroid/view/View;)V');
@@ -361,13 +394,20 @@ test('LogPage replaces only the settings list body with themed native content an
   assert.match(pageOpen, /getLayoutParams[\s\S]*?getBehavior[\s\S]*?NestedScrollView[\s\S]*?removeView[\s\S]*?addView/);
   assert.match(actionButton, /MaterialButton[\s\S]*?"setMinimumHeight"[\s\S]*?dp\(context, 48, ui\)/);
   assert.match(actionButton, /setTextSize[\s\S]*?new Object\[\] \{ 2, 16\.0f \}/, 'native action text uses SP');
-  assert.match(renderPage, /MaterialCardView[\s\S]*?setCardBackgroundColor/);
-  assert.match(renderPage, /state\.detail && state\.selected != null \? "日志详情" : "本地日志"/,
+  assert.match(source, /private static Object card\([\s\S]*?MaterialCardView[\s\S]*?setCardBackgroundColor/);
+  assert.match(renderPage, /card\(context, colors, ui\)/, 'list and detail content sit in themed cards');
+  assert.match(renderPage, /boolean detail = state\.detail && state\.selected != null;[\s\S]*?detail \? "日志详情" : "本地日志"/,
     'the native Toolbar has the two fixed list and detail titles');
-  assert.match(renderPage, /state\.selected\.fileName/);
-  assert.match(renderPage, /add\(ui, page\.body, refreshButton, linearParams\(ui, -2, -2, 0\)\)/, 'refresh height wraps its SP text');
-  assert.match(renderPage, /add\(ui, actions, copyButton, linearParams\(ui, -2, -2, 0\)\)[\s\S]*?add\(ui, actions, exportButton, linearParams\(ui, -2, -2, 0\)\)/,
-    'copy and export heights wrap their SP text');
+  assert.match(pageOpen, /iconButton\(activity, "ic_outline_refresh_24", "刷新"[\s\S]*?Toolbar\$LayoutParams[\s\S]*?add\(ui, toolbar, refreshButton, toolbarParams\)/,
+    'refresh is an icon on the reused Toolbar instead of a body button');
+  assert.match(renderPage, /"setVisibility"[\s\S]*?detail \? 8 : 0/, 'the refresh icon is hidden on the detail page');
+  assert.doesNotMatch(renderPage, /add\(ui, page\.body, refreshButton/, 'the body has no refresh button');
+  assert.match(renderPage, /entry\.fileName/, 'the detail page shows the complete file name');
+  assert.match(renderPage, /controller\.copy\(entry\)[\s\S]*?controller\.export\(entry, cacheDirectory\)/,
+    'list rows copy and export their own entry directly');
+  assert.match(renderPage, /button\(context, "复制", colors\.onTonal, colors\.tonal, ui\)[\s\S]*?button\(context, "导出", colors\.onPrimary, colors\.primary, ui\)/,
+    'detail copy and export use the tonal and filled theme colors');
+  assert.doesNotMatch(source, /SANITIZED_NOTICE|已脱敏/, 'the page shows no sanitization notice');
   assert.doesNotMatch(source, /buildDialog|android\.app\.Dialog|setStatusBarColor|setNavigationBarColor|mine_page_background|mine_text_primary|mine_divider|"‹"/,
     'the production page path has no dialog, forced system bar colors, mine color resources, or text back arrow');
   assert.doesNotMatch(renderPage, /setSingleLine|setMaxLines|setLines\(/, 'file names and text have no fixed line count');

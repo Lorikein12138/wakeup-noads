@@ -59,7 +59,8 @@ public final class CrashLogTest {
         testAndroidHostOpenFailuresUseControllerPath();
         testDeleteExceptionUsesFixedResidualMessage();
         testOrphanCleanupDuringWritingAndCancellation();
-        System.out.println("CrashLogTest passed (10 legacy + 6 round-1 + 7 round-2 + 7 round-3 + 5 round-4 + 1 round-5 groups)");
+        testLogSummaryLevelsAndRecords();
+        System.out.println("CrashLogTest passed (10 legacy + 6 round-1 + 7 round-2 + 7 round-3 + 5 round-4 + 1 round-5 + 1 local-log groups)");
     }
 
     private static void testCrashReportCarriesHeaderThreadAndCauses() {
@@ -791,7 +792,11 @@ public final class CrashLogTest {
             && LogPage.class.getMethod("onDestroy", Object.class).getReturnType() == void.class
             && LogPage.class.getMethod("applyPageInsets", Object.class, Object.class, Object.class).getReturnType() == void.class,
             "all six Activity-owned bridges keep their exact public Object-only signatures");
-        check("日志已脱敏".equals(LogPage.SANITIZED_NOTICE), "the static page notice states that every displayed log is sanitized");
+        boolean sanitizedNoticeRemoved;
+        try { LogPage.class.getDeclaredField("SANITIZED_NOTICE"); sanitizedNoticeRemoved = false; }
+        catch (NoSuchFieldException expected) { sanitizedNoticeRemoved = true; }
+        check(sanitizedNoticeRemoved && "预览已截断，导出可保存完整日志".equals(LogPage.PREVIEW_TRUNCATED),
+            "the page carries no sanitization banner and states preview truncation in plain words");
 
         File root = cacheTemp("calendar-tab-page-fail-");
         try {
@@ -1190,7 +1195,7 @@ public final class CrashLogTest {
             check(!nullScan.accessible && nullCursor.queryCalls == 1, "null Cursor is an unavailable source, not a successful empty list");
             FixtureSource readableApp = new FixtureSource("app", "应用目录", appLogs);
             LogStore.Result nullCursorPartial = new LogStore(Arrays.<LogStore.Source>asList(readableApp, nullSource)).list();
-            check(nullCursorPartial.readableSources == 1 && "部分历史日志无法读取".equals(nullCursorPartial.stateText()),
+            check(nullCursorPartial.readableSources == 1 && LogStore.LEGACY_UNREADABLE.equals(nullCursorPartial.stateText()),
                 "null Cursor keeps a readable app source available while reporting the history source failure");
 
             FakeMediaPlatform permission = new FakeMediaPlatform(); permission.queryFailure = new IOException("permission secret");
@@ -1225,7 +1230,7 @@ public final class CrashLogTest {
                 @Override public InputStream open(LogStore.Entry entry) { return null; }
             };
             LogStore.Result partial = new LogStore(Arrays.<LogStore.Source>asList(readable, nullScanSource)).list();
-            check(partial.readableSources == 1 && "部分历史日志无法读取".equals(partial.stateText()),
+            check(partial.readableSources == 1 && LogStore.LEGACY_UNREADABLE.equals(partial.stateText()),
                 "null Scan with one readable source produces a partial-failure state");
             FixtureSource emptyA = new FixtureSource("app", "应用目录", appLogs);
             FixtureSource emptyB = new FixtureSource("legacy-download", "历史 Download", legacy);
@@ -1236,6 +1241,11 @@ public final class CrashLogTest {
             LogStore.Result allFailed = new LogStore(Arrays.<LogStore.Source>asList(unavailable, nullScanSource)).list();
             check(allFailed.readableSources == 0 && "日志来源不可读取".equals(allFailed.stateText()),
                 "all-failed sources show an unavailable state");
+            FixtureSource brokenApp = new FixtureSource("app", "应用目录", appLogs); brokenApp.unavailableMessage = "private permission";
+            FixtureSource readableLegacy = new FixtureSource("legacy-download", "历史 Download", legacy);
+            LogStore.Result appFailed = new LogStore(Arrays.<LogStore.Source>asList(brokenApp, readableLegacy)).list();
+            check(appFailed.readableSources == 1 && LogStore.APP_UNREADABLE.equals(appFailed.stateText()),
+                "a failed app source with a readable legacy source names the app log directory, not the legacy folder");
         } finally { deleteTree(root); }
     }
 
@@ -1275,7 +1285,7 @@ public final class CrashLogTest {
                     ? Arrays.asList(success, failed) : Arrays.asList(failed, success)).list();
                 check(partial.readableSources == 1 && partial.totalSources == 2 && partial.sourceErrors.size() == 1
                     && entryNames(partial.entries).equals(survivingNames)
-                    && "部分历史日志无法读取".equals(partial.stateText()),
+                    && LogStore.LEGACY_UNREADABLE.equals(partial.stateText()),
                     "one nonempty successful MediaStore source and one failed source keep the successful entries "
                         + "and report partial failure in either scan order (failure " + failureKind + ", order " + order + ")");
             }
@@ -1534,6 +1544,7 @@ public final class CrashLogTest {
             LogPage.attachActivity(activity);
             LogPage.attachActivity(activity);
             ui.awaitRenderCount(1);
+            ui.awaitBodyText(LOG_FOOTER);
             check(ui.openCount == 1 && ui.backRegistrations == 1 && ui.requestInsetsCount == 1,
                 "repeated Activity attach reuses one native page, one API 33 callback and one inset request");
             int beforeRepeatedOpen = ui.lastScroll.addViewCalls;
@@ -1548,8 +1559,11 @@ public final class CrashLogTest {
                 "production page reuses the attached base Toolbar and Recycler layout objects without factory, action-bar reset, duplicate removal, or duplicate body");
             check(ui.attributes.equals(Arrays.asList("android:colorBackground", "io.github.wakeupnoads:colorSurface",
                     "io.github.wakeupnoads:colorOnSurface", "io.github.wakeupnoads:colorOnSurfaceVariant",
-                    "io.github.wakeupnoads:colorOutlineVariant")) && ui.resolved.size() == 5 && ui.recycledArrays == 5,
-                "the production theme resolver requests the Activity background and all four Material theme attributes");
+                    "io.github.wakeupnoads:colorOutlineVariant", "io.github.wakeupnoads:colorPrimary",
+                    "io.github.wakeupnoads:colorOnPrimary", "io.github.wakeupnoads:colorSecondaryContainer",
+                    "io.github.wakeupnoads:colorOnSecondaryContainer")) && ui.resolved.size() == 9
+                    && ui.recycledArrays == ui.obtainedArrays,
+                "the production theme resolver requests the Activity background and all Material theme attributes, recycling every TypedArray");
             check(((FakeColorStateList) ui.resolved.get(0)).color == 0xff110101
                 && ((FakeColorStateList) ui.resolved.get(1)).color == 0xff110202
                 && ((FakeColorStateList) ui.resolved.get(2)).color == 0xff110303
@@ -1557,7 +1571,12 @@ public final class CrashLogTest {
                 && ((FakeColorStateList) ui.resolved.get(4)).color == 0xff110505,
                 "the injected TypedArray returns the five independent literal theme colors");
             check(ui.lastScroll.backgroundColor == 0xff110101, "production page background equals the literal Activity background attribute");
-            check(containsText(ui.lastBody, longName), "production list body includes the complete long filename");
+            check(containsText(ui.lastBody, "应用崩溃") && containsText(ui.lastBody, "错误") && !containsText(ui.lastBody, longName),
+                "production list rows show the level tag and title instead of the raw filename");
+            FakeView toolbarRefresh = toolbarRefreshButton(activity.toolbar);
+            check(toolbarRefresh != null && toolbarRefresh.visibility == 0 && toolbarRefresh.clickListener instanceof FakeClickListener
+                && "刷新".equals(toolbarRefresh.contentDescription) && countClass(ui.lastBody, "com.google.android.material.button.MaterialButton") == 0,
+                "the refresh action is a single toolbar icon and the list body carries no refresh button");
             check(activity.toolbar.text.equals("本地日志"), "the visible base Toolbar receives the list title");
             check(verifyRenderedTheme(ui.lastBody, 1), "actual production list render binds surface, foreground, divider, and partial-source colors");
             FakeView rootView = ui.lastScroll;
@@ -1585,7 +1604,8 @@ public final class CrashLogTest {
             controller.select(entry);
             ui.awaitRenderCount(3);
             ui.awaitBodyText(longName);
-            check(activity.toolbar.text.equals("日志详情"), "the visible base Toolbar receives the detail title");
+            check(activity.toolbar.text.equals("日志详情") && toolbarRefreshButton(activity.toolbar).visibility == 8,
+                "the visible base Toolbar receives the detail title and hides the list refresh icon");
             check(containsText(ui.lastBody, longName), "detail body keeps the complete selected filename");
             check(verifyRenderedTheme(ui.lastBody, 1), "actual production detail controls keep the Activity theme colors");
             int beforeBack = ui.renderCount;
@@ -1598,7 +1618,8 @@ public final class CrashLogTest {
             LogPage.onDestroy(activity);
             LogPage.applyPageInsets(activity, rootView, new LogPage.PageInsets(1, 1, 1, 1, 1));
             check(ui.backUnregistrations == 1 && ui.detachCount == 1 && ui.finishCount == 0
-                && ui.paddingWrites == beforeDestroyWrites && rootView.parent == null,
+                && ui.paddingWrites == beforeDestroyWrites && rootView.parent == null
+                && toolbarRefreshButton(activity.toolbar) == null,
                 "Activity destruction unregisters once, detaches without finish, and prevents later inset writes");
 
             FakeAndroidUiCalls secondUi = new FakeAndroidUiCalls(2, 32);
@@ -1606,7 +1627,8 @@ public final class CrashLogTest {
             FakeSettingsActivity second = new FakeSettingsActivity(external, cache, 2, true);
             LogPage.attachActivity(second);
             secondUi.awaitRenderCount(1);
-            secondUi.awaitBodyText(longName);
+            secondUi.awaitBodyText(LOG_FOOTER);
+            check(secondUi.bodyContainsText("应用崩溃"), "the recreated list shows the entry title");
             check(secondUi.lastScroll.backgroundColor == 0xff220101
                 && ((FakeColorStateList) secondUi.resolved.get(1)).themeId == 2
                 && second.toolbar.text.equals("本地日志") && verifyRenderedTheme(secondUi.lastBody, 2)
@@ -1637,17 +1659,31 @@ public final class CrashLogTest {
                 LogPage.Controller listController = startNativeController(listActivity,
                     new LogStore(Arrays.<LogStore.Source>asList(listSource, failedSource)), listUi);
                 listUi.awaitRenderCount(1);
-                listUi.awaitBodyText("部分历史日志无法读取");
-                check(listActivity.toolbar.text.equals("本地日志") && listUi.bodyContainsText(LogPage.SANITIZED_NOTICE)
-                    && listUi.bodyContainsText(longName) && verifyRenderedTheme(listUi.lastBody, themeId)
-                    && verifyRenderedControlContracts(listUi.lastBody),
-                    "both independent themes bind list, partial-source warning, long wrappable filename, SP sizing, and expandable controls in production");
-                FakeView longNameView = findTextContaining(listUi.lastBody, longName);
-                check(longNameView != null && longNameView.layoutParams instanceof FakeLayoutParams
-                    && ((FakeLayoutParams) longNameView.layoutParams).width == -1
-                    && ((FakeLayoutParams) longNameView.layoutParams).height == -2
-                    && longNameView.singleLineCalls == 0 && longNameView.maxLinesCalls == 0,
-                    "the complete filename stays in a full-width wrapping TextView with WRAP_CONTENT height and no line cap");
+                listUi.awaitBodyText(LogStore.LEGACY_UNREADABLE);
+                listUi.awaitBodyText(LOG_FOOTER);
+                check(listActivity.toolbar.text.equals("本地日志") && listUi.bodyContainsText("应用崩溃")
+                    && listUi.bodyContainsText("错误") && !listUi.bodyContainsText(longName)
+
+                    && verifyRenderedTheme(listUi.lastBody, themeId) && verifyRenderedControlContracts(listUi.lastBody),
+                    "both independent themes bind the grouped list, level tag, partial-source warning, footer, and SP sizing in production");
+                FakeView warningText = findTextContaining(listUi.lastBody, LogStore.LEGACY_UNREADABLE);
+                FakeView warningLine = warningText == null ? null : (FakeView) warningText.parent;
+                check(warningText != null && Integer.valueOf(0xfffdd663).equals(warningText.textColor) && warningLine != null
+                    && countClass(warningLine, "android.widget.ImageView") == 1
+                    && warningLine.children.get(0).imageResource == 105
+                    && warningLine.children.get(0).colorFilter == ((Integer) warningText.textColor).intValue(),
+                    "the partial-source warning is one amber icon line sharing the warning color");
+                FakeView rowTitle = findTextContaining(listUi.lastBody, "应用崩溃");
+                FakeView row = rowTitle == null || rowTitle.parent == null ? null : (FakeView) ((FakeView) ((FakeView) rowTitle.parent).parent).parent;
+                check(row != null && row.clickListener instanceof FakeClickListener && row.minimumHeight >= 64
+                    && row.background instanceof FakeView && countClass(row, "android.widget.ImageButton") == 2
+                    && "复制".equals(row.children.get(1).contentDescription) && row.children.get(1).imageResource == 102
+                    && "导出".equals(row.children.get(2).contentDescription) && row.children.get(2).imageResource == 103
+                    && row.children.get(1).clickListener instanceof FakeClickListener
+                    && row.children.get(2).clickListener instanceof FakeClickListener,
+                    "each list row opens detail on tap and carries direct copy and export icon buttons");
+                check(countClass(listUi.lastBody, "com.google.android.material.card.MaterialCardView") == 1,
+                    "all list entries share one rounded group card");
                 FakeView originalScroll = listUi.lastScroll;
                 int bodyAdds = listUi.lastBody.addViewCalls;
                 int coordinatorAdds = listActivity.coordinator.addViewCalls;
@@ -1677,14 +1713,23 @@ public final class CrashLogTest {
                 LogPage.Controller detailController = startNativeController(detailActivity,
                     new LogStore(Collections.<LogStore.Source>singletonList(detailSource)), detailUi);
                 detailUi.awaitRenderCount(1);
-                detailUi.awaitBodyText(longName);
+                detailUi.awaitBodyText("应用崩溃");
                 detailController.select(detailEntry);
                 check(previewEntered.await(5, java.util.concurrent.TimeUnit.SECONDS), "the production detail read reaches the controlled source");
                 detailUi.awaitBodyText("正在读取日志…");
                 check(detailActivity.toolbar.text.equals("日志详情") && verifyRenderedTheme(detailUi.lastBody, themeId)
-                    && detailUi.bodyContainsText(LogPage.SANITIZED_NOTICE)
-                    && verifyRenderedControlContracts(detailUi.lastBody),
-                    "loading detail keeps the Activity theme and uses the original Toolbar title");
+                    && detailUi.bodyContainsText("内容预览") && detailUi.bodyContainsText("类型")
+                    && detailUi.bodyContainsText("时间") && detailUi.bodyContainsText("来源") && detailUi.bodyContainsText("文件")
+                    && !detailUi.bodyContainsText("记录") && verifyRenderedControlContracts(detailUi.lastBody)
+                    && countClass(detailUi.lastBody, "com.google.android.material.button.MaterialButton") == 2,
+                    "loading detail keeps the Activity theme, info card, tonal/filled actions, and the original Toolbar title");
+                FakeView longNameView = findTextContaining(detailUi.lastBody, longName);
+                check(longNameView != null && longNameView.layoutParams instanceof FakeLayoutParams
+                    && ((FakeLayoutParams) longNameView.layoutParams).width == 0
+                    && ((FakeLayoutParams) longNameView.layoutParams).weight == 1.0f
+                    && ((FakeLayoutParams) longNameView.layoutParams).height == -2
+                    && longNameView.singleLineCalls == 0 && longNameView.maxLinesCalls == 0,
+                    "the complete filename stays in a weighted wrapping TextView with WRAP_CONTENT height and no line cap");
                 allowPreview.countDown();
                 detailUi.awaitBodyText("[redacted]");
                 check(verifyRenderedTheme(detailUi.lastBody, themeId)
@@ -1694,7 +1739,7 @@ public final class CrashLogTest {
                 detailController.select(detailEntry);
                 detailUi.awaitBodyText("日志已消失或不可读取，请刷新重试");
                 check(verifyRenderedTheme(detailUi.lastBody, themeId),
-                    "failed detail message uses the same theme secondary color while the sanitization notice remains readable");
+                    "failed detail message uses the same theme secondary color");
                 detailController.detach();
 
                 FixtureSource emptySource = new FixtureSource("app", "应用目录", new File(root, "empty"));
@@ -1703,8 +1748,12 @@ public final class CrashLogTest {
                 LogPage.Controller emptyController = startNativeController(emptyActivity,
                     new LogStore(Collections.<LogStore.Source>singletonList(emptySource)), emptyUi);
                 emptyUi.awaitRenderCount(1);
-                emptyUi.awaitBodyText("暂无日志");
-                check(verifyRenderedTheme(emptyUi.lastBody, themeId), "empty-list text and sanitization notice use the independent theme colors");
+                emptyUi.awaitBodyText(LOG_FOOTER);
+                check(verifyRenderedTheme(emptyUi.lastBody, themeId) && emptyUi.bodyContainsText("暂无日志")
+                    && emptyUi.bodyContainsText(LogPage.EMPTY_HINT)
+                    && countClass(emptyUi.lastBody, "android.widget.ImageView") == 1
+                    && countClass(emptyUi.lastBody, "com.google.android.material.card.MaterialCardView") == 0,
+                    "the empty state shows its icon, title, and hint in the independent theme colors");
                 emptyController.detach();
 
                 FixtureSource unreadableSource = new FixtureSource("app", "应用目录", new File(root, "unreadable"));
@@ -1715,8 +1764,9 @@ public final class CrashLogTest {
                     new LogStore(Collections.<LogStore.Source>singletonList(unreadableSource)), unreadableUi);
                 unreadableUi.awaitRenderCount(1);
                 unreadableUi.awaitBodyText("日志来源不可读取");
-                check(verifyRenderedTheme(unreadableUi.lastBody, themeId),
-                    "complete source failure and sanitization notice use their independent theme colors");
+                unreadableUi.awaitBodyText(LOG_FOOTER);
+                check(verifyRenderedTheme(unreadableUi.lastBody, themeId) && !unreadableUi.bodyContainsText("暂无日志"),
+                    "complete source failure shows only the warning line in the independent theme colors");
                 unreadableController.detach();
             } finally { deleteTree(root); }
         }
@@ -1735,6 +1785,64 @@ public final class CrashLogTest {
                 "missing original Toolbar exits with the fixed notice and finish, without Dialog or factory fallback");
             controller.detach();
         } finally { deleteTree(failureRoot); }
+    }
+
+    private static void testLogSummaryLevelsAndRecords() throws Exception {
+        File root = cacheTemp("local-log-summary-");
+        try {
+            FixtureSource source = new FixtureSource("app", "应用目录", root);
+            LogStore.Entry crash = source.add("crash-20261014-010203-004-12.txt", 1L, "wakeup-noads crash log\nthread: main\n");
+            LogStore.Entry mixed = source.add("exit-20261014-010204-004-12.txt", 2L, "wakeup-noads exit log\n"
+                + "\n== 2026-10-14 08:00:01.000 +0800 EXIT_SELF ==\n[redacted]\n"
+                + "\n== 2026-10-14 09:30:02.000 +0800 ANR ==\n[redacted]\n");
+            LogStore.Entry nativeCrash = source.add("exit-20261014-010205-004-12.txt", 3L, "wakeup-noads exit log\n"
+                + "\n== 2026-10-14 10:00:00.000 +0800 SIGNALED ==\n[redacted]\n"
+                + "\n== 2026-10-14 10:05:00.000 +0800 CRASH_NATIVE ==\n[redacted]\n");
+            LogStore.Entry systemCrash = source.add("exit-20261014-010206-004-12.txt", 4L, "wakeup-noads exit log\n"
+                + "\n== 2026-10-14 11:00:00.000 +0800 CRASH ==\n[redacted]\n");
+            LogStore.Entry selfExit = source.add("exit-20261014-010207-004-12.txt", 5L, "wakeup-noads exit log\n"
+                + "\n== 2026-10-14 12:00:00.000 +0800 EXIT_SELF ==\n[redacted]\n");
+            LogStore.Entry headerless = source.add("exit-20261014-010208-004-12.txt", 6L, "wakeup-noads exit log\n");
+
+            LogStore.Summary crashSummary = LogStore.summarize(crash);
+            check("应用崩溃".equals(crashSummary.title) && crashSummary.level == LogStore.LEVEL_ERROR
+                && "错误".equals(crashSummary.levelText()) && crashSummary.recordCount() == 1,
+                "a Java crash file is one 应用崩溃 error");
+            LogStore.Summary mixedSummary = LogStore.summarize(mixed);
+            check("应用无响应".equals(mixedSummary.title) && mixedSummary.level == LogStore.LEVEL_WARNING
+                && "警告".equals(mixedSummary.levelText()) && mixedSummary.recordCount() == 2
+                && "10-14 08:00:01".equals(mixedSummary.records.get(0).time) && "自行退出".equals(mixedSummary.records.get(0).title)
+                && "10-14 09:30:02".equals(mixedSummary.records.get(1).time) && "应用无响应".equals(mixedSummary.records.get(1).title),
+                "the worst record titles an exit file while every record keeps its own time and title");
+            LogStore.Summary nativeSummary = LogStore.summarize(nativeCrash);
+            check("底层崩溃".equals(nativeSummary.title) && nativeSummary.level == LogStore.LEVEL_ERROR,
+                "a native crash record outranks a system kill");
+            LogStore.Summary systemSummary = LogStore.summarize(systemCrash);
+            check("应用崩溃（系统记录）".equals(systemSummary.title) && systemSummary.level == LogStore.LEVEL_ERROR
+                && systemSummary.recordCount() == 1, "a system CRASH record inside an exit file is marked as a system record");
+            LogStore.Summary selfSummary = LogStore.summarize(selfExit);
+            check("自行退出".equals(selfSummary.title) && selfSummary.level == LogStore.LEVEL_NORMAL
+                && "正常".equals(selfSummary.levelText()), "a self exit is a normal entry");
+            LogStore.Summary headerlessSummary = LogStore.summarize(headerless);
+            check(headerlessSummary.level == LogStore.LEVEL_WARNING && headerlessSummary.recordCount() == 1,
+                "an exit file without readable records falls back to a single warning");
+            check("启动失败".equals(LogStore.record("t", "INITIALIZATION_FAILURE").title)
+                && LogStore.record("t", "INITIALIZATION_FAILURE").level == LogStore.LEVEL_ERROR
+                && "资源占用过高".equals(LogStore.record("t", "EXCESSIVE_RESOURCE_USAGE").title)
+                && LogStore.record("t", "EXCESSIVE_RESOURCE_USAGE").level == LogStore.LEVEL_WARNING
+                && "被系统终止".equals(LogStore.record("t", "SIGNALED").title)
+                && LogStore.record("t", "SIGNALED").level == LogStore.LEVEL_WARNING,
+                "every exit reason maps to its fixed title and level");
+
+            LogStore.Result listed = new LogStore(Collections.<LogStore.Source>singletonList(source)).list();
+            boolean sawMixed = false;
+            for (LogStore.Entry entry : listed.entries) {
+                if (entry.fileName.equals(mixed.fileName)) {
+                    sawMixed = "应用无响应".equals(entry.summary().title) && entry.summary().recordCount() == 2;
+                }
+            }
+            check(sawMixed, "listing fills each entry summary from its record headers");
+        } finally { deleteTree(root); }
     }
 
     private static void testActivityOwnedBackAndStaleCallbacks() throws Exception {
@@ -1774,7 +1882,7 @@ public final class CrashLogTest {
             FakeSettingsActivity recreated = new FakeSettingsActivity(external, cache, 4, true);
             LogPage.attachActivity(recreated);
             ui.awaitRenderCount(8);
-            ui.awaitBodyText("crash-20261014-020304-005-13.txt");
+            ui.awaitBodyText(LOG_FOOTER);
             String beforeOldCallback = viewSnapshot(ui.lastBody);
             int beforeOldRenderCount = ui.renderCount;
             oldToolbarBack.run();
@@ -2484,6 +2592,8 @@ public final class CrashLogTest {
         return field.getBoolean(session);
     }
 
+    private static final String LOG_FOOTER = "保存位置：Android/data/io.github.wakeupnoads/files/" + CrashLog.LOG_DIRECTORY + "/";
+
     private static boolean containsText(FakeView root, String expected) {
         if (root == null) return false;
         if (root.text != null && root.text.contains(expected)) return true;
@@ -2508,6 +2618,20 @@ public final class CrashLogTest {
         return count;
     }
 
+    private static FakeView toolbarRefreshButton(FakeView toolbar) {
+        FakeView found = null;
+        for (FakeView child : new ArrayList<FakeView>(toolbar.children)) {
+            if (!"android.widget.ImageButton".equals(child.className)) continue;
+            check(found == null, "the toolbar carries at most one refresh icon");
+            check(child.imageResource == 101 && child.layoutParams instanceof FakeLayoutParams
+                && "androidx.appcompat.widget.Toolbar$LayoutParams".equals(((FakeLayoutParams) child.layoutParams).className)
+                && ((FakeLayoutParams) child.layoutParams).width == 48 && ((FakeLayoutParams) child.layoutParams).height == 48,
+                "the toolbar refresh icon uses the baseline refresh drawable and a 48dp Toolbar slot");
+            found = child;
+        }
+        return found;
+    }
+
     private static void collectViews(FakeView root, List<FakeView> output) {
         if (root == null) return;
         output.add(root);
@@ -2515,9 +2639,21 @@ public final class CrashLogTest {
     }
 
     private static boolean isSecondaryLogText(String value) {
-        return value.startsWith("正在") || value.startsWith("部分") || value.startsWith("日志来源")
-            || value.startsWith("日志已消失") || value.startsWith("Java 崩溃 ·") || value.startsWith("系统退出 ·")
-            || value.startsWith("历史 Download") || value.startsWith("应用目录不可读取");
+        return value.startsWith("正在") || value.startsWith("日志已消失") || value.startsWith("保存位置：")
+            || value.startsWith("预览已截断") || value.equals("内容预览") || value.equals(LogPage.EMPTY_HINT)
+            || value.contains(" · ") || value.equals("类型") || value.equals("记录") || value.equals("时间")
+            || value.equals("来源") || value.equals("文件");
+    }
+
+    private static boolean isThemeColor(Object value, int themeId, int attribute) {
+        return value instanceof FakeColorStateList && ((FakeColorStateList) value).attributeId == attribute
+            && ((FakeColorStateList) value).color == expectedThemeColor(themeId, attribute);
+    }
+
+    private static boolean isLevelColor(Object value) {
+        // Both fixture themes use dark backgrounds, so tags and warnings take the dark-theme palette.
+        return Integer.valueOf(0xfff28b82).equals(value) || Integer.valueOf(0xfffdd663).equals(value)
+            || Integer.valueOf(0xff81c995).equals(value);
     }
 
     private static boolean verifyRenderedTheme(FakeView body, int themeId) {
@@ -2530,20 +2666,31 @@ public final class CrashLogTest {
         for (FakeView view : views) {
             if ("android.widget.TextView".equals(view.className)) {
                 sawText = true;
+                if (view.textColor instanceof Integer) {
+                    if (!isLevelColor(view.textColor)) return false;
+                    if (view.background instanceof FakeView) {
+                        FakeView shape = (FakeView) view.background;
+                        int color = ((Integer) view.textColor).intValue();
+                        if (!"android.graphics.drawable.GradientDrawable".equals(shape.className)
+                            || shape.color != ((color & 0x00ffffff) | 0x29000000) || shape.cornerRadius <= 0) return false;
+                    }
+                    continue;
+                }
                 int attribute = isSecondaryLogText(view.text == null ? "" : view.text) ? 4 : 3;
-                if (!(view.textColor instanceof FakeColorStateList)
-                    || ((FakeColorStateList) view.textColor).attributeId != attribute
-                    || ((FakeColorStateList) view.textColor).color != expectedThemeColor(themeId, attribute)) return false;
+                if (!isThemeColor(view.textColor, themeId, attribute)) return false;
             } else if ("com.google.android.material.button.MaterialButton".equals(view.className)) {
-                if (!(view.textColor instanceof FakeColorStateList) || !(view.backgroundTint instanceof FakeColorStateList)
-                    || ((FakeColorStateList) view.textColor).attributeId != 3
-                    || ((FakeColorStateList) view.backgroundTint).attributeId != 2
-                    || ((FakeColorStateList) view.textColor).color != expectedThemeColor(themeId, 3)
-                    || ((FakeColorStateList) view.backgroundTint).color != expectedThemeColor(themeId, 2)) return false;
+                boolean tonal = isThemeColor(view.textColor, themeId, 9) && isThemeColor(view.backgroundTint, themeId, 8);
+                boolean filled = isThemeColor(view.textColor, themeId, 7) && isThemeColor(view.backgroundTint, themeId, 6);
+                if (!("复制".equals(view.text) ? tonal : "导出".equals(view.text) && filled)) return false;
             } else if ("com.google.android.material.card.MaterialCardView".equals(view.className)) {
-                if (!(view.cardBackgroundColor instanceof FakeColorStateList)
-                    || ((FakeColorStateList) view.cardBackgroundColor).attributeId != 2
-                    || ((FakeColorStateList) view.cardBackgroundColor).color != expectedThemeColor(themeId, 2)) return false;
+                if (!isThemeColor(view.cardBackgroundColor, themeId, 2) || view.radius != 16.0f
+                    || view.cardElevation != 0.0f || view.strokeWidth != 0) return false;
+            } else if ("android.widget.ImageButton".equals(view.className)) {
+                if (!(isThemeColor(view.imageTint, themeId, 3) || isThemeColor(view.imageTint, themeId, 4))
+                    || !(view.background instanceof FakeView) || view.imageResource == 0) return false;
+            } else if ("android.widget.ImageView".equals(view.className)) {
+                if (view.imageResource == 0 || !(isThemeColor(view.imageTint, themeId, 4)
+                    || Integer.valueOf(0xfffdd663).equals(Integer.valueOf(view.colorFilter)))) return false;
             } else if ("android.view.View".equals(view.className)
                 && view.backgroundColor != expectedThemeColor(themeId, 5)) return false;
         }
@@ -2553,22 +2700,21 @@ public final class CrashLogTest {
     private static boolean verifyRenderedControlContracts(FakeView body) {
         List<FakeView> views = new ArrayList<FakeView>();
         collectViews(body, views);
-        boolean sawText = false, sawButton = false;
+        boolean sawText = false;
         for (FakeView view : views) {
             if (!(view.layoutParams instanceof FakeLayoutParams)) continue;
             FakeLayoutParams params = (FakeLayoutParams) view.layoutParams;
             if ("android.widget.TextView".equals(view.className)) {
                 sawText = true;
-                if (view.textSizeUnit != 2 || params.height != -2 || view.minimumHeight < 56
-                    || view.singleLineCalls != 0 || view.maxLinesCalls != 0) return false;
+                if (view.textSizeUnit != 2 || params.height != -2 || view.singleLineCalls != 0 || view.maxLinesCalls != 0) return false;
             }
             if ("com.google.android.material.button.MaterialButton".equals(view.className)) {
-                sawButton = true;
-                if (view.textSizeUnit != 2 || params.width != -2 || params.height != -2 || view.minimumHeight < 48
+                if (view.textSizeUnit != 2 || params.height != -2 || view.minimumHeight < 48
                     || view.singleLineCalls != 0 || view.maxLinesCalls != 0) return false;
             }
+            if ("android.widget.ImageButton".equals(view.className) && (params.width < 48 || params.height < 48)) return false;
         }
-        return sawText && sawButton;
+        return sawText;
     }
 
     private static String viewSnapshot(FakeView root) {
@@ -2898,9 +3044,11 @@ public final class CrashLogTest {
         final String className;
         final List<FakeView> children = new ArrayList<FakeView>();
         Object parent, layoutParams, textColor, cardBackgroundColor, backgroundTint, clickListener, navigationClickListener, typeface;
-        String text;
+        Object imageTint, background;
+        String text, contentDescription;
         int backgroundColor, textSizeUnit = -1, minimumHeight, orientation, singleLineCalls, maxLinesCalls;
-        float textSize;
+        int gravity, visibility, imageResource, colorFilter, strokeWidth = -1, color;
+        float textSize, radius, cardElevation = -1, cornerRadius;
         int[] padding = new int[] { 1, 3, 2, 5 };
         boolean fillViewport, clipToPadding, selectable, allCaps;
         int addViewCalls, removeViewCalls, removeAllViewsCalls;
@@ -2955,13 +3103,29 @@ public final class CrashLogTest {
         final FakeAndroidUiCalls calls;
         FakeResources(FakeAndroidUiCalls calls) { this.calls = calls; }
         public int getIdentifier(String name, String type, String resourcePackage) {
-            calls.attributes.add(resourcePackage + ":" + name);
+            if ("drawable".equals(type)) {
+                calls.drawables.add(resourcePackage + ":" + name);
+                if (!"io.github.wakeupnoads".equals(resourcePackage)) return 0;
+                if ("ic_outline_refresh_24".equals(name)) return 101;
+                if ("ic_twotone_file_copy_24".equals(name)) return 102;
+                if ("ic_outline_save_alt_24".equals(name)) return 103;
+                if ("ic_outline_sticky_note_2_24".equals(name)) return 104;
+                if ("mtrl_ic_error".equals(name)) return 105;
+                return 0;
+            }
             if (!"attr".equals(type)) return 0;
+            if ("selectableItemBackground".equals(name)) return 10;
+            if ("selectableItemBackgroundBorderless".equals(name)) return 11;
+            calls.attributes.add(resourcePackage + ":" + name);
             if ("colorBackground".equals(name)) return 1;
             if ("colorSurface".equals(name)) return 2;
             if ("colorOnSurface".equals(name)) return 3;
             if ("colorOnSurfaceVariant".equals(name)) return 4;
             if ("colorOutlineVariant".equals(name)) return 5;
+            if ("colorPrimary".equals(name)) return 6;
+            if ("colorOnPrimary".equals(name)) return 7;
+            if ("colorSecondaryContainer".equals(name)) return 8;
+            if ("colorOnSecondaryContainer".equals(name)) return 9;
             return 0;
         }
         public FakeMetrics getDisplayMetrics() { return new FakeMetrics(); }
@@ -2973,7 +3137,7 @@ public final class CrashLogTest {
         final FakeAndroidUiCalls calls;
         final int themeId;
         FakeTheme(FakeAndroidUiCalls calls, int themeId) { this.calls = calls; this.themeId = themeId; }
-        public FakeTypedArray obtainStyledAttributes(int[] ids) { return new FakeTypedArray(calls, themeId, ids[0]); }
+        public FakeTypedArray obtainStyledAttributes(int[] ids) { calls.obtainedArrays++; return new FakeTypedArray(calls, themeId, ids[0]); }
     }
 
     private static final class FakeTypedArray {
@@ -2983,8 +3147,12 @@ public final class CrashLogTest {
         FakeTypedArray(FakeAndroidUiCalls calls, int themeId, int attributeId) {
             this.calls = calls; this.themeId = themeId; this.attributeId = attributeId;
         }
+        public Object getDrawable(int index) {
+            check(index == 0 && (attributeId == 10 || attributeId == 11), "production reads only ripple drawables from the theme");
+            return new FakeView("android.graphics.drawable.RippleDrawable");
+        }
         public Object getColorStateList(int index) {
-            check(index == 0, "production reads the requested theme item");
+            check(index == 0 && attributeId >= 1 && attributeId <= 9, "production reads the requested theme item");
             FakeColorStateList value = new FakeColorStateList(themeId, attributeId, expectedThemeColor(themeId, attributeId));
             calls.resolved.add(value);
             return value;
@@ -3000,6 +3168,10 @@ public final class CrashLogTest {
                 case 3: return 0xff110303;
                 case 4: return 0xff110404;
                 case 5: return 0xff110505;
+                case 6: return 0xff110606;
+                case 7: return 0xff110707;
+                case 8: return 0xff110808;
+                case 9: return 0xff110909;
                 default: throw new AssertionError("unknown theme attribute id " + attributeId);
             }
         }
@@ -3010,6 +3182,10 @@ public final class CrashLogTest {
                 case 3: return 0xff220303;
                 case 4: return 0xff220404;
                 case 5: return 0xff220505;
+                case 6: return 0xff220606;
+                case 7: return 0xff220707;
+                case 8: return 0xff220808;
+                case 9: return 0xff220909;
                 default: throw new AssertionError("unknown theme attribute id " + attributeId);
             }
         }
@@ -3018,13 +3194,14 @@ public final class CrashLogTest {
 
     private static final class FakeAndroidUiCalls implements LogPage.AndroidUiCalls {
         final List<String> attributes = Collections.synchronizedList(new ArrayList<String>());
+        final List<String> drawables = Collections.synchronizedList(new ArrayList<String>());
         final List<Object> resolved = Collections.synchronizedList(new ArrayList<Object>());
         final List<String> toasts = Collections.synchronizedList(new ArrayList<String>());
         final Object backToken = new Object();
         final Object renderMonitor = new Object();
         final int themeId, sdk;
         int openCount, backRegistrations, backUnregistrations, requestInsetsCount, detachCount, finishCount, paddingWrites;
-        int recycledArrays, renderCount, dialogConstructCount;
+        int recycledArrays, obtainedArrays, renderCount, dialogConstructCount;
         boolean attached = true, failOpen;
         FakeView lastScroll, lastBody;
         Runnable platformBack;
@@ -3059,6 +3236,7 @@ public final class CrashLogTest {
             if (receiver instanceof FakeTypedArray) {
                 FakeTypedArray value = (FakeTypedArray) receiver;
                 if ("getColorStateList".equals(method)) return value.getColorStateList(((Integer) args[0]).intValue());
+                if ("getDrawable".equals(method)) return value.getDrawable(((Integer) args[0]).intValue());
                 if ("recycle".equals(method)) { value.recycle(); return null; }
             }
             if (receiver instanceof FakeColorStateList && "getDefaultColor".equals(method)) return ((FakeColorStateList) receiver).getDefaultColor();
@@ -3120,6 +3298,18 @@ public final class CrashLogTest {
             if ("setAllCaps".equals(method)) { view.allCaps = ((Boolean) args[0]).booleanValue(); return null; }
             if ("setOnClickListener".equals(method)) { view.clickListener = args[0]; return null; }
             if ("setNavigationOnClickListener".equals(method)) { view.navigationClickListener = args[0]; return null; }
+            if ("setGravity".equals(method)) { view.gravity = intAt(args, 0); return null; }
+            if ("setVisibility".equals(method)) { view.visibility = intAt(args, 0); return null; }
+            if ("setImageResource".equals(method)) { view.imageResource = intAt(args, 0); return null; }
+            if ("setImageTintList".equals(method)) { view.imageTint = args[0]; return null; }
+            if ("setContentDescription".equals(method)) { view.contentDescription = args[0] == null ? null : args[0].toString(); return null; }
+            if ("setColorFilter".equals(method)) { view.colorFilter = intAt(args, 0); return null; }
+            if ("setRadius".equals(method)) { view.radius = ((Number) args[0]).floatValue(); return null; }
+            if ("setCardElevation".equals(method)) { view.cardElevation = ((Number) args[0]).floatValue(); return null; }
+            if ("setStrokeWidth".equals(method)) { view.strokeWidth = intAt(args, 0); return null; }
+            if ("setCornerRadius".equals(method)) { view.cornerRadius = ((Number) args[0]).floatValue(); return null; }
+            if ("setColor".equals(method)) { view.color = intAt(args, 0); return null; }
+            if ("setBackground".equals(method)) { view.background = args[0]; return null; }
             if ("setSingleLine".equals(method)) { view.singleLineCalls++; return null; }
             if ("setMaxLines".equals(method)) { view.maxLinesCalls++; return null; }
             if ("isAttachedToWindow".equals(method)) return Boolean.valueOf(attached);
@@ -3129,6 +3319,8 @@ public final class CrashLogTest {
         @Override public Object construct(String className, String[] parameterTypes, Object[] args) {
             if (className.contains("Dialog")) dialogConstructCount++;
             if (className.equals("android.view.ViewGroup$LayoutParams"))
+                return new FakeLayoutParams(className, intAt(args, 0), intAt(args, 1), 0);
+            if (className.equals("androidx.appcompat.widget.Toolbar$LayoutParams"))
                 return new FakeLayoutParams(className, intAt(args, 0), intAt(args, 1), 0);
             if (className.equals("android.widget.LinearLayout$LayoutParams"))
                 return new FakeLayoutParams(className, intAt(args, 0), intAt(args, 1), ((Number) args[2]).floatValue());
