@@ -17,7 +17,7 @@ const currentId = DEFAULT_APPLICATION_ID;
 const officialId = 'com.suda.yzune.wakeupschedule';
 
 const targets = [
-  'smali_classes5/com/suda/yzune/wakeupschedule/ScheduleContentProvider.smali',
+  'smali_classes6/com/suda/yzune/wakeupschedule/ScheduleContentProvider.smali',
   'smali_classes6/com/suda/yzune/wakeupschedule/utils/AppWidgetUtils.smali',
   'smali_classes6/com/suda/yzune/wakeupschedule/today_appwidget/TodayCourseAppWidget.smali',
   'smali_classes6/com/suda/yzune/wakeupschedule/schedule/ScheduleFragment$exportIcsLauncher$1$1$storageUri$1.smali',
@@ -139,7 +139,7 @@ test('version metadata and local Provider/widget URIs use the new identity witho
 
   const providerPath = targets[0];
   const providerMatcher = await readSmaliMethod(fixture.root, providerPath, 'Lcom/suda/yzune/wakeupschedule/ScheduleContentProvider;', 'public static final OooO0oo(Lcom/suda/yzune/wakeupschedule/ScheduleContentProvider;)Landroid/content/UriMatcher;');
-  assert.match(providerMatcher, /const-string v2, "io\.github\.wakeupnoads\.provider"/);
+  assert.match(providerMatcher, /const-string v3, "io\.github\.wakeupnoads\.provider"/);
   for (const route of ['show_table_id', 'table_config/#', 'course_list/#', 'table_list', 'refresh', 'scrollable', 'has_init']) {
     assert.ok(providerMatcher.includes(`"${route}"`), `UriMatcher retains ${route}`);
   }

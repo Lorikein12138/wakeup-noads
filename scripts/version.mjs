@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 
 const MAX_REVISION = 2_100_000_000;
 const BASELINE_VERSION_PATTERN = /^\d+(?:\.\d+){1,3}$/;
-const CONFIRMED_BASELINE_VERSIONS = new Set(['6.5.2', '6.5.4']);
+const CONFIRMED_BASELINE_VERSIONS = new Set(['6.5.2', '6.5.4', '6.6.0']);
 export const DEFAULT_APPLICATION_ID = 'io.github.wakeupnoads';
 
 export function isDefaultConfirmedBaseline(version) {

@@ -51,16 +51,19 @@
     {
       "id": "T19-E33-uri-matcher-authority",
       "evidence": "E33",
-      "relativePath": "smali_classes5/com/suda/yzune/wakeupschedule/ScheduleContentProvider.smali",
-      "method": { "classDescriptor": "Lcom/suda/yzune/wakeupschedule/ScheduleContentProvider;", "methodDescriptor": "public static final OooO0oo(Lcom/suda/yzune/wakeupschedule/ScheduleContentProvider;)Landroid/content/UriMatcher;" },
-      "expectedOriginal": "const-string v2, \"com.suda.yzune.wakeupschedule.provider\"",
-      "replacement": "const-string v2, \"{{applicationId}}.provider\"",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/ScheduleContentProvider.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/ScheduleContentProvider;",
+        "methodDescriptor": "public static final OooO0oo(Lcom/suda/yzune/wakeupschedule/ScheduleContentProvider;)Landroid/content/UriMatcher;"
+      },
+      "expectedOriginal": "const-string v3, \"com.suda.yzune.wakeupschedule.provider\"",
+      "replacement": "const-string v3, \"{{applicationId}}.provider\"",
       "expectedHits": 1
     },
     {
       "id": "T19-E33-self-caller-package",
       "evidence": "E33",
-      "relativePath": "smali_classes5/com/suda/yzune/wakeupschedule/ScheduleContentProvider.smali",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/ScheduleContentProvider.smali",
       "method": { "classDescriptor": "Lcom/suda/yzune/wakeupschedule/ScheduleContentProvider;", "methodDescriptor": "public query(Landroid/net/Uri;[Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;Ljava/lang/String;)Landroid/database/Cursor;" },
       "expectedOriginal": "const-string p2, \"com.suda.yzune.wakeupschedule\"",
       "replacement": "const-string p2, \"{{applicationId}}\"",

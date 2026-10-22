@@ -7,10 +7,10 @@ import { readSmaliMethod } from './smali-helpers.mjs';
 
 const baseline = path.resolve(process.env.SLIM_BASELINE_DECODED_ROOT ?? 'tools/_cache/slim-v1-decoded');
 const fixtures = path.resolve('tools/_cache/slim-v1-review/fixtures/round-2');
-const fragmentPath = 'smali_classes5/com/suda/yzune/wakeupschedule/aaa/fragment/MineFragment.smali';
+const fragmentPath = 'smali_classes6/com/suda/yzune/wakeupschedule/aaa/fragment/MineFragment.smali';
 const layoutPath = 'res/layout/fragment_mine_tab_content_view_new.xml';
 const fragmentClass = 'Lcom/suda/yzune/wakeupschedule/aaa/fragment/MineFragment;';
-const settingsBasePath = 'smali_classes5/com/suda/yzune/wakeupschedule/base_view/OooOO0.smali';
+const settingsBasePath = 'smali_classes6/com/suda/yzune/wakeupschedule/base_view/OooOO0.smali';
 const settingsClass = 'Lcom/suda/yzune/wakeupschedule/settings/SettingsActivity;';
 
 async function patchedFixture(t) {
@@ -87,8 +87,19 @@ function executeSettingsSmali(source, descriptor, args, world) {
     assert.ok(match, `supported SettingsActivity invoke: ${instruction}`);
     const [, kind, rawRegisters, ownerName, name, targetDescriptor] = match;
     const owner = `${ownerName};`;
-    const values = rawRegisters.split(',').map((value) => value.trim()).filter(Boolean).map(read);
+    const registerList = rawRegisters.trim();
+    const range = /^(v\d+|p\d+)\s*\.\.\s*(v\d+|p\d+)$/.exec(registerList);
+    const registerNames = range
+      ? (() => {
+        const first = Number(range[1].slice(1));
+        const last = Number(range[2].slice(1));
+        const prefix = range[1][0];
+        return Array.from({ length: last - first + 1 }, (_, index) => `${prefix}${first + index}`);
+      })()
+      : registerList.split(',').map((value) => value.trim()).filter(Boolean);
+    const values = registerNames.map(read);
     world.trace.push(`${owner}->${name}`);
+    if (owner === 'Lcom/meituan/robust/PatchProxy;' && name === 'proxy') return { isSupported: false };
     if (owner === 'Lcom/suda/yzune/wakeupschedule/slim/LogPage;') {
       if (name === 'isLogActivity') return Boolean(values[0].logMode);
       if (name === 'prepareActivity') { values[0].prepared += 1; return undefined; }
@@ -132,12 +143,13 @@ function executeSettingsSmali(source, descriptor, args, world) {
       const parts = tail.split(',').map((value) => value.trim());
       let jump = null;
       if (/^const(?:\/4|\/16)?$/.test(op)) write(parts[0], read(parts[1]));
+      else if (op === 'const-class') write(parts[0], { type: parts[1] });
       else if (op === 'const-wide/16') write(parts[0], read(parts[1]));
       else if (op === 'const-string') write(parts[0], JSON.parse(tail.slice(tail.indexOf(',') + 1).trim()));
       else if (op === 'new-instance') write(parts[0], { type: parts[1] });
       else if (op === 'move' || op === 'move-object') write(parts[0], read(parts[1]));
       else if (op === 'move-result' || op === 'move-result-object') { write(parts[0], lastResult); lastResult = undefined; }
-      else if (op === 'invoke-static' || op === 'invoke-virtual' || op === 'invoke-interface' || op === 'invoke-direct' || op === 'invoke-super') {
+      else if (op === 'invoke-static' || op === 'invoke-static/range' || op === 'invoke-virtual' || op === 'invoke-interface' || op === 'invoke-direct' || op === 'invoke-super') {
         lastResult = invoke(instruction);
       } else if (op === 'sget-object') { world.databaseHolder = { type: 'AppDatabaseHolder' }; write(parts[0], world.databaseHolder); }
       else if (op === 'iput-object') {
@@ -148,6 +160,9 @@ function executeSettingsSmali(source, descriptor, args, world) {
       } else if (op === 'iget-object') {
         const field = /;->([^:]+):/.exec(parts[2])?.[1];
         write(parts[0], read(parts[1])[field] ?? { type: field });
+      } else if (op === 'iget-boolean') {
+        const field = /;->([^:]+):/.exec(parts[2])?.[1];
+        write(parts[0], Boolean(read(parts[1])[field]));
       } else if (op === 'filled-new-array') {
         const regs = /\{([^}]*)\}/.exec(tail)[1].split(',').map((value) => value.trim());
         lastResult = regs.map(read);
@@ -202,7 +217,7 @@ test('T10 binds both settings and the local log entry while cutting login, Compo
   assert.equal((bind.match(/setOnClickListener\(/g) ?? []).length, 2);
   assert.match(bind, /OoooOo0\(\)Landroid\/view\/View;/);
   assert.match(bind, /OoooOoO\(\)Landroid\/view\/View;/);
-  assert.match(bind, /OooO0o\(\)Landroid\/view\/View;[\s\S]*?LogPage;->bind\(Ljava\/lang\/Object;Ljava\/lang\/Object;\)V/);
+  assert.match(bind, /iget-object v0, p0, Lcom\/suda\/yzune\/wakeupschedule\/aaa\/fragment\/MineFragment;->o00OOoo:Landroid\/view\/View;[\s\S]*?LogPage;->bind\(Ljava\/lang\/Object;Ljava\/lang\/Object;\)V/);
   assert.doesNotMatch(bind, /MineNewUserLoginView|ComposeView|setContent|Banner|updateData/);
 
   const create = await readSmaliMethod(root, fragmentPath, fragmentClass, 'public onCreateView(Landroid/view/LayoutInflater;Landroid/view/ViewGroup;Landroid/os/Bundle;)Landroid/view/View;');
@@ -213,8 +228,8 @@ test('T10 binds both settings and the local log entry while cutting login, Compo
 
   for (const [signature, forbidden] of [
     ['public onResume()V', /MineViewModel|OooooO0/],
-    ['public OooOoo()V', /MineViewModel|Banner|Ooooo00/],
-    ['public OooOoo0()V', /Banner/],
+    ['public Oooo00O()V', /MineViewModel|Banner|Ooooo00/],
+    ['public Oooo000()V', /Banner/],
     ['public onActivityResult(IILandroid/content/Intent;)V', /o0OO00O|o0ooOOo|QRScanActivity/],
   ]) {
     assert.doesNotMatch(await readSmaliMethod(root, fragmentPath, fragmentClass, signature), forbidden, signature);
@@ -223,7 +238,7 @@ test('T10 binds both settings and the local log entry while cutting login, Compo
   assert.match(result, /invoke-super \{p0, p1, p2, p3\}, Landroidx\/fragment\/app\/Fragment;->onActivityResult\(IILandroid\/content\/Intent;\)V[\s\S]*?LogPage;->onActivityResult\(Ljava\/lang\/Object;IILjava\/lang\/Object;\)V/);
   assert.equal((result.match(/LogPage;->onActivityResult/g) ?? []).length, 1);
   const destroy = await readSmaliMethod(root, fragmentPath, fragmentClass, 'public onDestroy()V');
-  assert.match(destroy, /LogPage;->close\(Ljava\/lang\/Object;\)V[\s\S]*?invoke-super \{p0\}, Lo000O00O\/OooO00o;->onDestroy\(\)V[\s\S]*?sput-object v0, Lcom\/suda\/yzune\/wakeupschedule\/aaa\/utils\/o000OOo0;->OooO00o/);
+  assert.match(destroy, /LogPage;->close\(Ljava\/lang\/Object;\)V[\s\S]*?invoke-super \{p0\}, Lo000o0O0\/OooO0OO;->onDestroy\(\)V[\s\S]*?sput-object v0, Lcom\/suda\/yzune\/wakeupschedule\/aaa\/utils\/o000OOo0;->OooO00o/);
   assert.equal((destroy.match(/LogPage;->close\(Ljava\/lang\/Object;\)V/g) ?? []).length, 1);
   const bridge = await readFile('runtime/src/com/suda/yzune/wakeupschedule/slim/LogPage.java', 'utf8');
   for (const signature of [
@@ -285,7 +300,7 @@ test('T35 SettingsActivity runs the true log branch and keeps ordinary initializ
   const constructor = await readSmaliMethod(root, 'smali_classes6/com/suda/yzune/wakeupschedule/settings/SettingsActivity.smali',
     'Lcom/suda/yzune/wakeupschedule/settings/SettingsActivity;', 'public constructor <init>()V');
   assert.equal((constructor.match(/registerForActivityResult\(/g) ?? []).length, 2, 'constructor keeps both original activity result launchers');
-  assert.match(constructor, /new-instance v0, Lcom\/suda\/yzune\/wakeupschedule\/settings\/o00O000o;[\s\S]*?iput-object v0, p0, Lcom\/suda\/yzune\/wakeupschedule\/settings\/SettingsActivity;->o00OOOO:/,
+  assert.match(constructor, /new-instance v0, Lcom\/suda\/yzune\/wakeupschedule\/settings\/o00O000o;[\s\S]*?iput-object v0, p0, Lcom\/suda\/yzune\/wakeupschedule\/settings\/SettingsActivity;->o00OOOo:/,
     'constructor still creates and stores the ordinary settings adapter');
 
   const menu = await readSmaliMethod(root, 'smali_classes6/com/suda/yzune/wakeupschedule/settings/SettingsActivity.smali',
@@ -368,12 +383,12 @@ test('T36 course and advanced settings no longer inflate the donate menu', async
 test('T10 click routing preserves both host callbacks and ends every removed menu route', async (t) => {
   const root = await patchedFixture(t);
   const click = await readSmaliMethod(root, fragmentPath, fragmentClass, 'public onClick(Landroid/view/View;)V');
-  assert.match(click, /const v1, 0x7f0906e6\s+if-ne v0, v1, :cond_1/);
-  assert.match(click, /const v1, 0x7f0906e2\s+if-ne v0, v1, :cond_0/);
+  assert.match(click, /const v1, 0x7f0906f2\s+if-ne v0, v1, :settings_global/);
+  assert.match(click, /const v1, 0x7f0906ee\s+if-ne v0, v1, :settings_done/);
   assert.equal((click.match(/ScheduleActivity;->o0000O0O\(\)/g) ?? []).length, 2);
   for (const call of [
-    'ScheduleFragment;->o00oOOO0()Lkotlin/jvm/functions/Function0;',
-    'ScheduleFragment;->o00OOOo0()Lkotlin/jvm/functions/Function0;',
+    'ScheduleFragment;->o00oOOo0()Lkotlin/jvm/functions/Function0;',
+    'ScheduleFragment;->o00OOOoO()Lkotlin/jvm/functions/Function0;',
     'MineActivity;->o00Oo0()V',
     'MineActivity;->ooOO()V',
   ]) assert.equal((click.match(new RegExp(call.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) ?? []).length, 1, call);

@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { applyPatchSpec } from '../scripts/patch.mjs';
@@ -8,19 +7,19 @@ import { readSmaliMethod } from './smali-helpers.mjs';
 
 const decoded = path.resolve(process.env.SLIM_BASELINE_DECODED_ROOT ?? 'tools/_cache/slim-v1-decoded');
 const cache = path.resolve('tools/_cache/slim-v1-review/fixtures/round-3');
-const getterPath = 'smali_classes5/com/suda/yzune/wakeupschedule/BaseApplication$OooO00o.smali';
+const getterPath = 'smali_classes6/com/suda/yzune/wakeupschedule/BaseApplication$OooO00o.smali';
 const settingsPath = 'smali_classes6/com/suda/yzune/wakeupschedule/settings/SettingsActivity.smali';
 const adapterPath = 'smali_classes6/com/suda/yzune/wakeupschedule/settings/o00O000o.smali';
-const providerPath = 'smali_classes6/oo0oO0/OooO0O0.smali';
-const blankProviderPath = 'smali_classes6/oo0oO0/OooOOOO.smali';
-const basePath = 'smali_classes5/com/suda/yzune/wakeupschedule/base_view/OooOO0.smali';
+const providerPath = 'smali_classes6/o0OOOoo.3/o0Oo0oo.smali';
+const blankProviderPath = 'smali_classes6/o0OOOoo.3/o00000O0.smali';
+const basePath = 'smali_classes6/com/suda/yzune/wakeupschedule/base_view/OooOO0.smali';
 const scheduleSettingsPath = 'smali_classes6/com/suda/yzune/wakeupschedule/schedule_settings/ScheduleSettingsFragment.smali';
 const getterClass = 'Lcom/suda/yzune/wakeupschedule/BaseApplication$OooO00o;';
 const settingsClass = 'Lcom/suda/yzune/wakeupschedule/settings/SettingsActivity;';
 const adapterClass = 'Lcom/suda/yzune/wakeupschedule/settings/o00O000o;';
 const blankProviderBindDescriptor = 'public OooOO0O(Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;Lcom/suda/yzune/wakeupschedule/settings/items/OooO00o;)V';
 const baseClass = 'Lcom/suda/yzune/wakeupschedule/base_view/OooOO0;';
-const bindDescriptor = 'public o0OOO0o(Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;Lcom/suda/yzune/wakeupschedule/settings/items/OooO00o;)V';
+const bindDescriptor = 'public o0ooOoO(Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;Lcom/suda/yzune/wakeupschedule/settings/items/OooO00o;)V';
 const providerBindDescriptor = 'public OooOO0O(Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;Lcom/suda/yzune/wakeupschedule/settings/items/OooO00o;)V';
 const tagId = 0x7f130021;
 const versionTitleId = 0x7f130021;
@@ -44,7 +43,7 @@ async function patchedFixture(t) {
   assert.equal(operations.length, 8, 'the four version-display, two T32 style, and two T34 settings operations are present');
   const specPath = path.join(root, 'fixture-spec.json');
   await writeFile(specPath, JSON.stringify({ schemaVersion: 1, applicationId: 'io.github.wakeupnoads', operations }));
-  const result = await applyPatchSpec({ root, specPath, releaseName: 'wakeup-noads-v6.5.4-r1' });
+  const result = await applyPatchSpec({ root, specPath, releaseName: 'wakeup-noads-v6.6.0-r1' });
   assert.equal(result.operations.length, 8);
   return root;
 }
@@ -136,42 +135,42 @@ function createProviderHolder({ density = 1, innerOrientation = 0, padding = [0,
     orientation: 1,
     layoutParams: { width: -1, height: -2, margins: { start: margin, end: margin, top: 0, bottom: 0 }, gravity: -1, layoutParamsClass: 'frame' },
     background: 'baseline-' + theme + '-' + group,
-    divider: { id: 0x7f0900ab, marker: 'provider-divider' },
+    divider: { id: 0x7f0900af, marker: 'provider-divider' },
     eventState: { clickListener: 'ordinary-listener', longClickListener: 'ordinary-long-listener', clickable: true, longClickable: true, enabled: true },
     minimumHeight: 0,
     padding: [0, 0, 0, 0]
   };
   const context = { resources: { displayMetrics: { density } } };
   const inner = {
-    id: 0x7f090099, kind: 'linear', context, orientation: innerOrientation,
+    id: 0x7f09009d, kind: 'linear', context, orientation: innerOrientation,
     layoutParams: { width: -1, height: Math.trunc(64 * density), weight: 0, margins: { start: 0, end: 0, top: 0, bottom: 0 }, gravity: -1, layoutParamsClass: 'compat' },
     minimumHeight: 0, padding: [...padding], tags: new Map()
   };
   const title = {
-    id: 0x7f0900ae, kind: 'text', context, text: '', textSize: 16, typeface: 'default-bold-' + theme,
+    id: 0x7f0900b2, kind: 'text', context, text: '', textSize: 16, typeface: 'default-bold-' + theme,
     textColor: 'theme-title-' + theme, gravity: 16,
     layoutParams: { width: 0, height: -2, weight: 1, margins: { start: margin, end: margin, top: 0, bottom: 0 }, gravity: -1, layoutParamsClass: 'compat' },
     minLines: 1, maxLines: 1, maxWidth: 2147483647, ellipsize: null
   };
   const value = {
-    id: 0x7f0900d9, kind: 'text', context, text: '', textSize: 14, typeface: 'default-' + theme,
+    id: 0x7f0900dd, kind: 'text', context, text: '', textSize: 14, typeface: 'default-' + theme,
     textColor: 'theme-value-' + theme, gravity: 16,
     layoutParams: { width: -2, height: -2, weight: 0, margins: { start: margin, end: margin, top: 0, bottom: 0 }, gravity: -1, layoutParamsClass: 'compat' },
     minLines: 1, maxLines: 1, maxWidth: Math.trunc(200 * density), ellipsize: null
   };
   const description = {
-    id: 0x7f0900af, kind: 'text', context, text: '', visibility: 0,
+    id: 0x7f0900b3, kind: 'text', context, text: '', visibility: 0,
     layoutParams: { width: -2, height: -2, margins: { start: margin, end: margin, top: 0, bottom: 0 }, gravity: -1, layoutParamsClass: 'compat' }
   };
-  const holder = { itemView: outer, views: new Map([[0x7f090099, inner], [0x7f0900ae, title], [0x7f0900af, description], [0x7f0900d9, value]]), lookupCount: 0 };
+  const holder = { itemView: outer, views: new Map([[0x7f09009d, inner], [0x7f0900b2, title], [0x7f0900b3, description], [0x7f0900dd, value]]), lookupCount: 0 };
   outer.children = [inner, outer.divider];
   return holder;
 }
 
 function viewStyle(holder) {
-  const inner = holder.views.get(0x7f090099);
-  const title = holder.views.get(0x7f0900ae);
-  const value = holder.views.get(0x7f0900d9);
+  const inner = holder.views.get(0x7f09009d);
+  const title = holder.views.get(0x7f0900b2);
+  const value = holder.views.get(0x7f0900dd);
   return {
     outer: { orientation: holder.itemView.orientation, layoutParams: lpCopy(holder.itemView.layoutParams), background: holder.itemView.background, divider: holder.itemView.divider, eventState: { ...holder.itemView.eventState } },
     inner: { orientation: inner.orientation, layoutParams: lpCopy(inner.layoutParams), minimumHeight: inner.minimumHeight, padding: [...inner.padding] },
@@ -185,7 +184,7 @@ function makeItem({ type = 1, titleId = 0x7f130020, title = 'Ordinary', value = 
 }
 
 function isBlankSettingPlaceholder(item) {
-  return item?.type === 4 && item.titleId === 0x7f130341 && String(item.value ?? '').trim().length === 0;
+  return item?.type === 4 && item.titleId === 0x7f130354 && String(item.value ?? '').trim().length === 0;
 }
 
 function methodDescriptorFor(methodName, source) {
@@ -207,6 +206,9 @@ function writeField(owner, field, object, value) {
 function dispatchInvocation(sources, target, args, world) {
   const method = target.method;
   const owner = target.owner;
+  if (owner === 'Lcom/meituan/robust/PatchProxy;' && method === 'proxy') return { isSupported: false, result: null };
+  if (owner === 'Lcom/suda/yzune/wakeupschedule/settings/items/OooO00o;' && method === 'OooO') return args[0].group === 'first';
+  if (owner === 'Lcom/suda/yzune/wakeupschedule/settings/items/OooO00o;' && method === 'OooOO0O') return args[0].group === 'last';
   if (target.kind === 'invoke-super' && method === 'OooOoO' && owner === 'Lcom/chad/library/adapter/base/BaseProviderMultiAdapter;') {
     if (args[2].type === 1) {
       return executeMethod(sources.provider, providerBindDescriptor, [{ provider: true }, args[1], args[2]], world);
@@ -217,7 +219,7 @@ function dispatchInvocation(sources, target, args, world) {
     }
     return undefined;
   }
-  if (owner === 'Lkotlin/jvm/internal/o00oO0o;' && method === 'OooO0oO') return undefined;
+  if (owner === 'Lkotlin/jvm/internal/o00oO0o;' && ['OooO', 'OooO0oO'].includes(method)) return undefined;
   if (owner === 'Ljava/lang/Integer;' && method === 'valueOf') return Number(args[0]);
   if (owner === 'Ljava/lang/Integer;' && method === 'intValue') return Number(args[0]);
   if (owner === 'Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;') {
@@ -228,7 +230,7 @@ function dispatchInvocation(sources, target, args, world) {
     }
     if (method === 'setText' && target.descriptor === '(II)Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;') {
       const view = holder.views.get(Number(args[1]));
-      if (view) view.text = view.id === 0x7f0900ae ? holder.currentItem.title : String(args[2]);
+      if (view) view.text = view.id === 0x7f0900b2 ? holder.currentItem.title : String(args[2]);
       return holder;
     }
     if (method === 'setText' && target.descriptor === '(ILjava/lang/CharSequence;)Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;') {
@@ -237,15 +239,15 @@ function dispatchInvocation(sources, target, args, world) {
       return holder;
     }
     if (method === 'setGone') {
-      const view = Number(args[1]) === 0x7f0900ab ? holder.itemView.divider : holder.views.get(Number(args[1]));
+      const view = Number(args[1]) === 0x7f0900af ? holder.itemView.divider : holder.views.get(Number(args[1]));
       if (view) view.visibility = args[2] ? 8 : 0;
       return holder;
     }
   }
   if (owner === 'Lcom/suda/yzune/wakeupschedule/settings/items/OooO00o;') {
     const item = args[0];
-    if (method === 'OooO0Oo') return item.type;
-    if (method === 'OooO0OO') return item.titleId;
+    if (method === 'OooO0oO') return item.type;
+    if (method === 'OooO0Oo') return item.titleId;
     if (method === 'OooO0O0') return item.visible;
     if (method === 'OooOOoo') return item.value;
     if (method === 'OooOO0') return item.group === 'first' || item.group === 'single';
@@ -255,7 +257,7 @@ function dispatchInvocation(sources, target, args, world) {
     const item = args[0];
     if (method === 'OooOOoo') return item.value;
     if (method === 'OooOo0') return item.titleId;
-    if (method === 'OooOo0O') return item.richText ?? false;
+    if (method === 'OooOoO0') return item.richText ?? false;
   }
   if (owner === 'Ljava/lang/CharSequence;' && method === 'length') return String(args[0] ?? '').length;
   if (owner === 'Lcom/suda/yzune/wakeupschedule/settings/items/OooO0o;' && method === 'OooOOoo') return args[0].value;
@@ -292,7 +294,7 @@ function dispatchInvocation(sources, target, args, world) {
     args[0].states.push({ state: [...args[1]], drawable: args[2] });
     return undefined;
   }
-  if (owner === 'Lkotlin/text/o00000OO;' && method === 'o0ooOoO') return String(args[0] ?? '').trim().length === 0;
+  if (owner === 'Lkotlin/text/o00000OO;' && method === 'o0OOO0o') return String(args[0] ?? '').trim().length === 0;
   if (owner === 'Landroidx/appcompat/widget/LinearLayoutCompat;' && method === 'getOrientation') return args[0].orientation;
   if (owner === 'Landroidx/appcompat/widget/LinearLayoutCompat;' && method === 'setOrientation') {
     args[0].orientation = Number(args[1]);
@@ -373,6 +375,7 @@ function invokeSmali(sources, instruction, world) {
   const target = parseInvocation(instruction);
   const registers = invocationRegisters(instruction, world.currentLocalCount);
   const args = registers.map((index) => world.registers[index]);
+  world.trace.push(`${target.kind} ${target.owner}->${target.method}`);
   if (target.kind === 'invoke-static' && target.owner === adapterClass) {
     const descriptor = methodDescriptorFor(target.method, sources.adapter);
     const result = executeMethod(sources.adapter, descriptor, args, world);
@@ -427,7 +430,7 @@ function executeMethod(source, descriptor, args, world) {
         ]);
         if (!match || !supported.has(match[2])) throw new Error('unsupported new-instance: ' + instruction);
         write(match[1], {});
-      } else if (op === 'move' || op === 'move-object') {
+      } else if (op === 'move' || op === 'move-object' || op === 'move/from16' || op === 'move-object/from16') {
         const [dest, sourceRegister] = commaParts;
         write(dest, read(sourceRegister));
       } else if (op === 'move-result' || op === 'move-result-object') {
@@ -437,6 +440,9 @@ function executeMethod(source, descriptor, args, world) {
         world.lastResult = invokeSmali(world.sources, instruction, world);
       } else if (op === 'check-cast') {
         // Explicitly modeled as a reference-preserving cast in this restricted fixture.
+      } else if (op === 'const-class') {
+        const [dest, type] = commaParts;
+        write(dest, { type });
       } else if (op === 'instance-of') {
         const [dest, objectRegister, className] = commaParts;
         const object = read(objectRegister);
@@ -455,7 +461,7 @@ function executeMethod(source, descriptor, args, world) {
         if (op === 'if-ne' ? !equal : equal) jump = label;
       } else if (op === 'goto' || op === 'goto/16' || op === 'goto/32') {
         jump = tail;
-      } else if (op === 'iget' || op === 'iget-object') {
+      } else if (op === 'iget' || op === 'iget-object' || op === 'iget-boolean') {
         const [dest, objectRegister, fieldRef] = commaParts;
         const match = /^(.+);->([^:]+):(.+)$/.exec(fieldRef);
         if (!match) throw new Error('unsupported iget syntax: ' + instruction);
@@ -474,10 +480,8 @@ function executeMethod(source, descriptor, args, world) {
       } else if (op === 'aget-object') {
         const [dest, arrayRegister, indexRegister] = commaParts;
         write(dest, read(arrayRegister)[Number(read(indexRegister))]);
-      } else if (op === 'filled-new-array') {
-        const match = /^\{([^}]*)\}/.exec(tail);
-        if (!match) throw new Error('unsupported filled-new-array: ' + instruction);
-        world.lastResult = match[1].split(',').map((register) => read(register.trim()));
+      } else if (op === 'filled-new-array' || op === 'filled-new-array/range') {
+        world.lastResult = invocationRegisters(instruction, method.localCount).map((index) => registers[index]);
       } else if (op === 'fill-array-data') {
         const [arrayRegister] = commaParts;
         read(arrayRegister).fill(0);
@@ -526,6 +530,7 @@ function executeInsetsCallback(source, descriptor, args) {
     const target = parseInvocation(instruction);
     const registerBody = instruction.slice(instruction.indexOf('{') + 1, instruction.indexOf('}')).trim();
     const values = registerBody ? invocationRegisters(instruction, method.localCount).map((index) => registers[index]) : [];
+    if (target.owner === 'Lcom/meituan/robust/PatchProxy;' && target.method === 'proxy') return { isSupported: false, result: null };
     if (target.kind === 'invoke-static' && target.owner === 'Landroidx/core/view/WindowInsetsCompat$Type;') {
       if (target.method === 'systemBars') return 1;
       if (target.method === 'ime') return 2;
@@ -574,15 +579,19 @@ function executeInsetsCallback(source, descriptor, args) {
     const parts = tail.split(',').map((part) => part.trim());
     let jump = null;
     if (/^const(?:\/4|\/16)?$/.test(op)) write(parts[0], read(parts[1]));
+    else if (op === 'const-class') write(parts[0], { type: parts[1] });
     else if (op === 'const-string') write(parts[0], tail.slice(tail.indexOf(',') + 1).trim().replace(/^"|"$/g, ''));
-    else if (op === 'move' || op === 'move-object') write(parts[0], read(parts[1]));
+    else if (op === 'move' || op === 'move-object' || op === 'move/from16' || op === 'move-object/from16') write(parts[0], read(parts[1]));
     else if (op === 'move-result' || op === 'move-result-object') { write(parts[0], world.lastResult); world.lastResult = undefined; }
+    else if (op === 'filled-new-array' || op === 'filled-new-array/range') world.lastResult = invocationRegisters(instruction, method.localCount).map((index) => registers[index]);
     else if (op.startsWith('invoke-')) world.lastResult = invoke(instruction);
+    else if (op === 'sget-object') write(parts[0], { smaliField: parts[1] });
+    else if (op === 'check-cast') { /* reference-preserving fixture cast */ }
     else if (op === 'instance-of') {
       const object = read(parts[1]);
       write(parts[0], object.className === parts[2]);
     }
-    else if (op === 'iget' || op === 'iget-object') {
+    else if (op === 'iget' || op === 'iget-object' || op === 'iget-boolean') {
       const field = /;->([^:]+):/.exec(parts[2])?.[1];
       if (!field) throw new Error('invalid production inset field: ' + instruction);
       write(parts[0], read(parts[1])[field]);
@@ -617,14 +626,14 @@ async function readFixtureSources(root) {
 function makeWorld(sources, holder, item, { completeVisibleBind = false } = {}) {
   holder.currentItem = item;
   return { sources, currentItem: item, registers: [], currentLocalCount: 0, lastResult: undefined, styleApplied: false,
-    inAdapterBind: true, completeVisibleBind };
+    inAdapterBind: true, completeVisibleBind, trace: [] };
 }
 
 async function bind(root, holder, item, adapterOverride = null, options = {}) {
   const sources = await readFixtureSources(root);
   if (adapterOverride) sources.adapter = adapterOverride;
   const world = makeWorld(sources, holder, item, options);
-  const output = executeMethod(sources.adapter, bindDescriptor, [{ adapter: true, o00Oo0oo: 12 }, holder, item], world);
+  const output = executeMethod(sources.adapter, bindDescriptor, [{ adapter: true, o00OoO0: 12 }, holder, item], world);
   return { world, output, sources };
 }
 
@@ -633,7 +642,7 @@ function assertProviderFixture(providerSource) {
   const create = methodBlock(providerSource, 'public OooO0o0(Landroid/view/ViewGroup;I)Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;');
   const bindMethod = methodBlock(providerSource, providerBindDescriptor);
   assert.match(type, /const\/4 v0, 0x1/);
-  assert.match(create, /0x7f090099[\s\S]*?0x7f0900ae[\s\S]*?0x7f0900d9/);
+  assert.match(create, /0x7f09009d[\s\S]*?0x7f0900b2[\s\S]*?0x7f0900dd/);
   assert.match(create, /LinearLayoutCompat;->setOrientation\(I\)V/);
   assert.match(create, /const\/16 v\d+, 0x40[\s\S]*?float-to-int[\s\S]*?LayoutParams;-><init>\(II\)V/);
   assert.match(create, /setLines\(I\)V/);
@@ -647,7 +656,7 @@ function assertBlankProviderFixture(providerSource) {
   const create = methodBlock(providerSource, 'public OooO0o0(Landroid/view/ViewGroup;I)Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;');
   const bindMethod = methodBlock(providerSource, blankProviderBindDescriptor);
   assert.match(type, /const\/4 v0, 0x4/);
-  assert.match(create, /0x7f0900ae[\s\S]*?0x7f0900af/);
+  assert.match(create, /0x7f0900b2[\s\S]*?0x7f0900b3/);
   assert.match(bindMethod, /OooOOoo\(\)Ljava\/lang\/String;[\s\S]*?CharSequence;->length\(\)I/);
   assert.match(bindMethod, /const\/16 p2, 0x8[\s\S]*?setVisibility\(I\)V/);
   assert.match(bindMethod, /setVisibility\(I\)V[\s\S]*?return-void/);
@@ -656,28 +665,28 @@ function assertBlankProviderFixture(providerSource) {
 function assertT32Contract(adapterSource, providerSource) {
   assertProviderFixture(providerSource);
   const binder = methodBlock(adapterSource, bindDescriptor);
-  assert.match(binder, /\.locals 13/);
-  const visible = binder.indexOf(':cond_0');
+  assert.match(binder, /\.locals 16/);
+  const visible = binder.indexOf(':cond_1');
   const styleCall = binder.indexOf('->slimApplyType1Style(');
-  const outerSetup = binder.indexOf('iget-object v9, p1, Landroidx/recyclerview/widget/RecyclerView$ViewHolder;->itemView');
+  const outerSetup = binder.indexOf('iget-object v0, v7, Landroidx/recyclerview/widget/RecyclerView$ViewHolder;->itemView', styleCall);
   assert.ok(visible >= 0 && visible < styleCall && styleCall < outerSetup, 'visible style helper runs before original outer/background logic');
-  assert.match(binder, /if-nez v9, :cond_0[\s\S]*?iput v10, p1, Landroid\/view\/ViewGroup\$LayoutParams;->height:I[\s\S]*?return-void/);
+  assert.match(binder, /if-nez v0, :cond_1[\s\S]*?iget-object v0, v7, Landroidx\/recyclerview\/widget\/RecyclerView\$ViewHolder;->itemView[\s\S]*?iput v2, v0, Landroid\/view\/ViewGroup\$LayoutParams;->height:I[\s\S]*?return-void/);
   const styleMethod = methodBlock(adapterSource, 'private static slimApplyType1Style(Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;Lcom/suda/yzune/wakeupschedule/settings/items/OooO00o;)V');
-  assert.ok(styleMethod.indexOf('OooO0Oo()I') < styleMethod.indexOf('BaseViewHolder;->getView(I)'), 'type is checked before child lookup');
-  assert.ok(styleMethod.indexOf('slimRestoreType1Style') < styleMethod.indexOf('OooO0OO()I'), 'every visible type1 bind restores before checking the version title');
-  for (const id of ['0x7f090099', '0x7f0900ae', '0x7f0900d9']) assert.ok(styleMethod.includes(id));
+  assert.ok(styleMethod.indexOf('OooO0oO()I') < styleMethod.indexOf('BaseViewHolder;->getView(I)'), 'type is checked before child lookup');
+  assert.ok(styleMethod.indexOf('slimRestoreType1Style') < styleMethod.indexOf('OooO0Oo()I'), 'every visible type1 bind restores before checking the version title');
+  for (const id of ['0x7f09009d', '0x7f0900b2', '0x7f0900dd']) assert.ok(styleMethod.includes(id));
   assert.match(adapterSource, /getTag\(I\)Ljava\/lang\/Object;/);
   assert.match(adapterSource, /setTag\(ILjava\/lang\/Object;\)V/);
-  const helperEnd = adapterSource.slice(adapterSource.indexOf('.method private static slimApplyType1Style'));
+  const helperEnd = methodBlock(adapterSource, 'private static slimApplyType1Style(Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;Lcom/suda/yzune/wakeupschedule/settings/items/OooO00o;)V');
   assert.doesNotMatch(helperEnd, /setOnClickListener\(Landroid\/view\/View\$OnClickListener;\)V|setClickable\(Z\)V|setLongClickable\(Z\)V|setEnabled\(Z\)V/);
   assert.doesNotMatch(helperEnd, /->setText\(|->setVisibility\(|->setBackground\(|itemView/);
-  assert.match(helperEnd, /setMinLines\(I\)V/);
-  assert.match(helperEnd, /setMaxLines\(I\)V/);
-  assert.match(helperEnd, /setMaxWidth\(I\)V/);
-  assert.match(helperEnd, /setEllipsize\(Landroid\/text\/TextUtils\$TruncateAt;\)V/);
-  assert.match(helperEnd, /0x42800000/);
-  assert.match(helperEnd, /0x41800000/);
   const versionStyle = methodBlock(adapterSource, 'private static slimApplyVersionStyle(Landroidx/appcompat/widget/LinearLayoutCompat;Landroid/widget/TextView;Landroid/widget/TextView;)V');
+  assert.match(versionStyle, /setMinLines\(I\)V/);
+  assert.match(versionStyle, /setMaxLines\(I\)V/);
+  assert.match(versionStyle, /setMaxWidth\(I\)V/);
+  assert.match(versionStyle, /setEllipsize\(Landroid\/text\/TextUtils\$TruncateAt;\)V/);
+  assert.match(versionStyle, /0x42800000/);
+  assert.match(versionStyle, /0x41800000/);
   assert.equal((versionStyle.match(/->setOrientation\(I\)V/g) ?? []).length, 1);
   assert.match(versionStyle, /setOrientation\(I\)V/);
   assert.match(versionStyle, /->width:I/);
@@ -711,7 +720,7 @@ test('the version getter keeps PackageInfo reads and uses releaseName for both f
   assert.match(baseline, /getPackageInfo/);
   assert.match(patched, /getPackageInfo/);
   assert.match(patched, /PackageInfo;->versionName:Ljava\/lang\/String;/);
-  assert.equal((patched.match(/wakeup-noads-v6\.5\.4-r1/g) ?? []).length, 2);
+  assert.equal((patched.match(/wakeup-noads-v6\.6\.0-r1/g) ?? []).length, 2);
   assert.doesNotMatch(patched, /6\.5\.1/);
 });
 
@@ -720,10 +729,10 @@ test('four global and course setting titles remain bound to their public IDs and
   const publicXml = await readFile(path.join(decoded, 'res/values/public.xml'), 'utf8');
   const stringsXml = await readFile(path.join(decoded, 'res/values/strings.xml'), 'utf8');
   const titleCases = [
-    ['setting_schedule_name', 0x7f13037a, '课表名称'],
-    ['setting_class_time', 0x7f130343, '上课时间'],
-    ['setting_term_start_date', 0x7f13038f, '开学时间'],
-    ['setting_week_start_day', 0x7f130393, '每周起始日'],
+    ['setting_schedule_name', 0x7f13038c, '课表名称'],
+    ['setting_class_time', 0x7f130356, '上课时间'],
+    ['setting_term_start_date', 0x7f1303a0, '开学时间'],
+    ['setting_week_start_day', 0x7f1303a4, '每周起始日'],
   ];
   for (const [name, id, title] of titleCases) {
     assert.match(publicXml, new RegExp(`<public type="string" name="${name}" id="0x${id.toString(16)}"`));
@@ -731,20 +740,20 @@ test('four global and course setting titles remain bound to their public IDs and
     const holder = createInitialItem(1.25, 0, [1, 2, 3, 4], 'light', 'middle');
     const value = `synthetic current value for ${name}`;
     await bind(root, holder, makeItem({ titleId: id, title, value }));
-    assert.equal(holder.views.get(0x7f0900ae).text, title);
-    assert.equal(holder.views.get(0x7f0900d9).text, value);
+    assert.equal(holder.views.get(0x7f0900b2).text, title);
+    assert.equal(holder.views.get(0x7f0900dd).text, value);
   }
   const actionCases = [
-    ['setting_notify', 0x7f130368, '上课提醒'],
-    ['setting_current_schedule', 0x7f13034c, '设置当前课表'],
-    ['setting_clear_webview_cache', 0x7f130346, '清除内置浏览器缓存'],
+    ['setting_notify', 0x7f13037b, '上课提醒'],
+    ['setting_current_schedule', 0x7f13035f, '设置当前课表'],
+    ['setting_clear_webview_cache', 0x7f130359, '清除内置浏览器缓存'],
   ];
   for (const [name, id, title] of actionCases) {
     assert.match(publicXml, new RegExp(`<public type="string" name="${name}" id="0x${id.toString(16)}"`));
     assert.match(stringsXml, new RegExp(`<string name="${name}">${title}</string>`));
     const holder = createInitialItem(1, 0, [0, 0, 0, 0], 'light', 'middle');
     await bind(root, holder, makeItem({ titleId: id, title, value: '' }));
-    assert.equal(holder.views.get(0x7f0900ae).text, title, `${name} retains its title when its value is empty`);
+    assert.equal(holder.views.get(0x7f0900b2).text, title, `${name} retains its title when its value is empty`);
     assert.equal(holder.itemView.visibility ?? 0, 0, `${name} remains visible`);
   }
 });
@@ -778,15 +787,15 @@ test('actual visible E55 binding executes E54 text binding and helper, restoring
   const result = await bind(root, holder, ordinary);
   assert.equal(result.world.styleApplied, true);
   assert.deepEqual(viewStyle(holder), baseline);
-  assert.equal(holder.views.get(0x7f0900ae).text, 'Ordinary row');
-  assert.equal(holder.views.get(0x7f0900d9).text, 'old value');
+  assert.equal(holder.views.get(0x7f0900b2).text, 'Ordinary row');
+  assert.equal(holder.views.get(0x7f0900dd).text, 'old value');
   assert.deepEqual(holder.itemView.eventState, baseline.outer.eventState);
   assert.equal(holder.itemView.orientation, 1);
 
-  await bind(root, holder, makeItem({ titleId: versionTitleId, title: 'Current version', value: 'wakeup-noads-v6.5.4-r1' }));
-  const inner = holder.views.get(0x7f090099);
-  const title = holder.views.get(0x7f0900ae);
-  const value = holder.views.get(0x7f0900d9);
+  await bind(root, holder, makeItem({ titleId: versionTitleId, title: 'Current version', value: 'wakeup-noads-v6.6.0-r1' }));
+  const inner = holder.views.get(0x7f09009d);
+  const title = holder.views.get(0x7f0900b2);
+  const value = holder.views.get(0x7f0900dd);
   const snapshot = inner.tags.get(tagId);
   assert.ok(Array.isArray(snapshot));
   assert.equal(snapshot.length, 17);
@@ -815,7 +824,7 @@ test('actual visible E55 binding executes E54 text binding and helper, restoring
   assert.equal(holder.itemView.divider.marker, 'provider-divider');
   assert.deepEqual(holder.itemView.eventState, baseline.outer.eventState);
   assert.equal(title.text, 'Current version');
-  assert.equal(value.text, 'wakeup-noads-v6.5.4-r1');
+  assert.equal(value.text, 'wakeup-noads-v6.6.0-r1');
 
   const savedInnerParams = lpCopy(snapshot[1]);
   await bind(root, holder, makeItem({ titleId: versionTitleId, title: 'Current version', value: 'second version text' }));
@@ -839,7 +848,7 @@ test('two holders, first/middle/last groups, hidden recycling, and non-type1 row
   const baseB = viewStyle(holderB);
   await bind(root, holderA, makeItem({ titleId: versionTitleId, value: 'version A', group: 'first' }));
   await bind(root, holderB, makeItem({ titleId: versionTitleId, value: 'version B', group: 'last' }));
-  assert.notEqual(holderA.views.get(0x7f090099).tags.get(tagId), holderB.views.get(0x7f090099).tags.get(tagId));
+  assert.notEqual(holderA.views.get(0x7f09009d).tags.get(tagId), holderB.views.get(0x7f09009d).tags.get(tagId));
   assert.equal(holderA.itemView.orientation, 1);
   assert.equal(holderB.itemView.orientation, 1);
   await bind(root, holderA, makeItem({ title: 'middle ordinary', group: 'middle' }));
@@ -850,10 +859,10 @@ test('two holders, first/middle/last groups, hidden recycling, and non-type1 row
   const hiddenHolder = createInitialItem(2, 0, [0, 0, 0, 0], 'light', 'middle');
   const hiddenBaseline = viewStyle(hiddenHolder);
   await bind(root, hiddenHolder, makeItem({ titleId: versionTitleId, value: 'version before hidden' }));
-  const versionPadding = [...hiddenHolder.views.get(0x7f090099).padding];
+  const versionPadding = [...hiddenHolder.views.get(0x7f09009d).padding];
   await bind(root, hiddenHolder, makeItem({ title: 'hidden ordinary', visible: false }));
   assert.equal(hiddenHolder.itemView.layoutParams.height, 0);
-  assert.deepEqual(hiddenHolder.views.get(0x7f090099).padding, versionPadding);
+  assert.deepEqual(hiddenHolder.views.get(0x7f09009d).padding, versionPadding);
   await bind(root, hiddenHolder, makeItem({ title: 'visible ordinary', visible: true }));
   assert.deepEqual(viewStyle(hiddenHolder), hiddenBaseline);
 
@@ -875,15 +884,15 @@ test('type1 restore copies real LinearLayout weight/gravity, preserves margins, 
   const root = await patchedFixture(t);
   for (const layoutParamsClass of ['compat', 'android']) {
     const holder = createInitialItem(1.3, 0, [2, 4, 6, 8], 'dark', 'middle');
-    const title = holder.views.get(0x7f0900ae);
-    const value = holder.views.get(0x7f0900d9);
+    const title = holder.views.get(0x7f0900b2);
+    const value = holder.views.get(0x7f0900dd);
     title.layoutParams = { ...title.layoutParams, layoutParamsClass, weight: 2.75, gravity: 17, margins: { start: 11, end: 13, top: 5, bottom: 7 } };
     value.layoutParams = { ...value.layoutParams, layoutParamsClass, weight: 0.5, gravity: 80, margins: { start: 17, end: 19, top: 3, bottom: 9 } };
     const expected = viewStyle(holder);
     expected.title.layoutParams.layoutParamsClass = 'compat';
     expected.value.layoutParams.layoutParamsClass = 'compat';
     await bind(root, holder, makeItem({ titleId: versionTitleId, title: 'Version', value: 'release' }));
-    const snapshot = holder.views.get(0x7f090099).tags.get(tagId);
+    const snapshot = holder.views.get(0x7f09009d).tags.get(tagId);
     assert.notEqual(snapshot[7], title.layoutParams, 'title snapshot owns a separate LayoutParams object');
     assert.notEqual(snapshot[12], value.layoutParams, 'value snapshot owns a separate LayoutParams object');
     await bind(root, holder, makeItem({ title: 'ordinary row', value: 'ordinary value' }));
@@ -891,12 +900,12 @@ test('type1 restore copies real LinearLayout weight/gravity, preserves margins, 
   }
 
   const marginOnly = createInitialItem(1, 0, [0, 0, 0, 0], 'light', 'middle');
-  marginOnly.views.get(0x7f0900ae).layoutParams = { width: 0, height: -2, margins: { start: 23, end: 29, top: 2, bottom: 3 }, layoutParamsClass: 'margin' };
+  marginOnly.views.get(0x7f0900b2).layoutParams = { width: 0, height: -2, margins: { start: 23, end: 29, top: 2, bottom: 3 }, layoutParamsClass: 'margin' };
   await bind(root, marginOnly, makeItem({ titleId: versionTitleId, value: 'release' }));
   await bind(root, marginOnly, makeItem({ title: 'ordinary' }));
-  assert.equal(marginOnly.views.get(0x7f0900ae).layoutParams.weight, 0, 'MarginLayoutParams gets the constructor default weight');
-  assert.equal(marginOnly.views.get(0x7f0900ae).layoutParams.gravity, -1, 'MarginLayoutParams gets the constructor default gravity');
-  assert.deepEqual(marginOnly.views.get(0x7f0900ae).layoutParams.margins, { start: 23, end: 29, top: 2, bottom: 3 });
+  assert.equal(marginOnly.views.get(0x7f0900b2).layoutParams.weight, 0, 'MarginLayoutParams gets the constructor default weight');
+  assert.equal(marginOnly.views.get(0x7f0900b2).layoutParams.gravity, -1, 'MarginLayoutParams gets the constructor default gravity');
+  assert.deepEqual(marginOnly.views.get(0x7f0900b2).layoutParams.margins, { start: 23, end: 29, top: 2, bottom: 3 });
 });
 
 test('actual settings adapter collapses blank rows and restores recycled visible rows', async (t) => {
@@ -904,45 +913,50 @@ test('actual settings adapter collapses blank rows and restores recycled visible
   const source = await readFile(path.join(root, adapterPath), 'utf8');
   const binder = methodBlock(source, bindDescriptor);
   const prepareCall = '->slimPrepareSettingRow(Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;Lcom/suda/yzune/wakeupschedule/settings/items/OooO00o;)V';
-  assert.equal((binder.match(/->slimPrepareSettingRow\(/g) ?? []).length, 2);
-  assert.ok(binder.lastIndexOf(prepareCall) > binder.indexOf('iput v11, v9, Landroid/view/ViewGroup$LayoutParams;->height:I'),
-    'the blank-row decision runs again after the original binder restores WRAP_CONTENT');
+  const prepareCalls = [...binder.matchAll(/->slimPrepareSettingRow\(/g)].map((match) => match.index);
+  assert.equal(prepareCalls.length, 2);
+  const originalBind = binder.indexOf('invoke-super/range {p0 .. p2}, Lcom/chad/library/adapter/base/BaseProviderMultiAdapter;->OooOoO');
+  const restoredHeight = binder.indexOf('iput v3, v0, Landroid/view/ViewGroup$LayoutParams;->height:I');
+  assert.ok(originalBind >= 0 && prepareCalls[0] > originalBind,
+    'the first blank-row decision runs after the original provider bind restores its row');
+  assert.ok(restoredHeight >= 0 && prepareCalls[1] > restoredHeight,
+    'the second blank-row decision runs after the visible-row height is restored');
   const helper = methodBlock(source, 'private static slimPrepareSettingRow(Lcom/chad/library/adapter/base/viewholder/BaseViewHolder;Lcom/suda/yzune/wakeupschedule/settings/items/OooO00o;)V');
   assert.match(helper, /OooO0O0\(\)Z[\s\S]*?if-nez v1, :slim_setting_check_blank/);
-  assert.match(helper, /OooO0Oo\(\)I[\s\S]*?const\/4 v2, 0x4[\s\S]*?setting_blank|const v2, 0x7f130341/);
+  assert.match(helper, /OooO0oO\(\)I[\s\S]*?const\/4 v2, 0x4[\s\S]*?setting_blank|const v2, 0x7f130354/);
   assert.match(helper, /getLayoutParams\(\)Landroid\/view\/ViewGroup\$LayoutParams;[\s\S]*?const\/4 v2, 0x0[\s\S]*?iput v2, v1, Landroid\/view\/ViewGroup\$LayoutParams;->height:I[\s\S]*?setVisibility\(I\)V/);
   assert.match(helper, /const\/4 v2, -0x2[\s\S]*?setLayoutParams\(Landroid\/view\/ViewGroup\$LayoutParams;\)V[\s\S]*?setVisibility\(I\)V/);
 
   const blank = createInitialItem(1, 0, [0, 0, 0, 0], 'light', 'middle');
-  const blankBind = await bind(root, blank, makeItem({ type: 4, titleId: 0x7f130341, title: 'setting_blank', value: '  \t\n' }));
+  const blankBind = await bind(root, blank, makeItem({ type: 4, titleId: 0x7f130354, title: 'setting_blank', value: '  \t\n' }));
   assert.equal(blankBind.output, undefined, 'the production adapter completes the type4 blank-provider branch');
-  assert.equal(blank.itemView.layoutParams.height, 0);
+  assert.equal(blank.itemView.layoutParams.height, 0, JSON.stringify({ trace: blankBind.world.trace, output: blankBind.output, item: blankBind.world.currentItem }));
   assert.equal(blank.itemView.visibility, 8);
   assert.equal(blank.itemView.divider.visibility, 8, 'original divider hiding branch still runs');
-  assert.equal(blank.views.get(0x7f0900ae).text, 'setting_blank', 'the real type4 provider still supplies the original title');
-  assert.equal(blank.views.get(0x7f0900af).visibility, 0, 'whitespace description reaches the real provider before the row is collapsed');
+  assert.equal(blank.views.get(0x7f0900b2).text, 'setting_blank', 'the real type4 provider still supplies the original title');
+  assert.equal(blank.views.get(0x7f0900b3).visibility, 0, 'whitespace description reaches the real provider before the row is collapsed');
 
   const secondBlank = createInitialItem(1, 0, [0, 0, 0, 0], 'dark', 'first');
-  await bind(root, secondBlank, makeItem({ type: 4, titleId: 0x7f130341, title: 'setting_blank', value: '\t\n' }));
+  await bind(root, secondBlank, makeItem({ type: 4, titleId: 0x7f130354, title: 'setting_blank', value: '\t\n' }));
   assert.equal(secondBlank.itemView.layoutParams.height, 0);
   assert.equal(secondBlank.itemView.visibility, 8);
   assert.equal(blank.itemView.layoutParams.height, 0, 'collapsing another holder does not mutate the first holder');
 
   const recycled = createInitialItem(1, 0, [0, 0, 0, 0], 'light', 'middle');
-  await bind(root, recycled, makeItem({ type: 4, titleId: 0x7f130341, title: 'setting_blank', value: '' }));
-  await bind(root, recycled, makeItem({ type: 1, titleId: 0x7f130368, title: '上课提醒', value: '' }));
+  await bind(root, recycled, makeItem({ type: 4, titleId: 0x7f130354, title: 'setting_blank', value: '' }));
+  await bind(root, recycled, makeItem({ type: 1, titleId: 0x7f13037b, title: '上课提醒', value: '' }));
   assert.equal(recycled.itemView.layoutParams.height, -2);
   assert.equal(recycled.itemView.visibility, 0);
-  assert.equal(recycled.views.get(0x7f0900ae).text, '上课提醒');
+  assert.equal(recycled.views.get(0x7f0900b2).text, '上课提醒');
 
   const nonempty = createInitialItem(1, 0, [0, 0, 0, 0], 'light', 'middle');
   const nonemptyBind = await bind(root, nonempty,
-    makeItem({ type: 4, titleId: 0x7f130341, title: 'setting_blank', value: 'section description', group: 'first' }),
+    makeItem({ type: 4, titleId: 0x7f130354, title: 'setting_blank', value: 'section description', group: 'first' }),
     null, { completeVisibleBind: true });
   assert.equal(nonemptyBind.output, undefined, 'the production binder executes the nonempty-description row through return-void');
   assert.equal(nonempty.itemView.layoutParams.height, -2);
   assert.equal(nonempty.itemView.visibility, 0);
-  assert.equal(nonempty.views.get(0x7f0900af).visibility, 0, 'nonempty type4 descriptions remain visible');
+  assert.equal(nonempty.views.get(0x7f0900b3).visibility, 0, 'nonempty type4 descriptions remain visible');
   assert.equal(nonempty.itemView.divider.visibility, 8, 'the completed visible-row path applies the production divider result');
   assert.equal(nonempty.itemView.background.type, 'StateListDrawable', 'the completed type4 path installs its production background');
   assert.deepEqual(nonempty.itemView.background.states[1].drawable.cornerRadii.map(asFloat), [12, 12, 12, 12, 0, 0, 0, 0],
@@ -950,7 +964,7 @@ test('actual settings adapter collapses blank rows and restores recycled visible
 
   const ordinaryVisible = createInitialItem(1, 0, [0, 0, 0, 0], 'dark', 'middle');
   const ordinaryBind = await bind(root, ordinaryVisible,
-    makeItem({ type: 1, titleId: 0x7f130368, title: '上课提醒', value: '', group: 'last' }),
+    makeItem({ type: 1, titleId: 0x7f13037b, title: '上课提醒', value: '', group: 'last' }),
     null, { completeVisibleBind: true });
   assert.equal(ordinaryBind.output, undefined, 'ordinary visible production bind reaches method return');
   assert.equal(ordinaryVisible.itemView.visibility, 0);
@@ -961,24 +975,24 @@ test('actual settings adapter collapses blank rows and restores recycled visible
   assert.equal(ordinaryVisible.itemView.divider.visibility, 8);
 
   const originallyHidden = createInitialItem(1, 0, [0, 0, 0, 0], 'light', 'last');
-  await bind(root, originallyHidden, makeItem({ type: 1, titleId: 0x7f130368, title: '上课提醒', value: '', visible: false }));
+  await bind(root, originallyHidden, makeItem({ type: 1, titleId: 0x7f13037b, title: '上课提醒', value: '', visible: false }));
   assert.equal(originallyHidden.itemView.layoutParams.height, 0);
   assert.equal(originallyHidden.itemView.visibility, 8);
-  await bind(root, originallyHidden, makeItem({ type: 1, titleId: 0x7f130368, title: '上课提醒', value: '', visible: true }));
+  await bind(root, originallyHidden, makeItem({ type: 1, titleId: 0x7f13037b, title: '上课提醒', value: '', visible: true }));
   assert.equal(originallyHidden.itemView.layoutParams.height, -2);
   assert.equal(originallyHidden.itemView.visibility, 0);
-  assert.equal(originallyHidden.views.get(0x7f0900ae).text, '上课提醒');
+  assert.equal(originallyHidden.views.get(0x7f0900b2).text, '上课提醒');
 
   const feature = createInitialItem(1, 0, [0, 0, 0, 0], 'light', 'middle');
-  await bind(root, feature, makeItem({ type: 1, titleId: 0x7f130368, title: '上课提醒', value: '' }));
+  await bind(root, feature, makeItem({ type: 1, titleId: 0x7f13037b, title: '上课提醒', value: '' }));
   assert.equal(feature.itemView.visibility, 0);
   assert.equal(feature.itemView.layoutParams.height, -2);
-  assert.equal(feature.views.get(0x7f0900ae).text, '上课提醒', 'a functional row with an empty value retains its title');
+  assert.equal(feature.views.get(0x7f0900b2).text, '上课提醒', 'a functional row with an empty value retains its title');
 
   const courseClass = 'Lcom/suda/yzune/wakeupschedule/schedule_settings/ScheduleSettingsFragment;';
-  const courseBefore = await readSmaliMethod(decoded, scheduleSettingsPath, courseClass, 'private final o00ooo(Ljava/util/List;)V');
-  const courseAfter = await readSmaliMethod(root, scheduleSettingsPath, courseClass, 'private final o00ooo(Ljava/util/List;)V');
-  assert.equal(courseAfter, courseBefore, 'course-setting entries remain byte-for-byte at the v6.5.4 baseline');
+  const courseBefore = await readSmaliMethod(decoded, scheduleSettingsPath, courseClass, 'private final o00o0O(Ljava/util/List;)V');
+  const courseAfter = await readSmaliMethod(root, scheduleSettingsPath, courseClass, 'private final o00o0O(Ljava/util/List;)V');
+  assert.equal(courseAfter, courseBefore, 'course-setting entries remain byte-for-byte at the v6.6.0 baseline');
   const settingsBefore = await readSmaliMethod(decoded, settingsPath, settingsClass, 'private final oo0o0Oo(Ljava/util/List;)V');
   const settingsAfter = await readSmaliMethod(root, settingsPath, settingsClass, 'private final oo0o0Oo(Ljava/util/List;)V');
   const spec = JSON.parse(await readFile('patches/slim-v1/patch-spec.json', 'utf8'));
@@ -996,7 +1010,7 @@ test('actual settings adapter collapses blank rows and restores recycled visible
     'the only click-handler difference remains the read-only version guard');
 });
 
-test('insets callback dispatches only the true log mode and preserves the HEAD ordinary branch', async (t) => {
+test('insets callback dispatches only the true log mode and preserves the migrated ordinary branch', async (t) => {
   const root = await patchedFixture(t);
   const descriptor = 'public static final Ooooooo(Lcom/suda/yzune/wakeupschedule/base_view/OooOO0;Landroid/view/View;Landroidx/core/view/WindowInsetsCompat;)Landroidx/core/view/WindowInsetsCompat;';
   const before = await readSmaliMethod(decoded, basePath, baseClass, descriptor);
@@ -1015,18 +1029,18 @@ test('insets callback dispatches only the true log mode and preserves the HEAD o
   assert.equal(otherHostClipValue, 0, 'the parsed production instance-of keeps other base hosts false');
   assert.match(after, /WindowInsetsCompat\$Type;->systemBars\(\)I[\s\S]*?WindowInsetsCompat\$Type;->ime\(\)I[\s\S]*?getInsets\(I\)Landroidx\/core\/graphics\/Insets;[\s\S]*?setPadding\(IIII\)V/);
   assert.match(after, /return-object p2/);
-  const headSpec = JSON.parse(execFileSync('git', ['show', 'HEAD:patches/slim-v1/patch-spec.json'], { encoding: 'utf8' }));
-  const headClip = headSpec.operations.find((operation) => operation.id === 'T34-E55-settings-viewport-clip');
-  assert.ok(headClip, 'the committed round-three T34 replacement is the ordinary-mode reference');
+  const currentSpec = JSON.parse(await readFile('patches/slim-v1/patch-spec.json', 'utf8'));
+  const currentClip = currentSpec.operations.find((operation) => operation.id === 'T34-E55-settings-viewport-clip');
+  assert.ok(currentClip, 'the migrated T34 replacement is the ordinary-mode reference');
   const guardLabel = ':slim_settings_clip_ordinary';
   const falseBranchStart = after.lastIndexOf(guardLabel) + guardLabel.length;
   assert.ok(falseBranchStart > guardLabel.length, 'the new exact log-mode branch has an ordinary fallthrough label');
   const actualFalseBody = after.slice(falseBranchStart, after.lastIndexOf('.end method')).trim();
-  const originalInsetsStart = headClip.replacementMethod.indexOf('    invoke-static {}, Landroidx/core/view/WindowInsetsCompat$Type;->systemBars()I');
-  assert.ok(originalInsetsStart >= 0, 'the HEAD T34 body includes the original system-bars callback');
-  const expectedFalseBody = headClip.replacementMethod.slice(originalInsetsStart,
-    headClip.replacementMethod.lastIndexOf('\n.end method')).trim();
-  assert.equal(actualFalseBody, expectedFalseBody, 'false log guard keeps the committed T34 body byte-for-byte, including R312');
+  const expectedFalseStart = currentClip.replacementMethod.lastIndexOf(guardLabel) + guardLabel.length;
+  assert.ok(expectedFalseStart > guardLabel.length, 'the migrated T34 replacement includes an ordinary fallthrough label');
+  const expectedFalseBody = currentClip.replacementMethod.slice(expectedFalseStart,
+    currentClip.replacementMethod.lastIndexOf('\n.end method')).trim();
+  assert.equal(actualFalseBody, expectedFalseBody, 'false log guard keeps the migrated T34 body byte-for-byte, including R312');
 
   const execute = (className, systemBars, ime, rootPadding, listPadding, logMode = false) => {
     const list = { padding: [...listPadding], paddingCalls: [], clipCalls: [] };
@@ -1101,7 +1115,7 @@ test('design10 breakage mutants are rejected by the executed fixture and source 
     const mutant = original.replace(/(\.method private static slimCopyType1Params\([\s\S]*?\.end method)/, (block) => block.replace(copyInstruction, ''));
     assert.notEqual(mutant, original, `the ${field} copy mutant changes the production helper`);
     const holder = createInitialItem(1.25, 0, [3, 5, 7, 9], 'dark', 'middle');
-    const title = holder.views.get(0x7f0900ae);
+    const title = holder.views.get(0x7f0900b2);
     title.layoutParams = { ...title.layoutParams, weight: 2.25, gravity: 17, margins: { start: 31, end: 37, top: 2, bottom: 4 } };
     const baselineStyle = viewStyle(holder);
     await bind(root, holder, makeItem({ titleId: versionTitleId, title: 'Current version', value: 'synthetic' }), mutant);
@@ -1111,18 +1125,34 @@ test('design10 breakage mutants are rejected by the executed fixture and source 
   }
 
   const titleNoWeightReset = original.replace(/    iput v2, v1, Landroidx\/appcompat\/widget\/LinearLayoutCompat\$LayoutParams;->weight:F\r?\n/, '');
-  await versionMutationFails(root, titleNoWeightReset, (holder) => assert.equal(holder.views.get(0x7f0900ae).layoutParams.weight, 0));
+  await versionMutationFails(root, titleNoWeightReset, (holder) => assert.equal(holder.views.get(0x7f0900b2).layoutParams.weight, 0));
 
   const valueNoMaxWidth = original.replace(/    invoke-virtual \{p2, v3\}, Landroid\/widget\/TextView;->setMaxWidth\(I\)V\r?\n/, '');
-  await versionMutationFails(root, valueNoMaxWidth, (holder) => assert.equal(holder.views.get(0x7f0900d9).maxWidth, 2147483647));
+  await versionMutationFails(root, valueNoMaxWidth, (holder) => assert.equal(holder.views.get(0x7f0900dd).maxWidth, 2147483647));
 
   const titleNoMultiline = original.replace(/    invoke-virtual \{p1, v3\}, Landroid\/widget\/TextView;->setMaxLines\(I\)V\r?\n/, '');
-  await versionMutationFails(root, titleNoMultiline, (holder) => assert.equal(holder.views.get(0x7f0900ae).maxLines, 2147483647));
+  await versionMutationFails(root, titleNoMultiline, (holder) => assert.equal(holder.views.get(0x7f0900b2).maxLines, 2147483647));
 
-  const wrongOuterDirection = original.replace(/(    invoke-static \{p1, p2\}, Lcom\/suda\/yzune\/wakeupschedule\/settings\/o00O000o;->slimApplyType1Style[^\r\n]*\r?\n)/, '$1    iget-object v8, p1, Landroidx/recyclerview/widget/RecyclerView$ViewHolder;->itemView:Landroid/view/View;\n    const/4 v0, 0x0\n    invoke-virtual {v8, v0}, Landroidx/appcompat/widget/LinearLayoutCompat;->setOrientation(I)V\n');
+  const wrongOuterDirection = original.replace(/(    invoke-static \{v7, v8\}, Lcom\/suda\/yzune\/wakeupschedule\/settings\/o00O000o;->slimApplyType1Style[^\r\n]*\r?\n)/, '$1    iget-object v0, v7, Landroidx/recyclerview/widget/RecyclerView$ViewHolder;->itemView:Landroid/view/View;\n    const/4 v1, 0x0\n    invoke-virtual {v0, v1}, Landroidx/appcompat/widget/LinearLayoutCompat;->setOrientation(I)V\n');
+  assert.notEqual(wrongOuterDirection, original, 'the outer-orientation mutant changes the actual 6.6.0 bind call');
   await versionMutationFails(root, wrongOuterDirection, (holder) => assert.equal(holder.itemView.orientation, 1));
 
-  const hiddenForcedVisible = original.replace(/    const\/4 v10, 0x0\r?\n/, '    const/4 v10, -0x2\n');
+  const binder = methodBlock(original, bindDescriptor);
+  const hiddenHeight = '    iput v2, v0, Landroid/view/ViewGroup$LayoutParams;->height:I';
+  assert.equal((binder.match(/iput v2, v0, Landroid\/view\/ViewGroup\$LayoutParams;->height:I/g) ?? []).length, 1,
+    'the production hidden-row branch has one zero-height write');
+  const hiddenBinder = binder.replace(hiddenHeight, '    const/4 v2, -0x2\n' + hiddenHeight);
+  assert.notEqual(hiddenBinder, binder, 'the hidden-row mutant changes the actual 6.6.0 early return');
+  const binderStart = original.indexOf('.method ' + bindDescriptor);
+  const binderEnd = original.indexOf('.end method', binderStart) + '.end method'.length;
+  assert.ok(binderStart >= 0 && binderEnd > binderStart, 'the raw provider method is present for the hidden-row mutant');
+  const rawBinder = original.slice(binderStart, binderEnd);
+  const lineBreak = rawBinder.includes('\r\n') ? '\r\n' : '\n';
+  assert.equal((rawBinder.match(/iput v2, v0, Landroid\/view\/ViewGroup\$LayoutParams;->height:I/g) ?? []).length, 1,
+    'the raw provider method contains the same unique hidden-row write');
+  const rawHiddenBinder = rawBinder.replace(hiddenHeight, '    const/4 v2, -0x2' + lineBreak + hiddenHeight);
+  const hiddenForcedVisible = original.slice(0, binderStart) + rawHiddenBinder + original.slice(binderEnd);
+  assert.notEqual(hiddenForcedVisible, original, 'the raw CRLF provider method receives the hidden-row mutation');
   const hiddenHolder = createInitialItem(2, 0, [0, 0, 0, 0], 'light', 'middle');
   await bind(root, hiddenHolder, makeItem({ visible: false }), hiddenForcedVisible);
   assert.throws(() => assert.equal(hiddenHolder.itemView.layoutParams.height, 0));
@@ -1132,8 +1162,9 @@ test('design10 breakage mutants are rejected by the executed fixture and source 
   const eventMutant = original.replace(/    :slim_type1_return\r?\n/, '    const/4 v0, 0x0\n    invoke-virtual {p1, v0}, Landroid/view/View;->setClickable(Z)V\n    :slim_type1_return\n');
   assert.throws(() => assertT32Contract(eventMutant, providerSource), /clickable/i);
 
-  const wrongDp = original.replace(/    mul-float\/2addr v5, v4\r?\n    float-to-int v5, v5\r?\n    invoke-virtual \{p0, v5\}, Landroid\/view\/View;->setMinimumHeight\(I\)V/, '    float-to-int v5, v5\n    invoke-virtual {p0, v5}, Landroid/view/View;->setMinimumHeight(I)V');
-  await versionMutationFails(root, wrongDp, (holder) => assert.equal(holder.views.get(0x7f090099).minimumHeight, Math.trunc(64 * 1.25)));
+  const wrongDp = original.replace(/(\.method private static slimApplyVersionStyle[\s\S]*?const\/high16 v5, )0x42800000/, '$10x41800000');
+  assert.notEqual(wrongDp, original, 'the wrong-dp mutant changes the actual 6.6.0 minimum-height constant');
+  await versionMutationFails(root, wrongDp, (holder) => assert.equal(holder.views.get(0x7f09009d).minimumHeight, Math.trunc(64 * 1.25)));
 });
 
 test('restricted Smali fixture rejects unsupported instructions and invokes', async (t) => {

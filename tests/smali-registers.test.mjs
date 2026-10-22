@@ -8,10 +8,10 @@ import { classHierarchy, introducedRegisterErrors, splitSmaliMethods } from './s
 const baseline = path.resolve(process.env.SLIM_BASELINE_DECODED_ROOT ?? 'tools/_cache/slim-v1-decoded');
 const fixtures = path.resolve('tools/_cache/slim-v1-review/fixtures/round-2');
 const specDirectory = path.resolve('patches/slim-v1');
-const splashPath = 'smali_classes5/com/suda/yzune/wakeupschedule/SplashActivity.smali';
-const netPath = 'smali_classes2/com/baidu/homework/common/net/OooOo00.smali';
-const rc4Path = 'smali_classes5/com/suda/yzune/wakeupschedule/aaa/utils/oOO00O.smali';
-const encryptNetPath ='smali_classes5/com/suda/yzune/wakeupschedule/aaa/utils/EncryptNet.smali';
+const splashPath = 'smali_classes6/com/suda/yzune/wakeupschedule/SplashActivity.smali';
+const netPath = 'smali_classes3/com/baidu/homework/common/net/OooOo00.smali';
+const rc4Path = 'smali_classes6/com/suda/yzune/wakeupschedule/aaa/utils/oOO00O.smali';
+const encryptNetPath = 'smali_classes6/com/suda/yzune/wakeupschedule/aaa/utils/EncryptNet.smali';
 
 async function loadOperations() {
   const spec = JSON.parse(await readFile(path.join(specDirectory, 'patch-spec.json'), 'utf8'));
@@ -53,17 +53,36 @@ test('every patched Smali method keeps register types, invoke arguments and memb
   assert.deepEqual(await introducedErrors(root, relativePaths), []);
 });
 
-test('the checker rejects the cold-start mutant that drops the SplashActivity log tag definition', async (t) => {
+test('the checker rejects the cold-start integer log-tag mutation at the SplashActivity log call', async (t) => {
   const operation = (await loadOperations()).find((candidate) => candidate.id === 'T05-E03-disable-cold-ad-wait');
-  assert.ok(operation.replacement.includes('const-string v2, "InitActivity"'), 'the production replacement keeps the tag register defined');
+  const tagInstruction = 'const-string v3, "InitActivity"';
+  assert.equal(operation.replacement.split(tagInstruction).length - 1, 1, 'the production tag instruction is a unique mutation anchor');
+  assert.ok(operation.replacement.includes('goto :cond_3'), 'the production replacement retains the cold-start bypass');
+
+  const correctRoot = await fixtureWith(t, [splashPath]);
+  const correctSpecPath = path.join(correctRoot, 'register-correct-spec.json');
+  await writeFile(correctSpecPath, JSON.stringify({ schemaVersion: 1, applicationId: 'io.github.wakeupnoads', operations: [operation] }));
+  await applyPatchSpec({ root: correctRoot, specPath: correctSpecPath });
+  assert.deepEqual(await introducedErrors(correctRoot, [splashPath]), [], 'the correct production cold-start fragment has no register findings');
+
   const root = await fixtureWith(t, [splashPath]);
-  const mutant = { ...operation, replacement: '', finalAssertions: operation.finalAssertions.filter((assertion) => !assertion.text.includes('InitActivity')) };
+  const mutatedReplacement = operation.replacement.replace(tagInstruction, 'const/4 v3, 0x1');
+  assert.notEqual(mutatedReplacement, operation.replacement, 'the mutation changes the selected instruction');
+  assert.equal(mutatedReplacement.replace('const/4 v3, 0x1', tagInstruction), operation.replacement, 'reversing the selected instruction restores the exact production replacement');
+  assert.equal((mutatedReplacement.match(/goto :cond_3/g) ?? []).length, (operation.replacement.match(/goto :cond_3/g) ?? []).length, 'the bypass branch is unchanged');
+  const mutant = {
+    ...operation,
+    replacement: mutatedReplacement,
+    finalAssertions: operation.finalAssertions.filter((assertion) => assertion.text !== tagInstruction),
+  };
   const specPath = path.join(root, 'register-mutant-spec.json');
   await writeFile(specPath, JSON.stringify({ schemaVersion: 1, applicationId: 'io.github.wakeupnoads', operations: [mutant] }));
   await applyPatchSpec({ root, specPath });
   const findings = await introducedErrors(root, [splashPath]);
   assert.equal(findings.length, 1);
-  assert.match(findings[0], /public final o00ooo\(\)V :: undefined v2: invoke-static \{v2, v0\}/);
+  assert.match(findings[0], /public final o00ooo\(\)V/);
+  assert.ok(findings[0].includes('v3 is int, expected reference Ljava/lang/String;'), findings[0]);
+  assert.ok(findings[0].includes('invoke-static {v3, v0}'), findings[0]);
 });
 
 async function mutantErrors(t, id, relativePath, from, to) {
@@ -83,21 +102,21 @@ test('the checker rejects a queue permit check that overwrites the int register 
   assert.ok(findings.some((finding) => /if-eq\/ne compares incompatible values: if-ne p3, v1/.test(finding)), findings.join('\n'));
 });
 
-test('the checker rejects throwing a register that merges the leased cipher with the caught exception', async (t) => {
+test('the checker rejects throwing the key flag instead of a caught exception', async (t) => {
   const findings = await mutantErrors(t, 'T28-E47-fail-decrypt-instead-of-returning-input', rc4Path,
-    'if-eqz v2, :slim_rc4_decrypt_success\n\n    throw v2', 'if-eqz p2, :slim_rc4_decrypt_success\n\n    throw p2');
-  assert.ok(findings.some((finding) => /thrown v\d+ may hold non-Throwable Lo00o0O\/o0OO00O;: throw p2/.test(finding)), findings.join('\n'));
+    'if-eqz v8, :slim_rc4_decrypt_success\n\n    throw v8', 'if-eqz p2, :slim_rc4_decrypt_success\n\n    throw p2');
+  assert.ok(findings.some((finding) => /throw p2/.test(finding) && /non-Throwable/.test(finding)), findings.join('\n'));
 });
 
 test('the checker rejects a key check that overwrites the register holding the pool monitor', async (t) => {
   const findings = await mutantErrors(t, 'T28-E47-OooO0O0-reject-invalid-key', rc4Path,
-    'iget-object v1, p0, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO0O0:Ljava/lang/String;\n\n    invoke-static {v1}',
-    'iget-object v0, p0, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO0O0:Ljava/lang/String;\n\n    invoke-static {v0}');
-  assert.ok(findings.some((finding) => /monitor-exit v0 no longer holds the locked object: monitor-exit v0/.test(finding)), findings.join('\n'));
+    'iget-object v0, v1, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO0O0:Ljava/lang/String;\n\n    invoke-static {v0}',
+    'iget-object v2, v1, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO0O0:Ljava/lang/String;\n\n    invoke-static {v2}');
+  assert.ok(findings.some((finding) => /monitor-exit v2 no longer holds the locked object: monitor-exit v2/.test(finding)), findings.join('\n'));
 });
 
 test('the checker rejects a call to a coroutine launcher descriptor the app does not define', async (t) => {
-  const findings = await mutantErrors(t, 'T28-E16-add-dual-callback-entry', encryptNetPath, 'Lkotlin/coroutines/OooOOO;', 'Lkotlinx/coroutines/OooOOO;');
+  const findings = await mutantErrors(t, 'T28-E16-add-dual-callback-entry', encryptNetPath, 'Lkotlin/coroutines/OooO0o;', 'Lkotlinx/coroutines/OooOOO;');
   assert.ok(findings.some((finding) => /unresolved method Lkotlinx\/coroutines\/OooOOO0;->OooO0Oo\(/.test(finding)), findings.join('\n'));
 });
 

@@ -16,6 +16,7 @@ public final class TeachingBootstrapTest {
         testFailureCleanupAndRetry();
         testPreconditionsDoNotInitialize();
         testContextServiceFallbackAndKeyChecks();
+        testActualVersionCodeIsPassedToKeyLookup();
         testVersionSeededKeyRejectsErrorSentinels();
         testSignatureFailureSentinels();
         testReadyParentDoesNotRepeatBootstrap();
@@ -108,6 +109,23 @@ public final class TeachingBootstrapTest {
         invalidKey.keyValid = false;
         check(new TeachingBootstrap().ensureReady(parent(), invalidKey) == TeachingBootstrap.Result.VERSION_KEY_INVALID, "missing or error version-seeded key rejects bootstrap");
         check(invalidKey.initializeCalls.get() == 1, "invalid-key check still followed the original readiness/native path");
+        SlimNetworkPolicy.clearForTest();
+    }
+
+    private static void testActualVersionCodeIsPassedToKeyLookup() {
+        SlimNetworkPolicy.clearForTest();
+        FakePlatform baseline = new FakePlatform();
+        baseline.versionCode = 550;
+        check(new TeachingBootstrap().ensureReady(parent(), baseline) == TeachingBootstrap.Result.READY,
+            "the 6.6.0 baseline version key is accepted");
+        check(baseline.lastRequestedVersionCode == 550, "bootstrap derives the key lookup from baseline versionCode 550");
+
+        SlimNetworkPolicy.clearForTest();
+        FakePlatform explicit = new FakePlatform();
+        explicit.versionCode = 654;
+        check(new TeachingBootstrap().ensureReady(parent(), explicit) == TeachingBootstrap.Result.READY,
+            "an explicitly supplied non-baseline version remains supported");
+        check(explicit.lastRequestedVersionCode == 654, "key lookup receives the explicit actual versionCode");
         SlimNetworkPolicy.clearForTest();
     }
 
@@ -252,7 +270,8 @@ public final class TeachingBootstrapTest {
         volatile boolean serviceOrFallback = true;
         volatile boolean netConfigFallback;
         volatile boolean nativeLibrary = true;
-        volatile int versionCode = 542;
+        volatile int versionCode = 550;
+        volatile int lastRequestedVersionCode = -1;
         volatile boolean ready;
         volatile boolean keyValid = true;
         volatile boolean initializeResult = true;
@@ -292,6 +311,7 @@ public final class TeachingBootstrapTest {
         }
 
         @Override public boolean hasVersionCodeSeededKey(int requestedVersionCode) {
+            lastRequestedVersionCode = requestedVersionCode;
             return requestedVersionCode == versionCode && keyValid;
         }
     }

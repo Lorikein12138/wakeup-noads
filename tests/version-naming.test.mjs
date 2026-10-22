@@ -58,9 +58,28 @@ test('6.5.4 is a confirmed baseline for release names and metadata', () => {
   assert.deepEqual(JSON.parse(cli.stdout), { releaseName: 'wakeup-noads-v6.5.4-r2' });
 });
 
-test('only the two reviewed official baselines are confirmed without an explicit override', () => {
-  for (const version of ['6.5.3', '6.5.5', '6.6.0', 'wakeup-noads-v6.5.4']) {
+test('6.6.0 is a confirmed baseline for release names, metadata, and the CLI', () => {
+  const digest660 = '6556E8AC409381BFC686D3407FBE25A2C2603FDC46B4BABFF89620E333712922';
+  assert.equal(releaseNameFor('6.6.0', 1), 'wakeup-noads-v6.6.0-r1');
+  assert.equal(releaseNameFor('6.6.0', 2), 'wakeup-noads-v6.6.0-r2');
+  const metadata = createReleaseMetadata({ baselineSha256: digest660, baselineVersion: '6.6.0', revision: 1, versionCode: 550 });
+  assert.equal(metadata.releaseName, 'wakeup-noads-v6.6.0-r1');
+  assert.equal(metadata.versionCode, 550);
+  assert.equal(metadata.baselineSha256, digest660);
+  assert.equal(assertReleaseMetadataMatches({ packageName: 'io.github.wakeupnoads', versionCode: 550, versionName: metadata.versionName }, {
+    ...metadata, packageName: 'io.github.wakeupnoads', releaseName: metadata.releaseName,
+  }), true);
+  const cli = spawnSync(process.execPath, ['scripts/version.mjs', '6.6.0', '1'], { encoding: 'utf8' });
+  assert.equal(cli.status, 0, cli.stderr);
+  assert.deepEqual(JSON.parse(cli.stdout), { releaseName: 'wakeup-noads-v6.6.0-r1' });
+});
+
+test('unknown official baselines still require explicit confirmation', () => {
+  for (const version of ['6.5.3', '6.5.5', '6.6.1', 'wakeup-noads-v6.5.4']) {
     assert.throws(() => releaseNameFor(version, 1), /official dotted numeric version|confirmation/);
   }
   assert.equal(releaseNameFor('6.5.5', 1, { baselineConfirmed: true }), 'wakeup-noads-v6.5.5-r1');
+  const cli = spawnSync(process.execPath, ['scripts/version.mjs', '6.6.1', '1'], { encoding: 'utf8' });
+  assert.equal(cli.status, 1);
+  assert.match(cli.stderr, /a changed official baseline requires explicit confirmation/);
 });

@@ -133,10 +133,10 @@ public final class TeachingBootstrap {
                 try {
                     ClassLoader loader = TeachingBootstrap.class.getClassLoader();
                     Class<?> contextType = Class.forName("android.content.Context", false, loader);
-                    Class<?> inputType = Class.forName("Lo000OO0o.OooO0O0", false, loader);
+                    Class<?> inputType = Class.forName("o000oo0O.OooO", false, loader);
                     Class<?> successType = Class.forName("com.baidu.homework.common.net.OooOo00$Oooo0", false, loader);
                     Class<?> errorType = Class.forName("com.baidu.homework.common.net.OooOo00$OooOo00", false, loader);
-                    Method method = owner.getClass().getMethod("o000ooo", contextType, boolean.class, inputType, successType, errorType);
+                    Method method = owner.getClass().getMethod("o00oOoo", contextType, boolean.class, inputType, successType, errorType);
                     method.invoke(owner, context, Boolean.valueOf(raw), input, success, error);
                 } catch (InvocationTargetException exception) {
                     reportNetworkFailure(error, exception.getCause() == null ? exception : exception.getCause());
@@ -310,7 +310,13 @@ public final class TeachingBootstrap {
 
         @Override public boolean isPrivacyApproved() {
             try {
-                Object result = invokeStatic("com.zybang.privacy.OooO0O0", "OooO0o");
+                Object context = applicationContext();
+                if (context == null) return false;
+                Class<?> contextType = Class.forName("android.content.Context", false,
+                    TeachingBootstrap.class.getClassLoader());
+                Method privacyGate = classFor("com.suda.yzune.wakeupschedule.utils.o0000OO0")
+                    .getMethod("OooO0Oo", contextType);
+                Object result = privacyGate.invoke(null, context);
                 return Boolean.TRUE.equals(result);
             } catch (ReflectiveOperationException | RuntimeException exception) {
                 return false;
@@ -359,7 +365,7 @@ public final class TeachingBootstrap {
 
         @Override public int actualVersionCode() {
             try {
-                Object value = invokeStatic("o000O0Oo.OooO", "OooOO0");
+                Object value = invokeStatic("o000o0OO.OooOOO0", "OooOO0");
                 return value instanceof Number ? ((Number) value).intValue() : 0;
             } catch (ReflectiveOperationException | RuntimeException exception) {
                 return 0;
@@ -368,7 +374,7 @@ public final class TeachingBootstrap {
 
         @Override public boolean isBaseutilReady() {
             try {
-                return Boolean.TRUE.equals(invokeStatic("com.zuoyebang.baseutil.OooO00o", "OooO0oO"));
+                return Boolean.TRUE.equals(invokeStatic("o0Oo0OOO.o0OO00O", "OooO0oO"));
             } catch (ReflectiveOperationException | RuntimeException exception) {
                 return false;
             }
@@ -376,7 +382,7 @@ public final class TeachingBootstrap {
 
         @Override public boolean initializeOrRebindBaseutil() {
             try {
-                return Boolean.TRUE.equals(invokeStatic("com.zuoyebang.baseutil.OooO00o", "OooO0o"));
+                return Boolean.TRUE.equals(invokeStatic("o0Oo0OOO.o0OO00O", "OooO0o"));
             } catch (ReflectiveOperationException | RuntimeException exception) {
                 throw new IllegalStateException("baseutil initialization failed", exception);
             }
@@ -384,7 +390,7 @@ public final class TeachingBootstrap {
 
         @Override public boolean hasVersionCodeSeededKey(int versionCode) {
             try {
-                Object key = classFor("com.zuoyebang.baseutil.OooO00o")
+                Object key = classFor("o0Oo0OOO.o0OO00O")
                     .getMethod("OooO0O0", String.class).invoke(null, String.valueOf(versionCode));
                 return isUsableVersionKey(key);
             } catch (ReflectiveOperationException | RuntimeException exception) {

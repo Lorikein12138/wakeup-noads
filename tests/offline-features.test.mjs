@@ -72,7 +72,7 @@ test('T11 account sync, server update, login prefetch, and VIP intent cannot rea
   }
 
   const localStatus = await readSmaliMethod(root, schedulePath, scheduleClass, 'public final o0000o0(Z)V');
-  assert.match(localStatus, /ScheduleViewModel;->o00000oO\(ZZ\)V/);
+  assert.match(localStatus, /ScheduleViewModel;->o0000oO\(ZZ\)V/);
   const onCreate = await readSmaliMethod(root, schedulePath, scheduleClass, 'public onCreate(Landroid/os/Bundle;)V');
   assert.match(onCreate, /ScheduleActivity;->oo0o0Oo\(\)V/, 'the local delayed task manager still starts');
   assert.doesNotMatch(onCreate, /GetScheduleListBean|o00000Oo\(\)V|reportWebViewFeatureSupport/);
@@ -85,7 +85,8 @@ test('T11 account sync, server update, login prefetch, and VIP intent cannot rea
     'public final invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;',
   );
   assert.match(localInitialization, /TableConfig;-><init>\(Landroid\/content\/Context;I\)V/);
-  assert.match(localInitialization, /ScheduleViewModel;->o000000O\(Lcom\/suda\/yzune\/wakeupschedule\/bean\/TableBean;\)V/);
+  assert.match(localInitialization, /ScheduleViewModel;->o00000Oo\(Lcom\/suda\/yzune\/wakeupschedule\/bean\/TableConfig;\)V/);
+  assert.match(localInitialization, /ScheduleViewModel;->o00000OO\(Lcom\/suda\/yzune\/wakeupschedule\/bean\/TableBean;\)V/);
 });
 
 test('T11 ignores legacy s_update=true and preserves local setting behavior', async (t) => {

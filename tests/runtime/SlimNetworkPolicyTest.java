@@ -9,8 +9,9 @@ import com.suda.yzune.wakeupschedule.aaa.model.SchoolListBean;
 import com.suda.yzune.wakeupschedule.aaa.model.ScriptEnpluginBean;
 import com.suda.yzune.wakeupschedule.schedule_import.LoginWebActivity;
 import com.suda.yzune.wakeupschedule.schedule_import.DXParserLoginFragment;
+import com.suda.yzune.wakeupschedule.schedule_import.WebViewLoginFragment;
 import com.suda.yzune.wakeupschedule.schedule_import.v2.ParserFragment;
-import o0OOOoO0.OooO0O0;
+import o0Oo0o00.o00Ooo;
 
 public final class SlimNetworkPolicyTest {
     private static final String SCHOOL = SlimNetworkPolicy.SCHOOL_LIST_CLASS;
@@ -155,10 +156,10 @@ public final class SlimNetworkPolicyTest {
         ParserFragment owner = new ParserFragment();
         Object currentView = new Object();
         owner.activity = activity;
-        owner.oOooo0o = currentView;
+        owner.o00OOoo = currentView;
         check(SlimNetworkPolicy.bindCurrentWebView(owner, currentView), "v2 view creation records the current WebView before bridge actions");
 
-        OooO0O0 input = new OooO0O0("https://api.wakeup.fun/wakeup/script/parse?step=1");
+        o00Ooo input = newRawInput("https://api.wakeup.fun/wakeup/script/parse?step=1");
         check(SlimNetworkPolicy.registerV2BridgeInput(input, owner, activity, currentView, input.toString()),
             "production v2 adapter accepts the exact attached LoginWebActivity and current WebView");
         check(SlimNetworkPolicy.ownerFor(SlimNetworkPolicy.parentFor(input)) == owner,
@@ -167,7 +168,7 @@ public final class SlimNetworkPolicyTest {
             "same raw input cannot be registered twice");
         check(SlimNetworkPolicy.revokeOwner(owner) == 1, "view teardown revokes the production adapter permit");
 
-        OooO0O0 stale = new OooO0O0("https://api.wakeup.fun/wakeup/script/parse?step=2");
+        o00Ooo stale = newRawInput("https://api.wakeup.fun/wakeup/script/parse?step=2");
         check(SlimNetworkPolicy.registerV2BridgeInput(stale, owner, activity, new Object(), stale.toString()) == false,
             "a WebView other than the Fragment's current field is rejected");
         activity.destroyed = true;
@@ -190,14 +191,14 @@ public final class SlimNetworkPolicyTest {
         DXParserLoginFragment owner = new DXParserLoginFragment();
         Object currentView = new Object();
         owner.activity = activity;
-        owner.oOooo0o = currentView;
+        owner.o00OOoo = currentView;
         check(SlimNetworkPolicy.bindCurrentWebView(owner, currentView), "DX view creation records the current WebView before iframe actions");
-        OooO0O0 input = new OooO0O0("https://api.wakeup.fun/wakeup/script/parse?step=dx");
+        o00Ooo input = newRawInput("https://api.wakeup.fun/wakeup/script/parse?step=dx");
         check(SlimNetworkPolicy.registerDxBridgeInput(input, owner, activity, currentView, input.toString()),
             "production DX adapter accepts the current iframe bridge owner and view");
         check(SlimNetworkPolicy.parentFor(input) != null, "DX request receives an owner-bound parent identity");
         check(SlimNetworkPolicy.revokeOwner(owner) == 1, "DX view teardown revokes its request permit");
-        check(!SlimNetworkPolicy.registerDxBridgeInput(new OooO0O0("https://api.wakeup.fun/wakeup/script/parse"),
+        check(!SlimNetworkPolicy.registerDxBridgeInput(newRawInput("https://api.wakeup.fun/wakeup/script/parse"),
             owner, activity, currentView, "https://api.wakeup.fun/wakeup/script/parse"),
             "DX registration fails after the owner is destroyed");
         SlimNetworkPolicy.clearForTest();
@@ -319,7 +320,7 @@ public final class SlimNetworkPolicyTest {
         LoginWebActivity activity = new LoginWebActivity();
         ParserFragment parser = new ParserFragment();
         parser.activity = activity;
-        parser.oOooo0o = new Object();
+        parser.o00OOoo = new Object();
         ScriptEnpluginBean.OooO00o plugin = new ScriptEnpluginBean.OooO00o("index", "node-course-parser");
         SlimNetworkPolicy.ParentToken parent = SlimNetworkPolicy.registerKnownTeachingStaticInput(
             plugin, parser, SlimNetworkPolicy.SOURCE_V2);
@@ -331,21 +332,41 @@ public final class SlimNetworkPolicyTest {
         check(SlimNetworkPolicy.registerKnownTeachingStaticInput(
             new ScriptEnpluginBean.OooO00o("index", "node-course-parser"), new Object(), SlimNetworkPolicy.SOURCE_V2) == null,
             "a static path match without the concrete teaching owner is insufficient");
-        Object oldView = parser.oOooo0o;
+        Object oldView = parser.o00OOoo;
         check(SlimNetworkPolicy.revokeOwner(parser) == 1, "static plugin owner teardown removes its permit");
         check(SlimNetworkPolicy.registerKnownTeachingStaticInput(
             new ScriptEnpluginBean.OooO00o("index", "node-course-parser"), parser, SlimNetworkPolicy.SOURCE_V2) == null,
             "the destroyed view cannot re-register itself before recreation");
-        parser.oOooo0o = new Object();
+        parser.o00OOoo = new Object();
         check(SlimNetworkPolicy.registerKnownTeachingStaticInput(
             new ScriptEnpluginBean.OooO00o("index", "node-course-parser"), parser, SlimNetworkPolicy.SOURCE_V2) != null,
             "a recreated Fragment view can register its new WebView identity");
-        check(parser.oOooo0o != oldView, "recreation uses a fresh WebView object");
+        check(parser.o00OOoo != oldView, "recreation uses a fresh WebView object");
+
+        WebViewLoginFragment legacy = new WebViewLoginFragment();
+        legacy.activity = activity;
+        legacy.o00OOoo = new Object();
+        ScriptEnpluginBean.OooO00o legacyPlugin = new ScriptEnpluginBean.OooO00o("index", "table-image-export");
+        check(SlimNetworkPolicy.registerKnownTeachingStaticInput(legacyPlugin, legacy, SlimNetworkPolicy.SOURCE_WEBVIEW) != null,
+            "the legacy WebView owner registers its current table-export input using the 6.6.0 field");
+        check(SlimNetworkPolicy.registerKnownTeachingStaticInput(
+            new ScriptEnpluginBean.OooO00o("index", "table-image-export"), legacy, SlimNetworkPolicy.SOURCE_V2) == null,
+            "legacy WebView owner cannot claim the v2 source");
+        Object legacyView = legacy.o00OOoo;
+        check(SlimNetworkPolicy.revokeOwner(legacy) == 1, "legacy owner teardown revokes its request");
+        check(SlimNetworkPolicy.registerKnownTeachingStaticInput(
+            new ScriptEnpluginBean.OooO00o("index", "table-image-export"), legacy, SlimNetworkPolicy.SOURCE_WEBVIEW) == null,
+            "legacy owner cannot reuse a destroyed WebView");
+        legacy.o00OOoo = new Object();
+        check(SlimNetworkPolicy.registerKnownTeachingStaticInput(
+            new ScriptEnpluginBean.OooO00o("index", "table-image-export"), legacy, SlimNetworkPolicy.SOURCE_WEBVIEW) != null,
+            "a recreated legacy view binds only its new WebView identity");
+        check(legacy.o00OOoo != legacyView, "legacy recreation swaps the current WebView");
 
         ParserFragment detached = new ParserFragment();
         detached.activity = activity;
         detached.added = false;
-        detached.oOooo0o = new Object();
+        detached.o00OOoo = new Object();
         check(SlimNetworkPolicy.registerKnownTeachingStaticInput(
             new ScriptEnpluginBean.OooO00o("index", "node-course-parser"), detached, SlimNetworkPolicy.SOURCE_V2) == null,
             "detached Fragment cannot register a static script permit");
@@ -470,6 +491,10 @@ public final class SlimNetworkPolicyTest {
 
     private static boolean register(Object request, Object owner, Object view, String url, String source) {
         return SlimNetworkPolicy.registerDynamic(request, owner, view, view, url, source, true, true, false);
+    }
+
+    private static o00Ooo newRawInput(String url) {
+        return new o00Ooo(url, Collections.<String, String>emptyMap(), 1, Object.class);
     }
 
     private static void check(boolean condition, String message) {

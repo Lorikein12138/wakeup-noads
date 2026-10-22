@@ -51,14 +51,14 @@ WakeUp 课程表的非官方精简版：去除广告，只保留课表相关功�
 
 | 文件 | 路径 |
 |---|---|
-| 官方 WakeUp 课程表 6.5.4 APK | `baseline/wakeup-v6.5.4.apk` |
+| 官方 WakeUp 课程表 6.6.0 APK | `baseline/wakeup-v6.6.0.apk` |
 | Apktool 3.0.3 | `tools/apktool-3.0.3/apktool_3.0.3.jar` |
 | Apktool 框架文件 | `tools/_cache/apktool/1.apk` |
 
 框架文件由 Apktool 首次解包时自动生成：
 
 ```powershell
-java -jar tools/apktool-3.0.3/apktool_3.0.3.jar d -s -p tools/_cache/apktool -o <临时目录> baseline/wakeup-v6.5.4.apk
+java -jar tools/apktool-3.0.3/apktool_3.0.3.jar d -s -p tools/_cache/apktool -o <临时目录> baseline/wakeup-v6.6.0.apk
 ```
 
 Android Build Tools 35.0.0 会在首次构建时由脚本从 Google 官方地址下载到 `tools/` 下，并按锁定的 SHA-256 校验。

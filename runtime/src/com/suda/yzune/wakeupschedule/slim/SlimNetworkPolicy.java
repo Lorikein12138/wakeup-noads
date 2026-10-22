@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class SlimNetworkPolicy {
     public static final String SCHOOL_LIST_CLASS = "Lcom/suda/yzune/wakeupschedule/aaa/model/SchoolListBean$OooO00o;";
     public static final String SCRIPT_PLUGIN_CLASS = "Lcom/suda/yzune/wakeupschedule/aaa/model/ScriptEnpluginBean$OooO00o;";
-    public static final String RAW_BRIDGE_CLASS = "Lo0OOOoO0/OooO0O0;";
+    public static final String RAW_BRIDGE_CLASS = "Lo0Oo0o00/o00Ooo;";
     public static final String HTTP_CURRENCY_WRAPPER_CLASS = "Lcom/suda/yzune/wakeupschedule/aaa/v1/HttpCurrencyRequest$OooO00o;";
     public static final String DX_HTTP_WRAPPER_CLASS = "Lcom/suda/yzune/wakeupschedule/aaa/v1/HybridHttpCurrencyRequest$OooO00o;";
     public static final String API_HOST = "api.wakeup.fun";
@@ -187,7 +187,7 @@ public final class SlimNetworkPolicy {
         if (!"com.suda.yzune.wakeupschedule.schedule_import.v2.ParserFragment".equals(owner.getClass().getName())) return false;
         if (!isActiveParser(owner, activity)) return false;
         try {
-            Field currentView = owner.getClass().getField("oOooo0o");
+            Field currentView = owner.getClass().getField("o00OOoo");
             if (currentView.get(owner) != webView || !url.equals(input.toString())) return false;
             WeakReference<Object> boundView = CURRENT_WEBVIEWS.get(new IdentityWeakReference(owner, null));
             if (boundView == null || boundView.get() != webView || REVOKED_OWNERS.containsKey(new IdentityWeakReference(owner, null))) return false;
@@ -211,7 +211,7 @@ public final class SlimNetworkPolicy {
         if (!"com.suda.yzune.wakeupschedule.schedule_import.DXParserLoginFragment".equals(owner.getClass().getName())) return false;
         if (!isActiveParser(owner, activity)) return false;
         try {
-            Field currentView = owner.getClass().getField("oOooo0o");
+            Field currentView = owner.getClass().getField("o00OOoo");
             if (currentView.get(owner) != webView || !url.equals(input.toString())) return false;
             WeakReference<Object> boundView = CURRENT_WEBVIEWS.get(new IdentityWeakReference(owner, null));
             if (boundView == null || boundView.get() != webView || REVOKED_OWNERS.containsKey(new IdentityWeakReference(owner, null))) return false;
@@ -234,7 +234,7 @@ public final class SlimNetworkPolicy {
         if (!"com.suda.yzune.wakeupschedule.schedule_import.DXParserLoginFragment".equals(owner.getClass().getName())
             || !isActiveParser(owner, activity) || !url.equals(input.toString())) return false;
         try {
-            Field currentView = owner.getClass().getField("oOooo0o");
+            Field currentView = owner.getClass().getField("o00OOoo");
             Object webView = currentView.get(owner);
             WeakReference<Object> boundView = CURRENT_WEBVIEWS.get(new IdentityWeakReference(owner, null));
             if (webView == null || boundView == null || boundView.get() != webView
@@ -272,7 +272,7 @@ public final class SlimNetworkPolicy {
         Object webView;
         try {
             activity = owner.getClass().getMethod("getActivity").invoke(owner);
-            Field currentView = owner.getClass().getField("oOooo0o");
+            Field currentView = owner.getClass().getField("o00OOoo");
             webView = currentView.get(owner);
             if (webView == null || !isActiveParser(owner, activity)) return null;
         } catch (ReflectiveOperationException | RuntimeException exception) {
@@ -297,7 +297,7 @@ public final class SlimNetworkPolicy {
     private static Object reflectedCurrentWebView(Object owner) {
         if (owner == null) return null;
         try {
-            return owner.getClass().getField("oOooo0o").get(owner);
+            return owner.getClass().getField("o00OOoo").get(owner);
         } catch (ReflectiveOperationException | RuntimeException exception) {
             return null;
         }

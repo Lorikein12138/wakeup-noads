@@ -14,6 +14,11 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# Apktool and aapt2 otherwise saturate every core for minutes; child processes inherit the lower priority and the CPU subset.
+$Runner = [Diagnostics.Process]::GetCurrentProcess()
+$Runner.PriorityClass = [Diagnostics.ProcessPriorityClass]::BelowNormal
+$CpuLimit = [Math]::Max(1, [Math]::Min(63, [int][Math]::Floor([Environment]::ProcessorCount / 2)))
+$Runner.ProcessorAffinity = [IntPtr]((1L -shl $CpuLimit) - 1)
 $Root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $LockPath = Join-Path $Root 'patches/slim-v1/toolchain-lock.json'
 $Lock = Get-Content -LiteralPath $LockPath -Raw | ConvertFrom-Json

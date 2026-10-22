@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "baseline": {
-    "versionName": "6.5.4",
-    "versionCode": 543,
-    "path": "baseline/wakeup-v6.5.4.apk",
-    "sha256": "05050A52114FAC52019773F8E7F20C23CBAA23211575E4C378CF274663601623"
+    "versionName": "6.6.0",
+    "versionCode": 550,
+    "path": "baseline/wakeup-v6.6.0.apk",
+    "sha256": "6556E8AC409381BFC686D3407FBE25A2C2603FDC46B4BABFF89620E333712922"
   },
   "apktool": {
     "version": "3.0.3",

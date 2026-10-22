@@ -14,6 +14,12 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# The All suite otherwise saturates every core for minutes; child processes inherit the lower priority and the CPU subset.
+$Runner = [Diagnostics.Process]::GetCurrentProcess()
+$Runner.PriorityClass = [Diagnostics.ProcessPriorityClass]::BelowNormal
+$CpuLimit = [Math]::Max(1, [Math]::Min(63, [int][Math]::Floor([Environment]::ProcessorCount / 2)))
+$Runner.ProcessorAffinity = [IntPtr]((1L -shl $CpuLimit) - 1)
+$WorkerLimit = [Math]::Max(1, [Math]::Min(4, [int][Math]::Floor($CpuLimit / 2)))
 $Root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $TestsRoot = Join-Path $Root 'tests'
 $CacheRoot = Join-Path $Root 'tools/_cache/slim-v1-build/test-runs'
@@ -134,7 +140,7 @@ try {
     }
 
     if ($files.Count -gt 0) {
-        & $Node '--test' @files
+        & $Node '--test' "--test-concurrency=$WorkerLimit" @files
         if ($LASTEXITCODE -ne 0) { throw "Node suite '$Suite' failed with exit code $LASTEXITCODE." }
     }
 

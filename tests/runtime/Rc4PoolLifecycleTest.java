@@ -20,9 +20,9 @@ public final class Rc4PoolLifecycleTest {
         final Object owner = new Object();
         final BlockingQueue<Object> pool = new ArrayBlockingQueue<Object>(4);
         final AtomicInteger creates = new AtomicInteger();
-        Rc4PoolLifecycle.rebuildForTest(owner, pool, "version-seeded-key", new Rc4PoolLifecycle.InstanceFactory() {
+        Rc4PoolLifecycle.rebuildForTest(owner, pool, "550", new Rc4PoolLifecycle.InstanceFactory() {
             @Override public Object create(String key) {
-                check("version-seeded-key".equals(key), "factory receives the original version-seeded key");
+                check("550".equals(key), "factory receives the key derived from versionCode 550");
                 check(pool.isEmpty(), "the target pool stays empty until all instances have been created");
                 creates.incrementAndGet();
                 return new FakeRc4();
@@ -76,7 +76,7 @@ public final class Rc4PoolLifecycleTest {
     private static void testOldGenerationCannotReturnToNewPool() {
         Object owner = new Object();
         BlockingQueue<Object> pool = new ArrayBlockingQueue<Object>(4);
-        Rc4PoolLifecycle.rebuildForTest(owner, pool, "first-key", new CountingFactory());
+        Rc4PoolLifecycle.rebuildForTest(owner, pool, "550", new CountingFactory("550"));
         Object oldLease = Rc4PoolLifecycle.take(pool, 100L);
         Rc4PoolLifecycle.requireCurrent(owner, oldLease);
         Rc4PoolLifecycle.invalidate(owner, pool);
@@ -87,7 +87,7 @@ public final class Rc4PoolLifecycleTest {
         } catch (IllegalStateException expected) {
             check(expected.getMessage().contains("expired"), "expired lease is rejected before it can decrypt or encrypt");
         }
-        Rc4PoolLifecycle.rebuildForTest(owner, pool, "second-key", new CountingFactory());
+        Rc4PoolLifecycle.rebuildForTest(owner, pool, "654", new CountingFactory("654"));
         check(!Rc4PoolLifecycle.returnIfCurrent(owner, pool, oldLease), "a borrowed old-generation object is discarded");
         check(pool.size() == 4, "discarding the old lease does not disturb the new four-instance pool");
 
@@ -128,7 +128,14 @@ public final class Rc4PoolLifecycleTest {
 
     private static final class CountingFactory implements Rc4PoolLifecycle.InstanceFactory {
         private final AtomicInteger calls = new AtomicInteger();
-        @Override public Object create(String key) { calls.incrementAndGet(); return new FakeRc4(); }
+        private final String expectedKey;
+        CountingFactory() { this(null); }
+        CountingFactory(String expectedKey) { this.expectedKey = expectedKey; }
+        @Override public Object create(String key) {
+            if (expectedKey != null) check(expectedKey.equals(key), "factory receives the exact caller-supplied version key");
+            calls.incrementAndGet();
+            return new FakeRc4();
+        }
     }
 
     private static final class FakeRc4 { }

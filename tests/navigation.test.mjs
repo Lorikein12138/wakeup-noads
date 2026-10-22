@@ -11,12 +11,12 @@ const fixtures = path.resolve('tools/_cache/slim-v1-review/fixtures/round-2');
 const activityPath = 'smali_classes6/com/suda/yzune/wakeupschedule/schedule/ScheduleActivity.smali';
 const tabsPath = 'smali_classes6/com/suda/yzune/wakeupschedule/widget/MainAiTitleTabView.smali';
 const listenerPath = 'smali_classes6/com/suda/yzune/wakeupschedule/widget/MainAiTitleTabView$OooO0o.smali';
-const adapterPath = 'smali_classes5/o0O0OOoo.2/OooOOO.smali';
-const switchesPath = 'smali_classes5/o0O0o0O.2/o00oO0o.smali';
+const adapterPath = 'smali_classes6/o0OO00Oo.1/OooOOO0.smali';
+const switchesPath = 'smali_classes6/o0OO0oOo.3/o000oOoO.smali';
 const activityClass = 'Lcom/suda/yzune/wakeupschedule/schedule/ScheduleActivity;';
 const tabsClass = 'Lcom/suda/yzune/wakeupschedule/widget/MainAiTitleTabView;';
-const adapterClass = 'Lo0O0OOoo/OooOOO;';
-const switchesClass = 'Lo0O0o0O/o00oO0o;';
+const adapterClass = 'Lo0OO00Oo/OooOOO0;';
+const switchesClass = 'Lo0OO0oOo/o000oOoO;';
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 
 async function patchedFixture(t, { joint = false, layout = false } = {}) {
@@ -248,13 +248,18 @@ function tabExecuteMethod(source, callbackSource, descriptor, args, world) {
     const match = /^(invoke-(?:static|virtual|direct|super|interface)(?:\/range)?)\s+\{([^}]*)\},\s+(.+);->([^ (]+)(\(.*)$/.exec(instruction);
     assert.ok(match, `supported official tab invocation: ${instruction}`);
     const kind = match[1].replace('/range', '');
-    const rawRegisters = match[2].split(',').map((value) => value.trim()).filter(Boolean);
+    const registerRange = /^\s*([vp]\d+)\s+\.\.\s+([vp]\d+)\s*$/.exec(match[2]);
+    const rawRegisters = registerRange
+      ? Array.from({ length: Number(registerRange[2].slice(1)) - Number(registerRange[1].slice(1)) + 1 },
+        (_, offset) => registerRange[1][0] + (Number(registerRange[1].slice(1)) + offset))
+      : match[2].split(',').map((value) => value.trim()).filter(Boolean);
     const values = rawRegisters.map(read);
     const owner = `${match[3]};`;
     const name = match[4];
     const targetDescriptor = match[5];
     const receiver = kind === 'invoke-static' ? null : values[0];
     const callArgs = kind === 'invoke-static' ? values : values.slice(1);
+    if (owner === 'Lcom/meituan/robust/PatchProxy;' && name === 'proxy') return { isSupported: false, result: null };
     if (owner === tabsClass) {
       const callDescriptor = `${name}${targetDescriptor}`;
       if (name === 'loadTabs') {
@@ -277,17 +282,16 @@ function tabExecuteMethod(source, callbackSource, descriptor, args, world) {
     if (owner === 'Lcom/suda/yzune/wakeupschedule/widget/MainAiTitleTabView$OooO0o;') {
       const callDescriptor = `${name}${targetDescriptor}`;
       if (name === '<init>') {
-        receiver.tab = callArgs[0]; receiver.adapter = callArgs[1];
-        receiver.o00OOO0O = callArgs[0]; receiver.o0o0Oo = callArgs[1];
+        receiver.o00OOOO = callArgs[0]; receiver.o00OOOOo = callArgs[1];
         return undefined;
       }
       return tabExecuteMethod(source, callbackSource, callDescriptor, [receiver, ...callArgs], world);
     }
-    if (owner === 'Lo0O0OOoo/OooOOO;') {
+    if (owner === 'Lo0OO00Oo/OooOOO0;') {
       if (name === 'OooO0O0') return receiver.tabs;
       if (name === 'getCount') return receiver.tabs.length;
     }
-    if (owner === 'Lo0O0OOoo/OooOOOO;' && name === 'OooO0O0') return receiver.id;
+    if (owner === 'Lo0OO00Oo/OooOOO;' && name === 'OooO0O0') return receiver.id;
     if (owner === 'Landroidx/viewpager/widget/ViewPager;') {
       if (name === 'getAdapter') return receiver.adapter;
       if (name === 'getCurrentItem') return receiver.currentItem;
@@ -296,16 +300,16 @@ function tabExecuteMethod(source, callbackSource, descriptor, args, world) {
         receiver.listeners.push(callArgs[0]); world.listenerAdded = true; world.events.push('listener-added'); return undefined;
       }
     }
-    if (owner === 'Lcom/suda/yzune/wakeupschedule/schedule/ScheduleViewModel;' && name === 'Oooo0OO') return receiver.night;
+    if (owner === 'Lcom/suda/yzune/wakeupschedule/schedule/ScheduleViewModel;' && name === 'Oooo0o') return receiver.night;
     if (owner === 'Lcom/suda/yzune/wakeupschedule/utils/ScheduleSpUtils;' && name === 'OooO0Oo') return world.preferenceNight;
-    if (owner === 'Lkotlin/OooOOO0;' && name === 'getValue') return receiver.value;
+    if (owner === 'Lo0o0OO0/o000oOoO;' && name === 'getValue') return receiver.value;
     if (owner === 'Landroidx/core/view/ViewGroupKt;' && name === 'getChildren') return { items: callArgs[0].children };
     if (owner === 'Lkotlin/sequences/OooOo00;' && name === 'iterator') return { items: receiver.items, index: 0 };
     if (owner === 'Ljava/util/List;' && name === 'iterator') return { items: receiver, index: 0 };
     if (owner === 'Ljava/util/Iterator;' && name === 'hasNext') return receiver.index < receiver.items.length;
     if (owner === 'Ljava/util/Iterator;' && name === 'next') return receiver.items[receiver.index++];
     if (owner === 'Ljava/util/List;' && name === 'get') return receiver[callArgs[0]] ?? null;
-    if (owner === 'Lkotlin/collections/o00000O0;' && name === 'o0OOO0o') return callArgs[0][callArgs[1]] ?? null;
+    if (owner === 'Lkotlin/collections/o00000O0;' && name === 'o0Oo0oo') return callArgs[0][callArgs[1]] ?? null;
     if (owner === 'Ljava/lang/String;' && name === 'hashCode') {
       let result = 0; for (const character of receiver) result = (Math.imul(result, 31) + character.charCodeAt(0)) | 0; return result;
     }
@@ -326,8 +330,12 @@ function tabExecuteMethod(source, callbackSource, descriptor, args, world) {
       assert.ok(callArgs[1] >= 0 && callArgs[1] <= 255, 'production ColorUtils receives an 8-bit alpha');
       return ((callArgs[0] & 0x00ffffff) | (callArgs[1] << 24)) | 0;
     }
-    if (owner === 'Lkotlin/text/o000000O;' && name === 'OoooOoO') return callArgs[0].startsWith(callArgs[1]);
-    if (owner === 'Lkotlin/text/o00000OO;' && name === 'o00000oo') return callArgs[0].startsWith(callArgs[1]) ? callArgs[0].slice(callArgs[1].length) : callArgs[0];
+    if (owner === 'Lkotlin/text/o000000O;' && name === 'OoooOoo') {
+      const value = callArgs[2] ? callArgs[0].toLowerCase() : callArgs[0];
+      const prefix = callArgs[2] ? callArgs[1].toLowerCase() : callArgs[1];
+      return value.startsWith(prefix);
+    }
+    if (owner === 'Lkotlin/text/o00000OO;' && name === 'o0000') return callArgs[0].startsWith(callArgs[1]) ? callArgs[0].slice(callArgs[1].length) : callArgs[0];
     if (owner === 'Landroid/view/View;' && name === 'setBackgroundColor') { receiver.backgroundColor = callArgs[0] | 0; return undefined; }
     if (owner === 'Landroid/view/View;' && name === 'setVisibility') { receiver.visibility = callArgs[0]; return undefined; }
     if (owner === 'Landroid/view/View;' && name === 'findViewById') return receiver.views.get(callArgs[0]) ?? null;
@@ -340,10 +348,10 @@ function tabExecuteMethod(source, callbackSource, descriptor, args, world) {
     if (owner === 'Landroid/widget/TextView;' && name === 'setTextColor') { receiver.textColor = callArgs[0] | 0; return undefined; }
     if (owner === 'Landroidx/appcompat/widget/AppCompatImageView;' && name === 'setImageResource') { receiver.imageResource = callArgs[0]; return undefined; }
     if (owner === 'Ljava/lang/Math;' && name === 'rint') return Math.round(callArgs[0]);
-    if (owner === 'Lo000OOoO/OooO00o;' && name === 'OooO0o') return world.density;
-    if (owner === 'Lo000OOO/OooO;' && name === 'OooOOOo') return undefined;
-    if (owner === 'Lkotlin/jvm/internal/o00oO0o;' && name === 'OooO0O0') return callArgs[0] === callArgs[1];
-    if (owner === 'Lkotlin/jvm/internal/o00oO0o;' && ['OooO0o', 'OooO0o0', 'OooO0oO'].includes(name)) return undefined;
+    if (owner === 'Lo000ooO0/OooOo;' && name === 'OooO0o') return world.density;
+    if (owner === 'Lo000oo0o/OooOo00;' && name === 'OooOOOo') return undefined;
+    if (owner === 'Lkotlin/jvm/internal/o00oO0o;' && name === 'OooO0Oo') return callArgs[0] === callArgs[1];
+    if (owner === 'Lkotlin/jvm/internal/o00oO0o;' && ['OooO', 'OooO0o', 'OooO0o0', 'OooO0oO', 'OooO0oo'].includes(name)) return undefined;
     if (owner === 'Lkotlin/jvm/internal/o00oO0o;' && name === 'OooOoO0') throw new Error('unexpected null check failure in official tab code');
     if (owner === 'Lkotlin/jvm/functions/Function2;' && name === 'invoke') {
       const emitted = [callArgs[0], callArgs[1]];
@@ -366,19 +374,28 @@ function tabExecuteMethod(source, callbackSource, descriptor, args, world) {
       const tail = instruction.slice(op.length).trim().split(/\s+#/, 1)[0].trim();
       const parts = tail.split(',').map((part) => part.trim());
       let jump = null;
-      if (op === 'const-string') {
+      if (op === 'const-class') write(parts[0], { kind: 'class', descriptor: parts[1] });
+      else if (op === 'const-string') {
         const comma = tail.indexOf(','); write(parts[0], JSON.parse(tail.slice(comma + 1).trim()));
       } else if (op === 'const/high16') write(parts[0], tabFloatBits(parts[1]));
       else if (/^const(?:\/4|\/16)?$/.test(op)) write(parts[0], tabInt(parts[1]));
       else if (op === 'new-instance') write(parts[0], { kind: 'listener' });
+      else if (op === 'new-array') write(parts[0], Array.from({ length: read(parts[1]) }, () => null));
+      else if (op === 'aput-object' || op === 'aput') read(parts[1])[read(parts[2])] = read(parts[0]);
+      else if (op === 'aget-object' || op === 'aget') write(parts[0], read(parts[1])[read(parts[2])]);
+      else if (op === 'array-length') write(parts[0], read(parts[1]).length);
       else if (op === 'move' || op === 'move-object') write(parts[0], read(parts[1]));
       else if (op === 'move-result' || op === 'move-result-object' || op === 'move-result-wide') { write(parts[0], lastResult); lastResult = undefined; }
       else if (op === 'move-exception') write(parts[0], { kind: 'ignored-exception' });
+      else if (op === 'filled-new-array' || op === 'filled-new-array/range') {
+        const registersInArray = /\{([^}]*)\}/.exec(tail)?.[1] ?? '';
+        lastResult = registersInArray.split(',').map((register) => register.trim()).filter(Boolean).map(read);
+      }
       else if (op.startsWith('invoke-')) lastResult = invoke(instruction);
       else if (op === 'sget-object') write(parts[0], world.scheduleSpUtils);
-      else if (op === 'iget' || op === 'iget-object') {
+      else if (op === 'iget' || op === 'iget-object' || op === 'iget-boolean') {
         const field = fieldName(parts[2]); assert.ok(field, `production tab field is recognized: ${instruction}`); write(parts[0], read(parts[1])[field]);
-      } else if (op === 'iput' || op === 'iput-object') {
+      } else if (op === 'iput' || op === 'iput-object' || op === 'iput-boolean') {
         const field = fieldName(parts[2]); assert.ok(field, `production tab field is recognized: ${instruction}`); read(parts[1])[field] = read(parts[0]);
         if (field === 'scheduleViewModel') world.modelBound = true;
         if (field === 'viewPager') { world.pagerBound = true; world.events.push('pager-bound'); }
@@ -425,13 +442,13 @@ function extractTabAdditions(onCreate) {
     if (match) { types.set(match[1], match[2]); strings.delete(match[1]); continue; }
     match = line.match(/^\s*const-string\s+(\w+),\s*(".*")\s*$/);
     if (match) { strings.set(match[1], decodedSmaliString(match[2])); types.delete(match[1]); continue; }
-    match = line.match(/^\s*invoke-direct\s+\{([^}]+)\},\s*Lo0O0OOoo\/OooOOOO;-><init>/);
+    match = line.match(/^\s*invoke-direct\s+\{([^}]+)\},\s*Lo0OO00Oo\/OooOOO;-><init>/);
     if (match) {
       const registers = match[1].split(',').map((value) => value.trim());
       const objectRegister = registers[0];
       const stringArgs = registers.slice(1).filter((register) => strings.has(register));
-      const fragmentRegister = registers.slice(1).find((register) => types.has(register) && types.get(register) !== 'Lo0O0OOoo/OooOOOO;');
-      if (types.get(objectRegister) === 'Lo0O0OOoo/OooOOOO;' && stringArgs.length >= 2 && fragmentRegister) {
+      const fragmentRegister = registers.slice(1).find((register) => types.has(register) && types.get(register) !== 'Lo0OO00Oo/OooOOO;');
+      if (types.get(objectRegister) === 'Lo0OO00Oo/OooOOO;' && stringArgs.length >= 2 && fragmentRegister) {
         tabs.set(objectRegister, {
           id: strings.get(stringArgs[0]),
           title: strings.get(stringArgs[1]),
@@ -488,7 +505,7 @@ function makeTabBinding(input) {
   const tabViews = adapter.tabs.map(() => {
     const title = { textSize: 14, textColor: 0, alpha: 0, translationX: -1 };
     const icon = { imageResource: 0, visibility: 0 };
-    return { title, icon, views: new Map([[0x7f090aaf, title], [0x7f0903c4, icon]]) };
+    return { title, icon, views: new Map([[0x7f090abb, title], [0x7f0903cf, icon]]) };
   });
   const backgroundImage = { visibility: 0, drawable: input.drawable, imageResource: 0 };
   const tab = {
@@ -592,14 +609,16 @@ test('home assembles only schedule and mine while the upstream calendar class re
     { id: 'mine', title: '我的', fragment: 'Lcom/suda/yzune/wakeupschedule/aaa/fragment/MineFragment;' },
   ]);
   assert.equal(hasTwoHomeTabContract(onCreate, tabs), true, 'the patched onCreate has exactly the retained two tabs');
-  const forcedJump = onCreate.indexOf('goto :cond_b');
-  const unreachableCalendar = onCreate.indexOf('new-instance v5, Lcom/suda/yzune/wakeupschedule/aaa/calendar/ui/CalendarFragment;');
-  const jumpTarget = [...onCreate.matchAll(/^\s*:cond_b\s*$/gm)].map((match) => match.index).find((index) => index > forcedJump) ?? -1;
-  assert.ok(forcedJump >= 0 && unreachableCalendar > forcedJump && jumpTarget > unreachableCalendar,
-    'the fixed unconditional jump skips the retained upstream calendar block before its target label');
-  assert.equal((onCreate.match(/const-string v6, "calendar"/g) ?? []).length, 1,
-    'the upstream calendar instructions remain as unreachable bytecode rather than being mistaken for a visible tab');
-  assert.equal((await readFile(path.join(baseline, 'smali_classes5/com/suda/yzune/wakeupschedule/aaa/calendar/ui/CalendarFragment.smali'), 'utf8')).includes('.class '), true,
+  const calendarConstructor = onCreate.indexOf('invoke-direct {v5, v7, v8, v6}, Lo0OO00Oo/OooOOO;-><init>');
+  const hiddenCalendarAdd = onCreate.indexOf('\n    nop\n', calendarConstructor);
+  const calendarFragmentRead = onCreate.indexOf('invoke-virtual {v5}, Lo0OO00Oo/OooOOO;->OooO00o()', calendarConstructor);
+  assert.ok(calendarConstructor >= 0 && hiddenCalendarAdd > calendarConstructor && calendarFragmentRead > hiddenCalendarAdd,
+    'the calendar tab list insertion is replaced by nop while upstream fragment bookkeeping remains');
+  assert.equal((onCreate.match(/const-string v7, "calendar"/g) ?? []).length, 1,
+    'the upstream calendar metadata remains, while its list insertion is disabled');
+  assert.doesNotMatch(onCreate, /invoke-virtual \{p1, v5\}, Ljava\/util\/ArrayList;->add\(Ljava\/lang\/Object;\)Z/,
+    'the calendar object is not added to the home adapter');
+  assert.equal((await readFile(path.join(baseline, 'smali_classes6/com/suda/yzune/wakeupschedule/aaa/calendar/ui/CalendarFragment.smali'), 'utf8')).includes('.class '), true,
     'the upstream calendar implementation remains in the APK but is not reachable from home');
   assert.doesNotMatch(onCreate, /AssistantFragment|const-string v5, "assistant"|const-string v5, "learn"|aaa\/learn\/Oooo000/);
 });
@@ -614,19 +633,20 @@ test('the removed calendar AB patch cannot restore a fixed tab in either AB stat
   for (const abValue of [false, true]) {
     assert.deepEqual(extractTabAdditions(onCreate).map(({ id }) => id), ['schedule', 'mine'], `AB value ${abValue} has no calendar call site to enable`);
   }
-  assert.match(onCreate, /goto :cond_b/);
+  assert.doesNotMatch(onCreate, /invoke-virtual \{p1, v5\}, Ljava\/util\/ArrayList;->add\(Ljava\/lang\/Object;\)Z/);
   assert.doesNotMatch(onCreate, /OooOOo0\(\)Z/);
 });
 
 test('restored bottom_banner cannot select the HomeBannerController branch', async (t) => {
   const root = await patchedFixture(t);
   const onCreate = await readSmaliMethod(root, activityPath, activityClass, 'public onCreate(Landroid/os/Bundle;)V');
-  const assignedFalse = onCreate.indexOf('iput-boolean v0, p0, Lcom/suda/yzune/wakeupschedule/schedule/ScheduleActivity;->o00OOOO:Z');
-  const bannerBranch = onCreate.indexOf('iget-boolean v1, p0, Lcom/suda/yzune/wakeupschedule/schedule/ScheduleActivity;->o00OOOO:Z');
-  const bannerCreate = onCreate.indexOf('new-instance p1, Lcom/suda/yzune/wakeupschedule/schedule/home/HomeBannerController;');
-  assert.ok(assignedFalse >= 0 && bannerBranch > assignedFalse && bannerCreate > bannerBranch);
-  assert.match(onCreate.slice(bannerBranch, bannerCreate), /if-eqz v1, :cond_8/);
-  assert.match(onCreate, /invoke-virtual \{p1\}, Lo0O0oOOO\/o00000OO;->OooO0O0\(\)Landroid\/widget\/FrameLayout;/);
+  const assignedFalse = onCreate.indexOf('iput-boolean v0, v1, Lcom/suda/yzune/wakeupschedule/schedule/ScheduleActivity;->o00OOOo:Z');
+  const bannerBranch = onCreate.indexOf('iget-boolean v2, v1, Lcom/suda/yzune/wakeupschedule/schedule/ScheduleActivity;->o00OOOo:Z');
+  const skipBanner = onCreate.indexOf('if-eqz v2, :cond_9', bannerBranch);
+  const bannerCreate = onCreate.indexOf('new-instance p1, Lcom/suda/yzune/wakeupschedule/schedule/home/HomeBannerController;', skipBanner);
+  const skipTarget = onCreate.indexOf('\n    :cond_9', skipBanner);
+  assert.ok(assignedFalse >= 0 && bannerBranch > assignedFalse && skipBanner > bannerBranch && bannerCreate > skipBanner && skipTarget > bannerCreate);
+  assert.match(onCreate, /invoke-virtual \{p1\}, Lcom\/suda\/yzune\/wakeupschedule\/schedule\/home\/HomeBannerController;->OooOOOO\(\)Landroid\/widget\/FrameLayout;/);
 });
 
 test('schedule and mine IDs resolve against the actual two tabs; all other IDs fall back to schedule', async (t) => {
@@ -635,9 +655,9 @@ test('schedule and mine IDs resolve against the actual two tabs; all other IDs f
   const tabs = extractTabAdditions(onCreate);
   const adapter = await readSmaliMethod(root, adapterPath, adapterClass, 'public final OooO00o(Ljava/lang/String;)I');
   const route = await readSmaliMethod(root, activityPath, activityClass, 'public final o0000oO0(Ljava/lang/String;)V');
-  assert.match(adapter, /Iterable;->iterator\(\)[\s\S]*?const\/4 v1, -0x1[\s\S]*?const\/4 v2, 0x0/);
-  assert.match(adapter, /OooOOOO;->OooO0O0\(\)Ljava\/lang\/String;[\s\S]*?if-eqz v3, :cond_1[\s\S]*?return v1/);
-  assert.match(route, /OooOOO;->OooO00o\(Ljava\/lang\/String;\)I[\s\S]*?if-gez p1, :slim_v1_schedule_tab_resolved[\s\S]*?const-string p1, "schedule"[\s\S]*?setCurrentItem\(I\)V/);
+  assert.match(adapter, /Iterable;->iterator\(\)[\s\S]*?const\/4 v2, -0x1[\s\S]*?const\/4 v3, 0x0/);
+  assert.match(adapter, /OooOOO;->OooO0O0\(\)Ljava\/lang\/String;[\s\S]*?if-eqz v4, :cond_2[\s\S]*?return v3[\s\S]*?:cond_3[\s\S]*?return v2/);
+  assert.match(route, /OooOOO0;->OooO00o\(Ljava\/lang\/String;\)I[\s\S]*?if-gez p1, :slim_v1_schedule_tab_resolved[\s\S]*?const-string p1, "schedule"[\s\S]*?setCurrentItem\(I\)V/);
   const resolve = (id) => {
     const found = tabs.findIndex((tab) => tab.id === id);
     return found >= 0 ? found : tabs.findIndex((tab) => tab.id === 'schedule');
@@ -648,13 +668,13 @@ test('schedule and mine IDs resolve against the actual two tabs; all other IDs f
 
   const initial = await readSmaliMethod(root, activityPath, activityClass, 'public final o0000OOo()V');
   const newIntent = await readSmaliMethod(root, activityPath, activityClass, 'public onNewIntent(Landroid/content/Intent;)V');
-  assert.match(initial, /getIntent\(\)[\s\S]*?const-string v2, "select_tab_id"[\s\S]*?hasExtra\(Ljava\/lang\/String;\)Z[\s\S]*?getStringExtra\(Ljava\/lang\/String;\)/);
+  assert.match(initial, /getIntent\(\)[\s\S]*?const-string v3, "select_tab_id"[\s\S]*?hasExtra\(Ljava\/lang\/String;\)Z[\s\S]*?getStringExtra\(Ljava\/lang\/String;\)/);
   assert.match(initial, /const-string v0, "schedule"[\s\S]*?o0000oO0\(Ljava\/lang\/String;\)V/);
-  assert.match(newIntent, /getStringExtra\(Ljava\/lang\/String;\)[\s\S]*?if-nez p1, :cond_1[\s\S]*?const-string p1, "schedule"[\s\S]*?o0000oO0\(Ljava\/lang\/String;\)V/);
+  assert.match(newIntent, /getStringExtra\(Ljava\/lang\/String;\)[\s\S]*?if-nez p1, :cond_2[\s\S]*?const-string p1, "schedule"[\s\S]*?o0000oO0\(Ljava\/lang\/String;\)V/);
   assert.match(newIntent, /const-string v0, "only_select_tab"[\s\S]*?setIntent\(Landroid\/content\/Intent;\)V[\s\S]*?o0000OOo\(\)V/);
-  assert.equal(/const-string v2, "select_tab_id"[\s\S]*?hasExtra\(Ljava\/lang\/String;\)Z[\s\S]*?getStringExtra\(Ljava\/lang\/String;\)/.test(initial), true,
+  assert.equal(/const-string v3, "select_tab_id"[\s\S]*?hasExtra\(Ljava\/lang\/String;\)Z[\s\S]*?getStringExtra\(Ljava\/lang\/String;\)/.test(initial), true,
     'the initial request key is prepared, checked for presence, then read');
-  assert.equal(/getStringExtra[\s\S]*?if-nez p1, :cond_1[\s\S]*?const-string p1, "schedule"/.test(newIntent), true,
+  assert.equal(/getStringExtra[\s\S]*?if-nez p1, :cond_2[\s\S]*?const-string p1, "schedule"/.test(newIntent), true,
     'a missing new-Intent Extra defaults to schedule');
   // The ID resolution above is a model over extracted Smali metadata; it does not execute Android routing.
 });
@@ -673,8 +693,10 @@ test('routing state and home page gesture instructions remain at baseline', asyn
   const beforeCreate = await readSmaliMethod(baseline, activityPath, activityClass, 'public onCreate(Landroid/os/Bundle;)V');
   const afterCreate = await readSmaliMethod(root, activityPath, activityClass, 'public onCreate(Landroid/os/Bundle;)V');
   const assertNoScrollTrue = (body) => {
-    const call = body.indexOf('invoke-virtual {p1, v1}, Lcom/baidu/homework/common/ui/widget/NoScrollViewPager;->setNoScroll(Z)V');
-    const assignment = body.lastIndexOf('const/4 v1, 0x1', call);
+    const setter = /invoke-virtual \{p1, (v\d+)\}, Lcom\/baidu\/homework\/common\/ui\/widget\/NoScrollViewPager;->setNoScroll\(Z\)V/.exec(body);
+    assert.ok(setter, 'production onCreate contains its NoScrollViewPager setter');
+    const call = body.indexOf(setter[0]);
+    const assignment = body.lastIndexOf('const/4 ' + setter[1] + ', 0x1', call);
     assert.ok(call >= 0 && assignment >= 0, 'onCreate sets the pager to no-scroll with true');
     assert.doesNotMatch(body.slice(assignment + 'const/4 v1, 0x1'.length, call),
       /^\s*(?:const|move|move-result|iget|sget|new-instance|check-cast|array-length|aget)\S*\s+v1(?:,|\s)/m,
@@ -688,9 +710,9 @@ test('tab labels and page callbacks continue to use the adapter list and dynamic
   const root = await patchedFixture(t);
   const loadTabs = await readSmaliMethod(root, tabsPath, tabsClass, 'private final loadTabs(Ljava/util/List;)V');
   const setViewPager = await readSmaliMethod(root, tabsPath, tabsClass, 'public final setViewPager(Landroidx/viewpager/widget/ViewPager;Lcom/suda/yzune/wakeupschedule/schedule/ScheduleViewModel;)V');
-  assert.match(loadTabs, /List;->size\(\)I[\s\S]*?div-int\/2addr v1, v0[\s\S]*?Iterable;->iterator\(\)/);
-  assert.match(loadTabs, /add-int\/lit8 v4, v3, 0x1[\s\S]*?OooOOOO;->OooO0OO\(\)Ljava\/lang\/String;[\s\S]*?MainAiTitleTabView\$OooO0O0;-><init>\(Lcom\/suda\/yzune\/wakeupschedule\/widget\/MainAiTitleTabView;ILjava\/lang\/String;\)V/);
-  assert.match(setViewPager, /OooOOO;->OooO0O0\(\)Ljava\/util\/List;[\s\S]*?loadTabs\(Ljava\/util\/List;\)V[\s\S]*?getCount\(\)I/);
+  assert.match(loadTabs, /List;->size\(\)I[\s\S]*?move-result v0[\s\S]*?div-int\/2addr v2, v0[\s\S]*?Iterable;->iterator\(\)/);
+  assert.match(loadTabs, /add-int\/lit8 v5, v4, 0x1[\s\S]*?OooOOO;->OooO0OO\(\)Ljava\/lang\/String;[\s\S]*?MainAiTitleTabView\$OooO0O0;-><init>\(Lcom\/suda\/yzune\/wakeupschedule\/widget\/MainAiTitleTabView;ILjava\/lang\/String;\)V/);
+  assert.match(setViewPager, /OooOOO0;->OooO0O0\(\)Ljava\/util\/List;[\s\S]*?loadTabs\(Ljava\/util\/List;\)V[\s\S]*?getCount\(\)I/);
 });
 
 test('production initial tab refresh uses the official palette for every current page and later refresh path', async (t) => {
@@ -738,7 +760,7 @@ test('joint offline/network patch keeps the two-tab home local and preserves onl
   const tabs = extractTabAdditions(onCreate);
   assert.equal(hasTwoHomeTabContract(onCreate, tabs), true, 'the joint patch retains only schedule and mine');
   const switches = await readSmaliMethod(root, switchesPath, switchesClass, 'public static final OooOOOO()Z');
-  const callback = await readSmaliMethod(root, switchesPath, switchesClass, 'public static final OooOo0o(Landroid/content/Context;Lo000O0Oo/OooO0O0;)V');
+  const callback = await readSmaliMethod(root, switchesPath, switchesClass, 'public static final OooOo0o(Landroid/content/Context;Lo000o0OO/OooO;)V');
   assert.match(switches, /const\/4 v0, 0x0\s+return v0/);
   assert.match(callback, /OooO00o\(Ljava\/lang\/Object;\)V[\s\S]*?return-void/);
   assert.doesNotMatch(callback, /enqueue|execute|startActivity|Http|Request|OooO0OO\(/);
@@ -746,7 +768,7 @@ test('joint offline/network patch keeps the two-tab home local and preserves onl
   const localTasks = await readSmaliMethod(root, activityPath, activityClass, 'public final oo0o0Oo()V');
   assert.match(localTasks, /ScheduleActivity\$OooO0o;-><init>/);
   assert.match(localTasks, /ScheduleActivity\$OooO;-><init>/);
-  assert.match(localTasks, /o00OOooO:Lo0O00Ooo\/OooOOO;[\s\S]*?OooO0o\(\[Lcom\/homework\/launchmanager\/task\/OooO00o;\)/);
+  assert.match(localTasks, /iget-object v4, p0, Lcom\/suda\/yzune\/wakeupschedule\/schedule\/ScheduleActivity;->o00Oo00:Lo0O0oO\/OooO0o;[\s\S]*?invoke-virtual \{v4, v2\}, Lo0O0oO\/OooO0o;->OooO0o\(\[Lcom\/homework\/launchmanager\/task\/OooO00o;\)/);
   for (const signature of [
     'public final o0000()V',
     'public final o00000Oo()V',
@@ -764,7 +786,10 @@ test('production pager listener keeps the bottom sheet above the real home tabs'
   const onDestroy = await readSmaliMethod(root, activityPath, activityClass, 'public onDestroy()V');
   assert.equal((onCreate.match(/slimInstallPagerBounds\(\)V/g) ?? []).length, 1);
   assert.ok(onCreate.indexOf('setViewPager(Landroidx/viewpager/widget/ViewPager;') < onCreate.indexOf('slimInstallPagerBounds()V'));
-  assert.ok(onDestroy.indexOf('slimRemovePagerBounds()V') < onDestroy.indexOf('invoke-super {p0}, Landroidx/appcompat/app/AppCompatActivity;->onDestroy()V'));
+  assert.equal((onDestroy.match(/slimRemovePagerBounds\(\)V/g) ?? []).length, 1);
+  const destroySuper = onDestroy.indexOf('invoke-super {p0}, Landroidx/appcompat/app/AppCompatActivity;->onDestroy()V');
+  assert.ok(destroySuper >= 0);
+  assert.ok(onDestroy.indexOf('slimRemovePagerBounds()V') < destroySuper);
   for (const descriptor of [
     'public onLayoutChange(Landroid/view/View;IIIIIIII)V',
     'private slimInstallPagerBounds()V',

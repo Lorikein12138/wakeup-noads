@@ -3,6 +3,15 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 
 const DEBUG_DIRECTIVE = /^\s*\.(?:line|local|prologue|epilogue|end local|restart local)\b/;
+const TYPE_DEFAULT_VALUES = { Z: 'false', B: '0x0t', S: '0x0s', C: "'\\u0000'", I: '0x0', J: '0x0L', F: '0.0f', D: '0.0' };
+
+function withoutDefaultStaticValue(line) {
+  const field = line.match(/^(\.field\s+(?:[a-z-]+\s+)*?static\s+.*?:(\S+)) = (.+)$/);
+  if (!field) return line;
+  const [, declaration, type, value] = field;
+  const defaultValue = type.startsWith('L') || type.startsWith('[') ? 'null' : TYPE_DEFAULT_VALUES[type];
+  return value === defaultValue ? declaration : line;
+}
 const LABEL_DECLARATION = /^\s*(:[A-Za-z0-9_$.-]+)\s*$/;
 
 export async function readSmaliMethod(root, relativePath, classDescriptor, methodDescriptor) {
@@ -307,7 +316,8 @@ export function parseSmaliClassStructure(source, location = '<smali>') {
       continue;
     }
     const stripped = normalizeLineWhitespace(stripComment(line));
-    if (stripped && !DEBUG_DIRECTIVE.test(stripped)) structureLines.push(stripped);
+    // DEX assembly drops trailing static initial values equal to the field type default.
+    if (stripped && !DEBUG_DIRECTIVE.test(stripped)) structureLines.push(withoutDefaultStaticValue(stripped));
     cursor += 1;
   }
   const descriptors = new Set();

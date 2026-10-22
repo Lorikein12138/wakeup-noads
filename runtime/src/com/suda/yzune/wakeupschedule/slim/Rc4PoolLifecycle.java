@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 public final class Rc4PoolLifecycle {
     private static final int POOL_SIZE = 4;
     private static final long BORROW_TIMEOUT_MILLIS = 1_000L;
-    private static final String RC4_CLASS = "Lo00o0O.o0OO00O";
+    private static final String RC4_CLASS = "o0000oo.o0ooOOo";
     private static final Map<Object, Long> OWNER_GENERATIONS = new WeakHashMap<Object, Long>();
     private static final Map<Object, Long> INSTANCE_GENERATIONS = new WeakHashMap<Object, Long>();
 

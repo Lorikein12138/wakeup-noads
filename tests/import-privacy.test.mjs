@@ -83,7 +83,7 @@ test('E19 help stays local and search misses no longer offer adaptation', async 
     fixtureRoot,
     relativePaths[3],
     'Lcom/suda/yzune/wakeupschedule/schedule_import/SchoolListActivity;',
-    'public final o0000OO(Ljava/lang/String;)V',
+    'public final o0000o0O(Ljava/lang/String;)V',
   );
   assert.match(school, /\\u6ca1\\u6709\\u627e\\u5230\\u4f60\\u7684\\u5b66\\u6821\\u54e6/);
   assert.match(school, /Snackbar;->o000oOoO\(\)V/);
@@ -93,7 +93,7 @@ test('E19 help stays local and search misses no longer offer adaptation', async 
     fixtureRoot,
     relativePaths[3],
     'Lcom/suda/yzune/wakeupschedule/schedule_import/SchoolListActivity;',
-    'public static final o0000O0(Lcom/suda/yzune/wakeupschedule/schedule_import/SchoolListActivity;Lcom/chad/library/adapter/base/BaseQuickAdapter;Landroid/view/View;I)V',
+    'public static final o0000O(Lcom/suda/yzune/wakeupschedule/schedule_import/SchoolListActivity;Lcom/chad/library/adapter/base/BaseQuickAdapter;Landroid/view/View;I)V',
   );
   assert.match(helpClick, /getType\(\)Ljava\/lang\/String;[\s\S]*?"help"[\s\S]*?utils\/o000O0;->OooOOo0/);
   assert.match(helpClick, /utils\/o000O0;->OooOOo0[\s\S]*?return-void/);
@@ -109,12 +109,12 @@ test('E08 skips import-feedback behavior and E15 returns an already-completed no
     fixtureRoot,
     relativePaths[4],
     'Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;',
-    'public final o00O00o(Lcom/suda/yzune/wakeupschedule/schedule/SchedulePagerItemLayout;)V',
+    'public final oo00o(Lcom/suda/yzune/wakeupschedule/schedule/SchedulePagerItemLayout;)V',
   );
-  const feedbackDisabled = schedule.indexOf('goto :cond_9');
+  const feedbackDisabled = schedule.indexOf('goto :cond_a');
   const feedbackBranch = schedule.indexOf('showImportFeedback(');
   assert.ok(feedbackDisabled >= 0 && feedbackBranch > feedbackDisabled);
-  assert.match(schedule.slice(feedbackDisabled, feedbackBranch), /goto :cond_9/);
+  assert.match(schedule.slice(feedbackDisabled, feedbackBranch), /goto :cond_a/);
   assert.match(schedule, /showOperationContent\(\)V/);
   assert.match(schedule, /showImportFeedback\(/, 'the preserved feedback body is unreachable through the forced-false branch');
 
@@ -179,7 +179,7 @@ test('E30 displays the local privacy text plainly and removes every legacy visit
   const privacyClass = 'Lcom/suda/yzune/wakeupschedule/utils/o000000O;';
   const listenerSetup = await readSmaliMethod(fixtureRoot, privacyPath, privacyClass, 'public final OooOO0()V');
   assert.equal(listenerSetup.split('setOnClickListener(').length - 1, 4, 'the four consent and settings listeners remain');
-  assert.doesNotMatch(listenerSetup, /->o00OOOo:Landroid\/widget\/TextView;/, 'the visitor field receives no listener');
+  assert.doesNotMatch(listenerSetup, /->o00OOOo0:Landroid\/view\/View;/, 'the hidden visitor view receives no listener');
 
   const plainText = await readSmaliMethod(fixtureRoot, privacyPath, privacyClass, 'public final OooOOOO()V');
   assert.match(plainText, /OooO0o0\(\)Landroid\/text\/Spannable;/, 'the original local policy text is still generated');
@@ -207,7 +207,7 @@ test('E30 displays the local privacy text plainly and removes every legacy visit
   for (const preserved of [
     'o0000OO0;->OooO0o(Landroid/content/Context;Z)V',
     'o000000O;->OooO0oO()V',
-    'o000000O$OooO0O0;->OooO00o()V',
+    'o000000O$OooO0O0;->OooO0O0()V',
     'o000000O$OooO0O0;->OooO0OO(ZZ)V',
   ]) assert.ok(agreementAndDenial.includes(preserved), `preserved privacy transition: ${preserved}`);
 });
