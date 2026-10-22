@@ -765,6 +765,11 @@ test('global settings appends a read-only current-version item that calls the sh
   assert.equal((list.match(/0x7f130021/g) ?? []).length, 1);
   assert.match(list, /settings\/items\/OooO0o;-><init>\(ILjava\/lang\/String;Ljava\/util\/List;\)V/);
   assert.match(list, /BaseApplication\$OooO00o;->OooO\(\)Ljava\/lang\/String;/);
+  // The section must be added to the caller's list (p1), not to whatever object the register held in an older baseline.
+  const listRegister = /move-object\/from16 (v\d+), p1\b/.exec(list)?.[1] ?? 'p1';
+  const sectionAdd = /invoke-interface \{(\w+), v4\}, Ljava\/util\/List;->add\(Ljava\/lang\/Object;\)Z\s+return-void\s*$/.exec(list.trimEnd().replace(/\.end method$/, '').trimEnd());
+  assert.ok(sectionAdd, 'the version section is appended immediately before return-void');
+  assert.equal(sectionAdd[1], listRegister, 'the version section is appended to the settings list parameter');
   assert.match(click, /move\/from16 v1, p2\s+if-ne v1, v0, :slim_version_click_continue\s+return-void\s+:slim_version_click_continue/);
   assert.doesNotMatch(click.slice(0, click.indexOf(':slim_version_click_continue')), /startActivity|invoke-interface .*RequestQueue|SharedPreferences;->edit/);
 });
