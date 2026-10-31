@@ -17,19 +17,21 @@ public final class Rc4PoolLifecycleTest {
     }
 
     private static void testFourInstancesPublishOnlyAfterCompleteConstruction() {
-        final Object owner = new Object();
-        final BlockingQueue<Object> pool = new ArrayBlockingQueue<Object>(4);
-        final AtomicInteger creates = new AtomicInteger();
-        Rc4PoolLifecycle.rebuildForTest(owner, pool, "550", new Rc4PoolLifecycle.InstanceFactory() {
-            @Override public Object create(String key) {
-                check("550".equals(key), "factory receives the key derived from versionCode 550");
-                check(pool.isEmpty(), "the target pool stays empty until all instances have been created");
-                creates.incrementAndGet();
-                return new FakeRc4();
-            }
-        });
-        check(creates.get() == 4, "exactly four RC4 instances are created");
-        check(pool.size() == 4, "the complete four-instance generation is published");
+        for (final String versionCode : new String[] { "550", "552" }) {
+            final Object owner = new Object();
+            final BlockingQueue<Object> pool = new ArrayBlockingQueue<Object>(4);
+            final AtomicInteger creates = new AtomicInteger();
+            Rc4PoolLifecycle.rebuildForTest(owner, pool, versionCode, new Rc4PoolLifecycle.InstanceFactory() {
+                @Override public Object create(String key) {
+                    check(versionCode.equals(key), "factory receives the test key for versionCode " + versionCode);
+                    check(pool.isEmpty(), "the target pool stays empty until all instances have been created");
+                    creates.incrementAndGet();
+                    return new FakeRc4();
+                }
+            });
+            check(creates.get() == 4, "exactly four RC4 instances are created for versionCode " + versionCode);
+            check(pool.size() == 4, "the complete four-instance generation is published for versionCode " + versionCode);
+        }
     }
 
     private static void testInvalidAndFailedKeysLeaveNoPartialPool() {

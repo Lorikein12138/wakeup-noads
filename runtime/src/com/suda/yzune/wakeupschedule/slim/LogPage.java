@@ -228,6 +228,8 @@ public final class LogPage {
             LogStore.assertSnapshot(cacheDirectory, snapshot);
             return new FileInputStream(snapshot);
         }
+        /** Asks before an irreversible action; the default host has no UI and confirms immediately. */
+        default void confirm(String title, String message, String action, Runnable onConfirm) { onConfirm.run(); }
     }
 
     static final class PageState {
@@ -237,15 +239,26 @@ public final class LogPage {
         final boolean detail;
         final boolean exportPending;
         final String message;
+        final boolean selecting;
+        final List<LogStore.Entry> chosen;
 
         PageState(LogStore.Result result, LogStore.Entry selected, String preview, boolean detail, boolean exportPending, String message) {
+            this(result, selected, preview, detail, exportPending, message, false, Collections.<LogStore.Entry>emptyList());
+        }
+
+        PageState(LogStore.Result result, LogStore.Entry selected, String preview, boolean detail, boolean exportPending, String message,
+                  boolean selecting, List<LogStore.Entry> chosen) {
             this.result = result;
             this.selected = selected;
             this.preview = preview;
             this.detail = detail;
             this.exportPending = exportPending;
             this.message = message;
+            this.selecting = selecting;
+            this.chosen = Collections.unmodifiableList(new ArrayList<LogStore.Entry>(chosen));
         }
+
+        boolean isChosen(LogStore.Entry entry) { return chosen.contains(entry); }
     }
 
     static final class Controller {
@@ -261,6 +274,9 @@ public final class LogPage {
         private volatile boolean closed;
         private long generation;
         private Pending session;
+        private boolean selecting;
+        private final List<LogStore.Entry> chosen = new ArrayList<LogStore.Entry>();
+        private boolean deleting;
 
         Controller(Object owner, LogStore store, ControllerHost host) {
             this.owner = new WeakReference<Object>(owner);
@@ -303,6 +319,8 @@ public final class LogPage {
                             selected = null;
                             preview = "";
                             detail = false;
+                            selecting = false;
+                            chosen.clear();
                             message = loaded.stateText();
                             render();
                         }
@@ -313,6 +331,7 @@ public final class LogPage {
 
         void select(final LogStore.Entry entry) {
             if (closed || entry == null || !result.entries.contains(entry)) return;
+            if (selecting) { toggle(entry); return; }
             selected = entry;
             detail = true;
             preview = "";
@@ -355,6 +374,8 @@ public final class LogPage {
                 message = result.stateText();
                 generation++;
                 render();
+            } else if (selecting) {
+                exitSelection();
             } else {
                 Object activity = owner.get();
                 if (activity != null) LogPage.close(activity);
@@ -367,6 +388,7 @@ public final class LogPage {
         void copy(final LogStore.Entry frozen) {
             if (closed || frozen == null || !result.entries.contains(frozen)) return;
             if (isBusy()) { host.toast("已有导出正在处理"); return; }
+            if (deleting) { host.toast("正在删除日志"); return; }
             final long ticket = generation;
             host.executeIo(new Runnable() {
                 @Override public void run() {
@@ -393,18 +415,135 @@ public final class LogPage {
 
         void export(final LogStore.Entry frozen, final File cacheDirectory) {
             if (closed || frozen == null || !result.entries.contains(frozen)) return;
+            startExport(frozen, "wakeup-noads-" + frozen.fileName, cacheDirectory, new SnapshotJob() {
+                @Override public File run() throws Exception { return store.snapshot(frozen, cacheDirectory); }
+            });
+        }
+
+        /** Exports every listed entry into one file. */
+        void exportAll(File cacheDirectory) { exportEntries(result.entries, cacheDirectory); }
+
+        void exportChosen(File cacheDirectory) { exportEntries(chosenInOrder(), cacheDirectory); }
+
+        private void exportEntries(List<LogStore.Entry> entries, final File cacheDirectory) {
+            if (closed) return;
+            final List<LogStore.Entry> frozen = new ArrayList<LogStore.Entry>(entries);
+            if (frozen.isEmpty()) { host.toast(selecting ? "请先选择日志" : "没有可导出的日志"); return; }
+            if (frozen.size() == 1) { export(frozen.get(0), cacheDirectory); return; }
+            String title = "wakeup-noads-logs-"
+                + new java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US).format(new java.util.Date()) + ".txt";
+            startExport(frozen.get(0), title, cacheDirectory, new SnapshotJob() {
+                @Override public File run() throws Exception { return store.snapshotAll(frozen, cacheDirectory); }
+            });
+        }
+
+        void startSelection(LogStore.Entry entry) {
+            if (closed || detail || result.entries.isEmpty()) return;
+            if (entry != null && !result.entries.contains(entry)) return;
+            selecting = true;
+            chosen.clear();
+            if (entry != null) chosen.add(entry);
+            render();
+        }
+
+        void toggle(LogStore.Entry entry) {
+            if (closed || !selecting || entry == null || !result.entries.contains(entry)) return;
+            if (!chosen.remove(entry)) chosen.add(entry);
+            render();
+        }
+
+        /** Selects every entry, or clears the selection when everything is already selected. */
+        void selectAll() {
+            if (closed || !selecting) return;
+            boolean all = chosen.size() == result.entries.size();
+            chosen.clear();
+            if (!all) chosen.addAll(result.entries);
+            render();
+        }
+
+        void exitSelection() {
+            if (closed || !selecting) return;
+            selecting = false;
+            chosen.clear();
+            render();
+        }
+
+        void longPress(LogStore.Entry entry) {
+            if (selecting) toggle(entry);
+            else startSelection(entry);
+        }
+
+        /** Toolbar delete: removes the open entry on the detail page, otherwise starts multi-select. */
+        void deleteAction() {
+            if (detail) deleteSelected();
+            else startSelection(null);
+        }
+
+        void deleteSelected() {
+            if (selected != null) requestDelete(Collections.singletonList(selected));
+        }
+
+        void deleteChosen() { requestDelete(chosenInOrder()); }
+
+        void requestDelete(List<LogStore.Entry> entries) {
+            if (closed) return;
+            final List<LogStore.Entry> frozen = new ArrayList<LogStore.Entry>();
+            for (LogStore.Entry entry : result.entries) if (entries.contains(entry)) frozen.add(entry);
+            if (frozen.isEmpty()) { host.toast("请先选择日志"); return; }
             if (isBusy()) { host.toast("已有导出正在处理"); return; }
+            if (deleting) return;
+            host.confirm("删除 " + frozen.size() + " 条日志", "删除后无法恢复。需要留底可以先导出。", "删除", new Runnable() {
+                @Override public void run() { delete(frozen); }
+            });
+        }
+
+        private void delete(final List<LogStore.Entry> requested) {
+            if (closed || deleting || isBusy()) return;
+            final List<LogStore.Entry> frozen = new ArrayList<LogStore.Entry>();
+            for (LogStore.Entry entry : requested) if (result.entries.contains(entry)) frozen.add(entry);
+            if (frozen.isEmpty()) { host.toast("日志列表已刷新，请重新选择"); return; }
+            deleting = true;
+            message = "正在删除日志…";
+            render();
+            host.executeIo(new Runnable() {
+                @Override public void run() {
+                    final LogStore.DeleteResult outcome = store.delete(frozen);
+                    host.postMain(new Runnable() {
+                        @Override public void run() {
+                            deleting = false;
+                            if (closed) return;
+                            if (outcome.failed == 0) host.toast("已删除 " + outcome.deleted + " 条日志");
+                            else if (outcome.deleted == 0) host.toast("删除失败，日志未改动");
+                            else host.toast("已删除 " + outcome.deleted + " 条，" + outcome.failed + " 条删除失败");
+                            refresh();
+                        }
+                    });
+                }
+            });
+        }
+
+        private List<LogStore.Entry> chosenInOrder() {
+            List<LogStore.Entry> ordered = new ArrayList<LogStore.Entry>();
+            for (LogStore.Entry entry : result.entries) if (chosen.contains(entry)) ordered.add(entry);
+            return ordered;
+        }
+
+        private void startExport(final LogStore.Entry frozen, final String title, final File cacheDirectory, final SnapshotJob job) {
+            if (isBusy()) { host.toast("已有导出正在处理"); return; }
+            if (deleting) { host.toast("正在删除日志"); return; }
             final long ticket = generation;
             final Pending current = new Pending(EXPORT_TOKENS.incrementAndGet(), frozen, null, owner, ticket, cacheDirectory);
             session = current;
             current.addController(this);
             synchronized (LOCK) { ACTIVE_EXPORTS.put(owner.get(), current); }
+            selecting = false;
+            chosen.clear();
             message = "正在准备完整日志…";
             render();
             host.executeIo(new Runnable() {
                 @Override public void run() {
                     final File snapshot;
-                    try { snapshot = store.snapshot(frozen, cacheDirectory); }
+                    try { snapshot = job.run(); }
                     catch (Throwable failure) {
                         finishSession(current, "无法准备完整日志", "无法准备完整日志", true);
                         return;
@@ -418,7 +557,7 @@ public final class LogPage {
                             }
                             current.setState(SessionState.WAITING_RESULT);
                             try {
-                                host.launchDocument("wakeup-noads-" + frozen.fileName, EXPORT_REQUEST_CODE);
+                                host.launchDocument(title, EXPORT_REQUEST_CODE);
                                 if (isCurrentSessionResult(current)) message = "请选择本地保存位置";
                                 renderIfOpen();
                             } catch (Throwable failure) {
@@ -527,7 +666,9 @@ public final class LogPage {
         private boolean isCurrentSessionResult(Pending value) {
             return !closed && session == value && value.token > 0 && generation == value.generation;
         }
-        private void render() { host.render(new PageState(result, selected, preview, detail, isBusy(), message)); }
+        private void render() {
+            host.render(new PageState(result, selected, preview, detail, isBusy() || deleting, message, selecting, chosen));
+        }
 
         private void finishSession(final Pending value, final String resultMessage, final String toastMessage, boolean showResult) {
             synchronized (value.lock) {
@@ -579,6 +720,8 @@ public final class LogPage {
             });
         }
     }
+
+    private interface SnapshotJob { File run() throws Exception; }
 
     private enum SessionState { PREPARING, WAITING_RESULT, WRITING, CANCELLED, FINALIZING, IDLE }
 
@@ -878,11 +1021,14 @@ public final class LogPage {
         final Object layoutParams;
         final Object behavior;
         final Object refreshButton;
+        final Object exportAllButton;
+        final Object deleteButton;
         NativePage(Object activity, Object coordinator, Object appBar, Object toolbar, Object recycler,
-                   Object root, Object body, Object layoutParams, Object behavior, Object refreshButton) {
+                   Object root, Object body, Object layoutParams, Object behavior, Object refreshButton,
+                   Object exportAllButton, Object deleteButton) {
             this.activity = activity; this.coordinator = coordinator; this.appBar = appBar; this.toolbar = toolbar;
             this.recycler = recycler; this.root = root; this.body = body; this.layoutParams = layoutParams; this.behavior = behavior;
-            this.refreshButton = refreshButton;
+            this.refreshButton = refreshButton; this.exportAllButton = exportAllButton; this.deleteButton = deleteButton;
         }
     }
 
@@ -892,6 +1038,8 @@ public final class LogPage {
         boolean isInstance(Object value, String className) throws Exception;
         Object staticField(String className, String name) throws Exception;
         Object clickListener(Runnable callback) throws Exception;
+        Object longClickListener(Runnable callback) throws Exception;
+        Object dialogClickListener(Runnable callback) throws Exception;
         float density(Object context) throws Exception;
         int sdkInt();
         Object registerBack(Object activity, Runnable callback) throws Exception;
@@ -950,6 +1098,10 @@ public final class LogPage {
                     @Override public void run() { if (controller != null) controller.back(); }
                 }, new Runnable() {
                     @Override public void run() { if (controller != null) controller.refresh(); }
+                }, new Runnable() {
+                    @Override public void run() { if (controller != null) controller.exportAll(cacheDirectory); }
+                }, new Runnable() {
+                    @Override public void run() { if (controller != null) controller.deleteAction(); }
                 }, ui);
                 if (page == null || page.root == null || page.body == null) throw new IOException("日志页不可用");
                 rootBasePadding = ui.padding(page.root);
@@ -1010,6 +1162,22 @@ public final class LogPage {
         @Override public void toast(String message) {
             Object context = activity.get();
             if (context != null) try { ui.toast(context, message); } catch (Throwable ignored) { }
+        }
+        @Override public void confirm(String title, String message, String action, Runnable onConfirm) {
+            Object context = activity.get();
+            if (context == null || page == null || detached || failed) return;
+            String text = "java.lang.CharSequence";
+            String listener = "android.content.DialogInterface$OnClickListener";
+            try {
+                Object builder = ui.construct("androidx.appcompat.app.AlertDialog$Builder",
+                    new String[] { "android.content.Context" }, new Object[] { context });
+                ui.invoke(builder, "setTitle", new String[] { text }, new Object[] { title });
+                ui.invoke(builder, "setMessage", new String[] { text }, new Object[] { message });
+                ui.invoke(builder, "setNegativeButton", new String[] { text, listener }, new Object[] { "取消", null });
+                ui.invoke(builder, "setPositiveButton", new String[] { text, listener },
+                    new Object[] { action, ui.dialogClickListener(onConfirm) });
+                ui.invoke(builder, "show", new String[0], new Object[0]);
+            } catch (Throwable failure) { toast("无法打开删除确认"); }
         }
         void applyPageInsets(Object callbackView, Object insets) {
             if (page == null || detached || failed || insets == null) return;
@@ -1117,7 +1285,7 @@ public final class LogPage {
         private static final int GRAVITY_END_VERTICAL = 0x800015;
 
         static NativePage openPage(Object activity, ThemeColors colors, Runnable toolbarBack, Runnable refresh,
-                                   AndroidUiCalls ui) throws Exception {
+                                   Runnable exportAll, Runnable delete, AndroidUiCalls ui) throws Exception {
             Object coordinator = invoke(ui, activity, "o00O0O");
             Object recycler = invoke(ui, activity, "o0OoOo0");
             if (coordinator == null || recycler == null || !ui.isInstance(recycler, RECYCLER)
@@ -1167,16 +1335,34 @@ public final class LogPage {
             Object toolbarParams = ui.construct("androidx.appcompat.widget.Toolbar$LayoutParams",
                 new String[] { "int", "int", "int" }, new Object[] { iconSize, iconSize, GRAVITY_END_VERTICAL });
             add(ui, toolbar, refreshButton, toolbarParams);
-            return new NativePage(activity, coordinator, appBar, toolbar, recycler, scroll, body, params, behavior, refreshButton);
+            // End-gravity Toolbar children stack leftwards in add order: [删除][全部导出][刷新].
+            Object exportAllButton = iconButton(activity, "ic_outline_save_alt_24", "全部导出", colors.onSurface,
+                "selectableItemBackgroundBorderless", ui);
+            setClick(ui, exportAllButton, exportAll);
+            add(ui, toolbar, exportAllButton, ui.construct("androidx.appcompat.widget.Toolbar$LayoutParams",
+                new String[] { "int", "int", "int" }, new Object[] { iconSize, iconSize, GRAVITY_END_VERTICAL }));
+            Object deleteButton = iconButton(activity, "ic_outline_delete_outline_24", "删除", colors.onSurface,
+                "selectableItemBackgroundBorderless", ui);
+            setClick(ui, deleteButton, delete);
+            add(ui, toolbar, deleteButton, ui.construct("androidx.appcompat.widget.Toolbar$LayoutParams",
+                new String[] { "int", "int", "int" }, new Object[] { iconSize, iconSize, GRAVITY_END_VERTICAL }));
+            return new NativePage(activity, coordinator, appBar, toolbar, recycler, scroll, body, params, behavior, refreshButton,
+                exportAllButton, deleteButton);
         }
 
         static void renderPage(NativePage page, PageState state, ThemeColors colors, Controller controller,
                                File cacheDirectory, AndroidUiCalls ui) throws Exception {
             invoke(ui, page.body, "removeAllViews");
             boolean detail = state.detail && state.selected != null;
+            boolean selecting = !detail && state.selecting;
+            boolean hasEntries = !state.result.entries.isEmpty();
             invoke(ui, page.toolbar, "setTitle", new String[] { "java.lang.CharSequence" },
-                new Object[] { detail ? "日志详情" : "本地日志" });
-            invoke(ui, page.refreshButton, "setVisibility", new String[] { "int" }, new Object[] { detail ? 8 : 0 });
+                new Object[] { selecting ? "已选 " + state.chosen.size() + " 条" : detail ? "日志详情" : "本地日志" });
+            invoke(ui, page.refreshButton, "setVisibility", new String[] { "int" }, new Object[] { detail || selecting ? 8 : 0 });
+            invoke(ui, page.exportAllButton, "setVisibility", new String[] { "int" },
+                new Object[] { !detail && !selecting && hasEntries ? 0 : 8 });
+            invoke(ui, page.deleteButton, "setVisibility", new String[] { "int" },
+                new Object[] { detail || (!selecting && hasEntries) ? 0 : 8 });
             if (detail) renderDetail(page, state, colors, controller, cacheDirectory, ui);
             else renderList(page, state, colors, controller, cacheDirectory, ui);
         }
@@ -1187,6 +1373,7 @@ public final class LogPage {
             LogStore.Result result = state.result;
             if (result.hasErrors()) addWarning(page, result.stateText(), colors, ui);
             if (state.exportPending && !state.message.isEmpty()) addLabel(page, state.message, 14, colors.secondary, ui);
+            boolean selecting = state.selecting && !result.entries.isEmpty();
             if (!result.entries.isEmpty()) {
                 Object group = card(context, colors, ui);
                 Object rows = linear(context, 1, ui);
@@ -1195,12 +1382,15 @@ public final class LogPage {
                 for (final LogStore.Entry entry : result.entries) {
                     if (!first) addDivider(context, rows, colors.dividerColor, 16, ui);
                     first = false;
-                    add(ui, rows, entryRow(context, entry, colors, controller, cacheDirectory, ui), newLayoutParams(ui, -1, -2));
+                    Object row = selecting ? selectableRow(context, entry, state.isChosen(entry), colors, controller, ui)
+                        : entryRow(context, entry, colors, controller, cacheDirectory, ui);
+                    add(ui, rows, row, newLayoutParams(ui, -1, -2));
                 }
                 add(ui, page.body, group, cardParams(context, ui));
             } else if (result.readableSources > 0 || !result.hasErrors()) {
                 addEmptyState(page, colors, ui);
             }
+            if (selecting) addSelectionActions(page, state, colors, controller, cacheDirectory, ui);
             String packageName = String.valueOf(invoke(ui, context, "getPackageName"));
             Object footer = text(context, "保存位置：Android/data/" + packageName + "/files/" + CrashLog.LOG_DIRECTORY + "/",
                 12, colors.secondary, ui);
@@ -1217,19 +1407,8 @@ public final class LogPage {
             padding(ui, row, dp(context, 16, ui), dp(context, 10, ui), dp(context, 4, ui), dp(context, 10, ui));
             setRipple(context, row, "selectableItemBackground", ui);
             setClick(ui, row, new Runnable() { @Override public void run() { if (controller != null) controller.select(entry); } });
-
-            Object texts = linear(context, 1, ui);
-            Object headline = linear(context, 0, ui);
-            invoke(ui, headline, "setGravity", new String[] { "int" }, new Object[] { GRAVITY_CENTER_VERTICAL });
-            add(ui, headline, levelTag(context, summary.level, colors, ui), linearParams(ui, -2, -2, 0));
-            Object title = text(context, summary.title, 16, colors.onSurface, ui);
-            add(ui, headline, title, marginParams(context, -2, 8, 0, ui));
-            add(ui, texts, headline, newLayoutParams(ui, -1, -2));
-            String subtitle = shortTime(entry.modifiedMillis) + " · " + entry.sourceLabel
-                + (summary.recordCount() > 1 ? " · 共 " + summary.recordCount() + " 条记录" : "");
-            Object subtitleView = text(context, subtitle, 13, colors.secondary, ui);
-            add(ui, texts, subtitleView, marginParams(context, -1, 0, 4, ui));
-            add(ui, row, texts, linearParams(ui, 0, -2, 1));
+            setLongClick(ui, row, new Runnable() { @Override public void run() { if (controller != null) controller.longPress(entry); } });
+            add(ui, row, entryTexts(context, entry, summary, colors, ui), linearParams(ui, 0, -2, 1));
 
             int iconSize = dp(context, 48, ui);
             Object copyButton = iconButton(context, "ic_twotone_file_copy_24", "复制", colors.secondary,
@@ -1243,6 +1422,76 @@ public final class LogPage {
             add(ui, row, copyButton, linearParams(ui, iconSize, iconSize, 0));
             add(ui, row, exportButton, linearParams(ui, iconSize, iconSize, 0));
             return row;
+        }
+
+        /** Multi-select row: a checkbox replaces the per-row actions and the whole row toggles the entry. */
+        private static Object selectableRow(Object context, final LogStore.Entry entry, boolean checked, ThemeColors colors,
+                                            final Controller controller, AndroidUiCalls ui) throws Exception {
+            Object row = linear(context, 0, ui);
+            invoke(ui, row, "setGravity", new String[] { "int" }, new Object[] { GRAVITY_CENTER_VERTICAL });
+            invoke(ui, row, "setMinimumHeight", new String[] { "int" }, new Object[] { dp(context, 64, ui) });
+            padding(ui, row, dp(context, 4, ui), dp(context, 10, ui), dp(context, 16, ui), dp(context, 10, ui));
+            setRipple(context, row, "selectableItemBackground", ui);
+            Runnable toggle = new Runnable() { @Override public void run() { if (controller != null) controller.toggle(entry); } };
+            setClick(ui, row, toggle);
+            setLongClick(ui, row, toggle);
+            Object box = construct(ui, "com.google.android.material.checkbox.MaterialCheckBox", CONTEXT, context);
+            invoke(ui, box, "setChecked", new String[] { "boolean" }, new Object[] { Boolean.valueOf(checked) });
+            invoke(ui, box, "setClickable", new String[] { "boolean" }, new Object[] { Boolean.FALSE });
+            invoke(ui, box, "setFocusable", new String[] { "boolean" }, new Object[] { Boolean.FALSE });
+            add(ui, row, box, linearParams(ui, -2, -2, 0));
+            add(ui, row, entryTexts(context, entry, entry.summary(), colors, ui), linearParams(ui, 0, -2, 1));
+            return row;
+        }
+
+        private static void addSelectionActions(NativePage page, PageState state, ThemeColors colors, final Controller controller,
+                                                final File cacheDirectory, AndroidUiCalls ui) throws Exception {
+            Object context = page.activity;
+            boolean all = state.chosen.size() == state.result.entries.size();
+            Object actions = linear(context, 0, ui);
+            padding(ui, actions, 0, dp(context, 4, ui), 0, dp(context, 8, ui));
+            Object selectAll = selectionButton(context, all ? "取消全选" : "全选", colors.onTonal, colors.tonal, ui);
+            Object exportChosen = selectionButton(context, "导出所选", colors.onTonal, colors.tonal, ui);
+            Object deleteChosen = selectionButton(context, "删除所选", colors.onPrimary, colors.primary, ui);
+            setClick(ui, selectAll, new Runnable() { @Override public void run() { if (controller != null) controller.selectAll(); } });
+            setClick(ui, exportChosen, new Runnable() {
+                @Override public void run() { if (controller != null) controller.exportChosen(cacheDirectory); }
+            });
+            setClick(ui, deleteChosen, new Runnable() { @Override public void run() { if (controller != null) controller.deleteChosen(); } });
+            Object first = linearParams(ui, 0, -2, 1);
+            margins(ui, first, 0, 0, dp(context, 4, ui), 0);
+            Object middle = linearParams(ui, 0, -2, 1);
+            margins(ui, middle, dp(context, 4, ui), 0, dp(context, 4, ui), 0);
+            Object last = linearParams(ui, 0, -2, 1);
+            margins(ui, last, dp(context, 4, ui), 0, 0, 0);
+            add(ui, actions, selectAll, first);
+            add(ui, actions, exportChosen, middle);
+            add(ui, actions, deleteChosen, last);
+            add(ui, page.body, actions, newLayoutParams(ui, -1, -2));
+        }
+
+        private static Object selectionButton(Object context, String value, Object textColor, Object background,
+                                              AndroidUiCalls ui) throws Exception {
+            Object button = button(context, value, textColor, background, ui);
+            invoke(ui, button, "setTextSize", new String[] { "int", "float" }, new Object[] { 2, 14.0f });
+            padding(ui, button, dp(context, 8, ui), 0, dp(context, 8, ui), 0);
+            return button;
+        }
+
+        private static Object entryTexts(Object context, LogStore.Entry entry, LogStore.Summary summary, ThemeColors colors,
+                                         AndroidUiCalls ui) throws Exception {
+            Object texts = linear(context, 1, ui);
+            Object headline = linear(context, 0, ui);
+            invoke(ui, headline, "setGravity", new String[] { "int" }, new Object[] { GRAVITY_CENTER_VERTICAL });
+            add(ui, headline, levelTag(context, summary.level, colors, ui), linearParams(ui, -2, -2, 0));
+            Object title = text(context, summary.title, 16, colors.onSurface, ui);
+            add(ui, headline, title, marginParams(context, -2, 8, 0, ui));
+            add(ui, texts, headline, newLayoutParams(ui, -1, -2));
+            String subtitle = shortTime(entry.modifiedMillis) + " · " + entry.sourceLabel
+                + (summary.recordCount() > 1 ? " · 共 " + summary.recordCount() + " 条记录" : "");
+            Object subtitleView = text(context, subtitle, 13, colors.secondary, ui);
+            add(ui, texts, subtitleView, marginParams(context, -1, 0, 4, ui));
+            return texts;
         }
 
         private static void addWarning(NativePage page, String value, ThemeColors colors, AndroidUiCalls ui) throws Exception {
@@ -1357,8 +1606,10 @@ public final class LogPage {
 
         static void detachPage(NativePage page, AndroidUiCalls ui) throws Exception {
             setNavigationClick(ui, page.toolbar, null);
-            if (page.refreshButton != null && invoke(ui, page.refreshButton, "getParent") == page.toolbar) {
-                invoke(ui, page.toolbar, "removeView", new String[] { VIEW }, new Object[] { page.refreshButton });
+            for (Object button : new Object[] { page.refreshButton, page.exportAllButton, page.deleteButton }) {
+                if (button != null && invoke(ui, button, "getParent") == page.toolbar) {
+                    invoke(ui, page.toolbar, "removeView", new String[] { VIEW }, new Object[] { button });
+                }
             }
             Object parent = invoke(ui, page.root, "getParent");
             if (parent == page.coordinator) invoke(ui, parent, "removeView", new String[] { VIEW }, new Object[] { page.root });
@@ -1498,6 +1749,10 @@ public final class LogPage {
             invoke(ui, view, "setOnClickListener", new String[] { "android.view.View$OnClickListener" },
                 new Object[] { ui.clickListener(action) });
         }
+        private static void setLongClick(AndroidUiCalls ui, Object view, Runnable action) throws Exception {
+            invoke(ui, view, "setOnLongClickListener", new String[] { "android.view.View$OnLongClickListener" },
+                new Object[] { ui.longClickListener(action) });
+        }
         private static void setNavigationClick(AndroidUiCalls ui, Object toolbar, Runnable action) throws Exception {
             invoke(ui, toolbar, "setNavigationOnClickListener", new String[] { "android.view.View$OnClickListener" },
                 new Object[] { ui.clickListener(action) });
@@ -1555,6 +1810,30 @@ public final class LogPage {
                     if ("hashCode".equals(method.getName())) return System.identityHashCode(proxy);
                     if ("equals".equals(method.getName())) return proxy == args[0];
                     if ("toString".equals(method.getName())) return "LogPageClickListener";
+                    return null;
+                });
+        }
+        @Override public Object longClickListener(final Runnable callback) throws Exception {
+            if (callback == null) return null;
+            Class<?> listenerType = Class.forName("android.view.View$OnLongClickListener");
+            return Proxy.newProxyInstance(listenerType.getClassLoader(), new Class<?>[] { listenerType },
+                (proxy, method, args) -> {
+                    if ("onLongClick".equals(method.getName())) { callback.run(); return Boolean.TRUE; }
+                    if ("hashCode".equals(method.getName())) return System.identityHashCode(proxy);
+                    if ("equals".equals(method.getName())) return proxy == args[0];
+                    if ("toString".equals(method.getName())) return "LogPageLongClickListener";
+                    return null;
+                });
+        }
+        @Override public Object dialogClickListener(final Runnable callback) throws Exception {
+            if (callback == null) return null;
+            Class<?> listenerType = Class.forName("android.content.DialogInterface$OnClickListener");
+            return Proxy.newProxyInstance(listenerType.getClassLoader(), new Class<?>[] { listenerType },
+                (proxy, method, args) -> {
+                    if ("onClick".equals(method.getName())) callback.run();
+                    if ("hashCode".equals(method.getName())) return System.identityHashCode(proxy);
+                    if ("equals".equals(method.getName())) return proxy == args[0];
+                    if ("toString".equals(method.getName())) return "LogPageDialogListener";
                     return null;
                 });
         }

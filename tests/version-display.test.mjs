@@ -43,7 +43,7 @@ async function patchedFixture(t) {
   assert.equal(operations.length, 8, 'the four version-display, two T32 style, and two T34 settings operations are present');
   const specPath = path.join(root, 'fixture-spec.json');
   await writeFile(specPath, JSON.stringify({ schemaVersion: 1, applicationId: 'io.github.wakeupnoads', operations }));
-  const result = await applyPatchSpec({ root, specPath, releaseName: 'wakeup-noads-v6.6.0-r1' });
+  const result = await applyPatchSpec({ root, specPath, releaseName: 'wakeup-noads-v6.6.2-r1' });
   assert.equal(result.operations.length, 8);
   return root;
 }
@@ -720,7 +720,7 @@ test('the version getter keeps PackageInfo reads and uses releaseName for both f
   assert.match(baseline, /getPackageInfo/);
   assert.match(patched, /getPackageInfo/);
   assert.match(patched, /PackageInfo;->versionName:Ljava\/lang\/String;/);
-  assert.equal((patched.match(/wakeup-noads-v6\.6\.0-r1/g) ?? []).length, 2);
+  assert.equal((patched.match(/wakeup-noads-v6\.6\.2-r1/g) ?? []).length, 2);
   assert.doesNotMatch(patched, /6\.5\.1/);
 });
 
@@ -797,7 +797,7 @@ test('actual visible E55 binding executes E54 text binding and helper, restoring
   assert.deepEqual(holder.itemView.eventState, baseline.outer.eventState);
   assert.equal(holder.itemView.orientation, 1);
 
-  await bind(root, holder, makeItem({ titleId: versionTitleId, title: 'Current version', value: 'wakeup-noads-v6.6.0-r1' }));
+  await bind(root, holder, makeItem({ titleId: versionTitleId, title: 'Current version', value: 'wakeup-noads-v6.6.2-r1' }));
   const inner = holder.views.get(0x7f09009d);
   const title = holder.views.get(0x7f0900b2);
   const value = holder.views.get(0x7f0900dd);
@@ -829,7 +829,7 @@ test('actual visible E55 binding executes E54 text binding and helper, restoring
   assert.equal(holder.itemView.divider.marker, 'provider-divider');
   assert.deepEqual(holder.itemView.eventState, baseline.outer.eventState);
   assert.equal(title.text, 'Current version');
-  assert.equal(value.text, 'wakeup-noads-v6.6.0-r1');
+  assert.equal(value.text, 'wakeup-noads-v6.6.2-r1');
 
   const savedInnerParams = lpCopy(snapshot[1]);
   await bind(root, holder, makeItem({ titleId: versionTitleId, title: 'Current version', value: 'second version text' }));
@@ -997,7 +997,7 @@ test('actual settings adapter collapses blank rows and restores recycled visible
   const courseClass = 'Lcom/suda/yzune/wakeupschedule/schedule_settings/ScheduleSettingsFragment;';
   const courseBefore = await readSmaliMethod(decoded, scheduleSettingsPath, courseClass, 'private final o00o0O(Ljava/util/List;)V');
   const courseAfter = await readSmaliMethod(root, scheduleSettingsPath, courseClass, 'private final o00o0O(Ljava/util/List;)V');
-  assert.equal(courseAfter, courseBefore, 'course-setting entries remain byte-for-byte at the v6.6.0 baseline');
+  assert.equal(courseAfter, courseBefore, 'course-setting entries remain byte-for-byte at the v6.6.2 baseline');
   const settingsBefore = await readSmaliMethod(decoded, settingsPath, settingsClass, 'private final oo0o0Oo(Ljava/util/List;)V');
   const settingsAfter = await readSmaliMethod(root, settingsPath, settingsClass, 'private final oo0o0Oo(Ljava/util/List;)V');
   const spec = JSON.parse(await readFile('patches/slim-v1/patch-spec.json', 'utf8'));
@@ -1139,7 +1139,7 @@ test('design10 breakage mutants are rejected by the executed fixture and source 
   await versionMutationFails(root, titleNoMultiline, (holder) => assert.equal(holder.views.get(0x7f0900b2).maxLines, 2147483647));
 
   const wrongOuterDirection = original.replace(/(    invoke-static \{v7, v8\}, Lcom\/suda\/yzune\/wakeupschedule\/settings\/o00O000o;->slimApplyType1Style[^\r\n]*\r?\n)/, '$1    iget-object v0, v7, Landroidx/recyclerview/widget/RecyclerView$ViewHolder;->itemView:Landroid/view/View;\n    const/4 v1, 0x0\n    invoke-virtual {v0, v1}, Landroidx/appcompat/widget/LinearLayoutCompat;->setOrientation(I)V\n');
-  assert.notEqual(wrongOuterDirection, original, 'the outer-orientation mutant changes the actual 6.6.0 bind call');
+  assert.notEqual(wrongOuterDirection, original, 'the outer-orientation mutant changes the actual 6.6.2 bind call');
   await versionMutationFails(root, wrongOuterDirection, (holder) => assert.equal(holder.itemView.orientation, 1));
 
   const binder = methodBlock(original, bindDescriptor);
@@ -1147,7 +1147,7 @@ test('design10 breakage mutants are rejected by the executed fixture and source 
   assert.equal((binder.match(/iput v2, v0, Landroid\/view\/ViewGroup\$LayoutParams;->height:I/g) ?? []).length, 1,
     'the production hidden-row branch has one zero-height write');
   const hiddenBinder = binder.replace(hiddenHeight, '    const/4 v2, -0x2\n' + hiddenHeight);
-  assert.notEqual(hiddenBinder, binder, 'the hidden-row mutant changes the actual 6.6.0 early return');
+  assert.notEqual(hiddenBinder, binder, 'the hidden-row mutant changes the actual 6.6.2 early return');
   const binderStart = original.indexOf('.method ' + bindDescriptor);
   const binderEnd = original.indexOf('.end method', binderStart) + '.end method'.length;
   assert.ok(binderStart >= 0 && binderEnd > binderStart, 'the raw provider method is present for the hidden-row mutant');
@@ -1168,7 +1168,7 @@ test('design10 breakage mutants are rejected by the executed fixture and source 
   assert.throws(() => assertT32Contract(eventMutant, providerSource), /clickable/i);
 
   const wrongDp = original.replace(/(\.method private static slimApplyVersionStyle[\s\S]*?const\/high16 v5, )0x42800000/, '$10x41800000');
-  assert.notEqual(wrongDp, original, 'the wrong-dp mutant changes the actual 6.6.0 minimum-height constant');
+  assert.notEqual(wrongDp, original, 'the wrong-dp mutant changes the actual 6.6.2 minimum-height constant');
   await versionMutationFails(root, wrongDp, (holder) => assert.equal(holder.views.get(0x7f09009d).minimumHeight, Math.trunc(64 * 1.25)));
 });
 

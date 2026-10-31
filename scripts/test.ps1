@@ -103,7 +103,9 @@ try {
         New-Item -ItemType Directory -Path $decodeTemp -Force | Out-Null
         $toolchainLock = Get-Content -LiteralPath (Join-Path $Root 'patches/slim-v1/toolchain-lock.json') -Raw | ConvertFrom-Json
         $decodeOutput = & (Join-Path $ResolvedJavaHome 'bin/java.exe') "-Djava.io.tmpdir=$decodeTemp" '-jar' (Join-Path $Root $toolchainLock.apktool.path) 'd' '-f' '-p' (Join-Path $Root 'tools/_cache/apktool') '-o' $DecodedRoot $decodeSource 2>&1
-        if ($LASTEXITCODE -ne 0) { $decodeOutput | Write-Output; throw "Candidate decode failed with exit code $LASTEXITCODE." }
+        $decodeExitCode = $LASTEXITCODE
+        $decodeOutput | Write-Output
+        if ($decodeExitCode -ne 0) { throw "Candidate decode failed with exit code $decodeExitCode." }
     }
     if ($DecodedRoot) { $env:SLIM_VERIFIED_DECODED_ROOT = $DecodedRoot }
     if ($BaselineDecodedRoot) { $env:SLIM_BASELINE_DECODED_ROOT = $BaselineDecodedRoot }

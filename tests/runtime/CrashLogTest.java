@@ -60,7 +60,10 @@ public final class CrashLogTest {
         testDeleteExceptionUsesFixedResidualMessage();
         testOrphanCleanupDuringWritingAndCancellation();
         testLogSummaryLevelsAndRecords();
-        System.out.println("CrashLogTest passed (10 legacy + 6 round-1 + 7 round-2 + 7 round-3 + 5 round-4 + 1 round-5 + 1 local-log groups)");
+        testLogStoreDeleteAndMergedSnapshot();
+        testLogPageControllerSelectionDeleteAndExportAll();
+        testProductionLogPageSelectionAndDeleteRender();
+        System.out.println("CrashLogTest passed (10 legacy + 6 round-1 + 7 round-2 + 7 round-3 + 5 round-4 + 1 round-5 + 1 local-log + 3 log-delete-export groups)");
     }
 
     private static void testCrashReportCarriesHeaderThreadAndCauses() {
@@ -1619,7 +1622,7 @@ public final class CrashLogTest {
             LogPage.applyPageInsets(activity, rootView, new LogPage.PageInsets(1, 1, 1, 1, 1));
             check(ui.backUnregistrations == 1 && ui.detachCount == 1 && ui.finishCount == 0
                 && ui.paddingWrites == beforeDestroyWrites && rootView.parent == null
-                && toolbarRefreshButton(activity.toolbar) == null,
+                && countClass(activity.toolbar, "android.widget.ImageButton") == 0,
                 "Activity destruction unregisters once, detaches without finish, and prevents later inset writes");
 
             FakeAndroidUiCalls secondUi = new FakeAndroidUiCalls(2, 32);
@@ -1785,6 +1788,785 @@ public final class CrashLogTest {
                 "missing original Toolbar exits with the fixed notice and finish, without Dialog or factory fallback");
             controller.detach();
         } finally { deleteTree(failureRoot); }
+    }
+
+    private static void testLogStoreDeleteAndMergedSnapshot() throws Exception {
+        File root = cacheTemp("log-delete-store-");
+        try {
+            File external = new File(root, "external");
+            File appDirectory = CrashLog.logDirectory(external);
+            check(appDirectory.isDirectory() || appDirectory.mkdirs(), "the app log directory fixture exists");
+            File legacyDirectory = new File(root, "Download/wakeup-noads");
+            check(legacyDirectory.mkdirs(), "the legacy Download fixture exists");
+            File cache = new File(root, "cache"); check(cache.mkdirs(), "the export cache exists");
+            String secretBody = "package: io.github.wakeupnoads\nstudent=827361 password=merge-secret\n";
+            File appCrash = new File(appDirectory, "crash-20261031-010101-001-12.txt");
+            File appExit = new File(appDirectory, "exit-20261031-010102-002-12.txt");
+            File legacyCrash = new File(legacyDirectory, "crash-20261031-010103-003-12.txt");
+            File foreign = new File(legacyDirectory, "crash-20261031-010104-004-12.txt");
+            writeUtf8(appCrash, "wakeup-noads crash log\n" + secretBody);
+            writeUtf8(appExit, "wakeup-noads exit log\n" + secretBody);
+            writeUtf8(legacyCrash, "package: io.github.wakeupnoads\n\nlegacy body password=merge-secret\n");
+            writeUtf8(foreign, "package: other.package\n\nforeign body\n");
+            appCrash.setLastModified(3000L); appExit.setLastModified(2000L); legacyCrash.setLastModified(1000L);
+            LogStore store = LogStore.forContext(new Object(), 28, external, legacyDirectory, new FakeMediaPlatform());
+            List<LogStore.Entry> entries = store.list().entries;
+            check(entries.size() == 3, "the app directory and the owned legacy Download log are listed, the foreign one is not");
+
+            File merged = store.snapshotAll(entries, cache);
+            String text = new String(Files.readAllBytes(merged.toPath()), "UTF-8");
+            int previous = -1;
+            for (LogStore.Entry entry : entries) {
+                int heading = text.indexOf("===== " + entry.fileName + " · " + entry.sourceLabel + " =====\n");
+                check(heading > previous, "the merged export keeps one heading per log in list order");
+                previous = heading;
+            }
+            check(!text.contains("merge-secret") && !text.contains("827361") && text.contains("[redacted]")
+                && !text.contains("foreign body"), "the merged export is sanitized and holds only listed logs");
+
+            Files.delete(appExit.toPath());
+            String missing = new String(Files.readAllBytes(store.snapshotAll(entries, cache).toPath()), "UTF-8");
+            check(missing.contains("===== " + appExit.getName() + " · 应用目录 =====\n\n[该日志已消失或不可读取]\n")
+                && missing.contains(appCrash.getName()) && missing.contains(legacyCrash.getName()),
+                "a log that disappeared after listing becomes a placeholder instead of aborting the merged export");
+
+            File exportRoot = new File(cache, LogStore.EXPORT_FOLDER);
+            int snapshots = exportRoot.listFiles().length;
+            boolean emptyFailed = false;
+            try { store.snapshotAll(Collections.<LogStore.Entry>emptyList(), cache); } catch (IOException expected) { emptyFailed = true; }
+            LogStore.Entry invalid = new LogStore.Entry("app:bad", "app", "应用目录", "notes.txt", 1L, entries.get(0).source,
+                new File(appDirectory, "notes.txt"), appDirectory, LogStore.PACKAGE_NAME, CrashLog.LOG_DIRECTORY, null);
+            boolean invalidFailed = false;
+            try { store.snapshotAll(Collections.singletonList(invalid), cache); } catch (IOException expected) { invalidFailed = true; }
+            check(emptyFailed && invalidFailed && exportRoot.listFiles().length == snapshots,
+                "a merged export with nothing exportable fails without leaving a snapshot");
+
+            LogStore.Entry appEntry = null, exitEntry = null, legacyEntry = null;
+            for (LogStore.Entry entry : entries) {
+                if (entry.fileName.equals(appCrash.getName())) appEntry = entry;
+                if (entry.fileName.equals(appExit.getName())) exitEntry = entry;
+                if (entry.fileName.equals(legacyCrash.getName())) legacyEntry = entry;
+            }
+            File outside = new File(root, "outside/crash-20261031-010105-005-12.txt");
+            writeUtf8(outside, "wakeup-noads crash log\n");
+            LogStore.Entry escaped = new LogStore.Entry("app:outside", "app", "应用目录", outside.getName(), 1L, appEntry.source,
+                outside, appDirectory, LogStore.PACKAGE_NAME, CrashLog.LOG_DIRECTORY, null);
+            LogStore.Entry crossed = new LogStore.Entry("legacy:cross", "legacy-download", "历史 Download", appCrash.getName(), 1L,
+                legacyEntry.source, appCrash, appDirectory, LogStore.PACKAGE_NAME, "Download/wakeup-noads", null);
+            LogStore.DeleteResult refused = store.delete(Arrays.asList(escaped, crossed, invalid, null));
+            check(refused.deleted == 0 && refused.failed == 4 && outside.isFile() && appCrash.isFile(),
+                "entries outside their source directory or owned by another source are counted as failed and left untouched");
+            LogStore.DeleteResult partial = store.delete(Arrays.asList(appEntry, exitEntry, legacyEntry));
+            check(partial.deleted == 2 && partial.failed == 1 && !appCrash.exists() && !legacyCrash.exists() && foreign.isFile(),
+                "app and legacy logs are deleted while an already-missing log counts as failed");
+            check(store.list().entries.isEmpty(), "deleted logs no longer list");
+
+            FakeMediaPlatform platform = new FakeMediaPlatform();
+            platform.cursor = new FakeMediaCursor(new String[] { "_id", "_display_name", "relative_path", "owner_package_name", "date_modified" },
+                new Object[][] { { 401L, "crash-20261031-010106-006-12.txt", "Download/wakeup-noads/", LogStore.PACKAGE_NAME, 500L } });
+            LogStore mediaStore = LogStore.forContext(new Object(), 29, external, null, platform);
+            List<LogStore.Entry> media = mediaStore.list().entries;
+            check(media.size() == 1 && "media-download".equals(media.get(0).sourceKey), "the MediaStore history log is listed on API 29+");
+            platform.deleteRows = 0;
+            LogStore.DeleteResult mediaRefused = mediaStore.delete(media);
+            platform.deleteRows = 1;
+            LogStore.DeleteResult mediaDeleted = mediaStore.delete(media);
+            check(mediaRefused.deleted == 0 && mediaRefused.failed == 1 && mediaDeleted.deleted == 1 && mediaDeleted.failed == 0
+                && platform.deletedUris.equals(Arrays.<Object>asList("content://downloads/401", "content://downloads/401")),
+                "MediaStore deletion goes through the listed content URI and zero affected rows counts as failed");
+            testMergedSnapshotInputFaults(root);
+            testMergedSnapshotOutputFaults(root);
+        } finally { deleteTree(root); }
+    }
+
+    private static void testMergedSnapshotInputFaults(File parent) throws Exception {
+        File root = new File(parent, "round-3-merged-input-faults");
+        check(root.mkdirs(), "the merged-input fault root exists");
+        File sourceDirectory = new File(root, "logs");
+        check(sourceDirectory.mkdirs(), "the merged-input source directory exists");
+        MergeFaultSource source = new MergeFaultSource("app", "应用目录", sourceDirectory);
+        LogStore.Entry openFailure = source.add("crash-20261031-070101-001-12.txt", 5000L,
+            "wakeup-noads crash log\npackage: io.github.wakeupnoads\npid: 700101\n");
+        LogStore.Entry nullInput = source.add("crash-20261031-070102-002-12.txt", 4000L,
+            "wakeup-noads crash log\npackage: io.github.wakeupnoads\npid: 700102\n");
+        LogStore.Entry readFailure = source.add("crash-20261031-070103-003-12.txt", 3000L,
+            "wakeup-noads crash log\npackage: io.github.wakeupnoads\npid: 700103\n");
+        LogStore.Entry closeFailure = source.add("crash-20261031-070104-004-12.txt", 2000L,
+            "wakeup-noads crash log\npackage: io.github.wakeupnoads\npid: 700104\n");
+        LogStore.Entry healthy = source.add("crash-20261031-070105-005-12.txt", 1000L,
+            "wakeup-noads crash log\npackage: io.github.wakeupnoads\npid: 700105\n");
+        AtomicInteger readCloses = new AtomicInteger();
+        AtomicInteger closeCloses = new AtomicInteger();
+        source.configureFault(openFailure, "open", null);
+        source.configureFault(nullInput, "null", null);
+        source.configureFault(readFailure, "read", readCloses);
+        source.configureFault(closeFailure, "close", closeCloses);
+        List<LogStore.Entry> entries = Arrays.asList(openFailure, nullInput, readFailure, closeFailure, healthy);
+        List<byte[]> originalFiles = snapshotFixtureBytes(entries);
+        File cache = new File(root, "cache");
+        check(cache.mkdirs(), "the merged-input cache exists");
+
+        File snapshot = new LogStore(Collections.<LogStore.Source>singletonList(source)).snapshotAll(entries, cache);
+        String text = new String(Files.readAllBytes(snapshot.toPath()), "UTF-8");
+        check(countOccurrences(text, "[该日志已消失或不可读取]") == 4
+            && text.contains("===== " + healthy.fileName + " · 应用目录 =====")
+            && text.contains("pid: 700105") && !text.contains("pid: 700101")
+            && !text.contains("pid: 700102") && !text.contains("pid: 700103"),
+            "merged export marks open, null, read, and input-close failures while continuing to the healthy member");
+        check(source.openCalls == 5 && readCloses.get() == 1 && closeCloses.get() == 1
+            && source.closedInputs == 1,
+            "every opened merged input closes once, including read and close failures");
+        check(snapshotFixtureBytesUnchanged(entries, originalFiles),
+            "recoverable merged-input failures leave all source files unchanged");
+    }
+
+    private static void testMergedSnapshotOutputFaults(File parent) throws Exception {
+        File root = new File(parent, "round-3-merged-output-faults");
+        check(root.mkdirs(), "the merged-output fault root exists");
+        String bodyA = "wakeup-noads crash log\npackage: io.github.wakeupnoads\npid: 111111";
+        String bodyB = "wakeup-noads crash log\npackage: io.github.wakeupnoads\npid: 222222";
+
+        File firstRoot = new File(root, "first-write");
+        check(firstRoot.mkdirs(), "the first-write case root exists");
+        CountingFixtureSource firstSource = new CountingFixtureSource("app", "应用目录", new File(firstRoot, "first"));
+        CountingFixtureSource laterSource = new CountingFixtureSource("legacy-download", "历史 Download", new File(firstRoot, "later"));
+        LogStore.Entry first = firstSource.add("crash-20261031-071101-001-12.txt", 2000L, bodyA);
+        LogStore.Entry later = laterSource.add("crash-20261031-071102-002-12.txt", 1000L, bodyB);
+        List<LogStore.Entry> entries = Arrays.asList(first, later);
+        List<byte[]> originalFiles = snapshotFixtureBytes(entries);
+        File firstCache = new File(firstRoot, "cache");
+        check(firstCache.mkdirs(), "the first-write cache exists");
+        FaultingSnapshotOutputFactory firstWrite = new FaultingSnapshotOutputFactory("body", true);
+        IOException firstFailure = snapshotAllFailure(new LogStore(Arrays.<LogStore.Source>asList(firstSource, laterSource), firstWrite), entries, firstCache);
+        check(firstFailure != null && firstWrite.failureMessage.equals(firstFailure.getMessage())
+            && firstWrite.failureCount == 1 && firstWrite.placeholderWrites == 0
+            && firstSource.openCalls == 1 && laterSource.openCalls == 0
+            && firstSource.closedInputs == 1 && noSnapshotFiles(firstCache)
+            && snapshotFixtureBytesUnchanged(entries, originalFiles),
+            "one transient body-output failure aborts the merged snapshot, cleans it, preserves sources, and never opens the next source");
+
+        for (String point : new String[] { "title", "separator", "body", "flush", "close" }) {
+            File caseRoot = new File(root, point);
+            check(caseRoot.mkdirs(), "the " + point + " output-failure case root exists");
+            CountingFixtureSource sourceA = new CountingFixtureSource("app", "应用目录", new File(caseRoot, "first"));
+            CountingFixtureSource sourceB = new CountingFixtureSource("legacy-download", "历史 Download", new File(caseRoot, "second"));
+            LogStore.Entry entryA = sourceA.add("crash-20261031-072101-001-12.txt", 2000L, bodyA);
+            LogStore.Entry entryB = sourceB.add("crash-20261031-072102-002-12.txt", 1000L, bodyB);
+            List<LogStore.Entry> faultEntries = Arrays.asList(entryA, entryB);
+            List<byte[]> before = snapshotFixtureBytes(faultEntries);
+            File cache = new File(caseRoot, "cache");
+            check(cache.mkdirs(), "the " + point + " output-failure cache exists");
+            FaultingSnapshotOutputFactory output = new FaultingSnapshotOutputFactory(point, false);
+            IOException failure = snapshotAllFailure(new LogStore(Arrays.<LogStore.Source>asList(sourceA, sourceB), output), faultEntries, cache);
+            boolean laterSourceNotOpened = "close".equals(point)
+                ? sourceB.openCalls == 1 : sourceB.openCalls == 0;
+            check(failure != null && output.failureMessage.equals(failure.getMessage())
+                && output.failureCount == 1 && output.placeholderWrites == 0
+                && output.closeCalls == 1 && noSnapshotFiles(cache)
+                && laterSourceNotOpened && snapshotFixtureBytesUnchanged(faultEntries, before),
+                point + " output failure aborts the merged snapshot without an unreadable-source placeholder or source mutation");
+        }
+
+        File combinedRoot = new File(root, "body-and-input-close");
+        check(combinedRoot.mkdirs(), "the combined output/input failure root exists");
+        MergeFaultSource combinedSource = new MergeFaultSource("app", "应用目录", new File(combinedRoot, "logs"));
+        LogStore.Entry combinedEntry = combinedSource.add("crash-20261031-073101-001-12.txt", 1000L, bodyA);
+        AtomicInteger combinedCloses = new AtomicInteger();
+        combinedSource.configureFault(combinedEntry, "close", combinedCloses);
+        List<LogStore.Entry> combinedEntries = Collections.singletonList(combinedEntry);
+        List<byte[]> combinedBefore = snapshotFixtureBytes(combinedEntries);
+        File combinedCache = new File(combinedRoot, "cache");
+        check(combinedCache.mkdirs(), "the combined failure cache exists");
+        FaultingSnapshotOutputFactory combinedOutput = new FaultingSnapshotOutputFactory("body", false);
+        IOException combinedFailure = snapshotAllFailure(
+            new LogStore(Collections.<LogStore.Source>singletonList(combinedSource), combinedOutput), combinedEntries, combinedCache);
+        Throwable[] suppressed = combinedFailure == null ? new Throwable[0] : combinedFailure.getSuppressed();
+        check(combinedFailure != null && combinedOutput.failureMessage.equals(combinedFailure.getMessage())
+            && suppressed.length == 1 && suppressed[0].getCause() != null
+            && "close-secret-failure".equals(suppressed[0].getCause().getMessage())
+            && combinedCloses.get() == 1 && combinedOutput.placeholderWrites == 0
+            && noSnapshotFiles(combinedCache) && snapshotFixtureBytesUnchanged(combinedEntries, combinedBefore),
+            "body output failure remains primary while the single input-close failure is preserved as suppressed");
+    }
+
+    private static IOException snapshotAllFailure(LogStore store, List<LogStore.Entry> entries, File cache) {
+        try { store.snapshotAll(entries, cache); return null; }
+        catch (IOException expected) { return expected; }
+    }
+
+    private static List<byte[]> snapshotFixtureBytes(List<LogStore.Entry> entries) throws IOException {
+        List<byte[]> contents = new ArrayList<byte[]>();
+        for (LogStore.Entry entry : entries) contents.add(Files.readAllBytes(((File) entry.handle).toPath()));
+        return contents;
+    }
+
+    private static boolean snapshotFixtureBytesUnchanged(List<LogStore.Entry> entries, List<byte[]> original) throws IOException {
+        if (entries.size() != original.size()) return false;
+        for (int index = 0; index < entries.size(); index++) {
+            File file = (File) entries.get(index).handle;
+            if (!file.isFile() || !Arrays.equals(original.get(index), Files.readAllBytes(file.toPath()))) return false;
+        }
+        return true;
+    }
+
+    private static boolean noSnapshotFiles(File cache) {
+        File exportRoot = new File(cache, LogStore.EXPORT_FOLDER);
+        File[] files = exportRoot.listFiles();
+        return files == null || files.length == 0;
+    }
+
+    private static int countOccurrences(String text, String value) {
+        int count = 0;
+        for (int index = 0; (index = text.indexOf(value, index)) >= 0; index += value.length()) count++;
+        return count;
+    }
+
+    private static void testLogPageControllerSelectionDeleteAndExportAll() throws Exception {
+        File root = cacheTemp("log-delete-controller-");
+        try {
+            File directory = new File(root, "logs");
+            check(directory.mkdirs(), "the controller source directory exists");
+            FixtureSource source = new FixtureSource("app", "应用目录", directory);
+            source.deletable = true;
+            String body = "wakeup-noads crash log\npackage: io.github.wakeupnoads\nstudent=827361 password=all-secret\n";
+            source.add("crash-20261031-020101-001-12.txt", 1000L, body);
+            source.add("crash-20261031-020102-002-12.txt", 2000L, body);
+            source.add("exit-20261031-020103-003-12.txt", 3000L, "wakeup-noads exit log\n");
+            LogStore store = new LogStore(Collections.<LogStore.Source>singletonList(source));
+            Object owner = new Object();
+            ManualHost host = new ManualHost();
+            LogPage.Controller controller = new LogPage.Controller(owner, store, host);
+            controller.present(); host.runAllIo();
+            List<LogStore.Entry> entries = controllerResult(controller).entries;
+            check(entries.size() == 3, "the controller lists the three fixtures");
+
+            controller.exportAll(root);
+            controller.exportAll(root);
+            check(host.io.size() == 1 && host.toasts.contains("已有导出正在处理"), "a second export-all while preparing is refused");
+            host.runAllIo();
+            check(host.launchCount == 1 && host.requestCode == LogPage.EXPORT_REQUEST_CODE
+                && host.title.matches("wakeup-noads-logs-[0-9]{8}-[0-9]{6}\\.txt"),
+                "export-all launches one document request with a timestamped merged title");
+            check(controller.onActivityResult(owner, LogPage.EXPORT_REQUEST_CODE, LogPage.RESULT_OK, new FakeUri("content")),
+                "the merged export accepts its own content URI");
+            host.runAllIo(); host.runAllCancellation(); host.runAllIo();
+            String written = new String(host.target.toByteArray(), "UTF-8");
+            int previous = -1;
+            for (LogStore.Entry entry : entries) {
+                int heading = written.indexOf("===== " + entry.fileName + " · 应用目录 =====");
+                check(heading > previous, "the merged target holds every listed log in list order");
+                previous = heading;
+            }
+            check(!written.contains("all-secret") && host.toasts.contains("导出成功"), "the merged target is sanitized and reported once");
+
+            controller.longPress(entries.get(0));
+            LogPage.PageState state = host.states.get(host.states.size() - 1);
+            check(state.selecting && state.chosen.equals(Collections.singletonList(entries.get(0))) && !state.detail,
+                "a long press starts multi-select with the pressed log chosen");
+            controller.select(entries.get(1));
+            controller.toggle(entries.get(0));
+            state = host.states.get(host.states.size() - 1);
+            check(state.selecting && !state.detail && state.chosen.equals(Collections.singletonList(entries.get(1))) && host.io.isEmpty(),
+                "taps in multi-select toggle entries instead of opening detail");
+            controller.selectAll();
+            check(host.states.get(host.states.size() - 1).chosen.size() == 3, "select-all chooses every log");
+            controller.selectAll();
+            check(host.states.get(host.states.size() - 1).chosen.isEmpty(), "select-all with everything chosen clears the selection");
+            controller.back();
+            state = host.states.get(host.states.size() - 1);
+            check(!state.selecting && state.chosen.isEmpty() && !host.dismissed, "back leaves multi-select before closing the page");
+
+            controller.deleteAction();
+            state = host.states.get(host.states.size() - 1);
+            check(state.selecting && state.chosen.isEmpty(), "the list toolbar delete action enters multi-select with nothing chosen");
+            int toasts = host.toasts.size();
+            controller.deleteChosen();
+            controller.exportChosen(root);
+            check(host.toasts.subList(toasts, host.toasts.size()).equals(Arrays.asList("请先选择日志", "请先选择日志"))
+                && host.pendingConfirm == null && host.io.isEmpty(), "delete and export with nothing chosen only ask for a selection");
+
+            controller.toggle(entries.get(1));
+            controller.exportChosen(root);
+            host.runAllIo();
+            state = host.states.get(host.states.size() - 1);
+            check(host.launchCount == 2 && host.title.equals("wakeup-noads-" + entries.get(1).fileName) && !state.selecting,
+                "exporting one chosen log uses its own file name and leaves multi-select");
+            controller.longPress(entries.get(0));
+            controller.deleteChosen();
+            check(host.pendingConfirm == null && host.toasts.get(host.toasts.size() - 1).equals("已有导出正在处理"),
+                "deleting is refused while an export is waiting for its target");
+            controller.onActivityResult(owner, LogPage.EXPORT_REQUEST_CODE, 0, null);
+            host.runAllIo(); host.runAllCancellation(); host.runAllIo();
+            controller.exitSelection();
+
+            controller.longPress(entries.get(2));
+            controller.toggle(entries.get(0));
+            controller.deleteChosen();
+            check("删除 2 条日志".equals(host.confirmTitle) && "删除后无法恢复。需要留底可以先导出。".equals(host.confirmMessage)
+                && "删除".equals(host.confirmAction) && host.io.isEmpty() && source.deleteCalls == 0,
+                "deleting chosen logs asks for confirmation before touching any file");
+            host.acceptConfirm();
+            state = host.states.get(host.states.size() - 1);
+            check(state.exportPending && "正在删除日志…".equals(state.message) && host.io.size() == 1, "a confirmed delete runs once on I/O");
+            controller.copy(entries.get(1));
+            check(host.toasts.get(host.toasts.size() - 1).equals("正在删除日志") && host.io.size() == 1, "copy waits while logs are being deleted");
+            host.runAllIo();
+            state = host.states.get(host.states.size() - 1);
+            check(host.toasts.contains("已删除 2 条日志") && state.result.entries.size() == 1 && !state.selecting
+                && state.result.entries.get(0).fileName.equals(entries.get(1).fileName)
+                && !((File) entries.get(0).handle).exists() && !((File) entries.get(2).handle).exists(),
+                "the confirmed logs are deleted, reported, and the list reloads without them");
+
+            LogStore.Entry remaining = state.result.entries.get(0);
+            controller.longPress(remaining);
+            controller.refresh(); host.runAllIo();
+            check(!host.states.get(host.states.size() - 1).selecting, "refresh leaves multi-select");
+
+            controller.longPress(remaining);
+            controller.deleteChosen();
+            source.entries.clear();
+            controller.refresh(); host.runAllIo();
+            int beforeStale = source.deleteCalls;
+            host.acceptConfirm();
+            check(host.toasts.get(host.toasts.size() - 1).equals("日志列表已刷新，请重新选择") && source.deleteCalls == beforeStale
+                && host.io.isEmpty(), "a confirmation that outlived a refresh deletes nothing");
+
+            LogStore.Entry stuck = source.add("crash-20261031-020104-004-12.txt", 4000L, body);
+            source.deletable = false;
+            controller.refresh(); host.runAllIo();
+            controller.longPress(stuck);
+            controller.deleteChosen(); host.acceptConfirm(); host.runAllIo();
+            check(host.toasts.contains("删除失败，日志未改动") && ((File) stuck.handle).isFile()
+                && host.states.get(host.states.size() - 1).result.entries.size() == 1, "a failed delete is reported and keeps the log");
+
+            source.deletable = true;
+            controller.select(stuck); host.runAllIo();
+            check(host.states.get(host.states.size() - 1).detail, "the remaining log opens in detail");
+            controller.longPress(stuck);
+            check(!host.states.get(host.states.size() - 1).selecting, "a long press does not start multi-select from detail");
+            controller.deleteAction();
+            check("删除 1 条日志".equals(host.confirmTitle), "the detail toolbar delete asks to delete the open log");
+            host.acceptConfirm(); host.runAllIo();
+            state = host.states.get(host.states.size() - 1);
+            check(host.toasts.contains("已删除 1 条日志") && !state.detail && state.result.entries.isEmpty() && !((File) stuck.handle).exists(),
+                "deleting from detail removes the log and returns to the empty list");
+            controller.exportAll(root);
+            check(host.toasts.get(host.toasts.size() - 1).equals("没有可导出的日志") && host.io.isEmpty(), "export-all on an empty list only reports it");
+            controller.close();
+
+            testLogDeleteCancellationCanBeRetried(root);
+            testLogExportChosenUsesListOrder(root);
+            testLogPartialDeleteKeepsFailedEntry(root);
+            testControllerMergedSnapshotFailureRecovery(root);
+        } finally { deleteTree(root); }
+    }
+
+    private static void testLogDeleteCancellationCanBeRetried(File root) throws Exception {
+        File directory = new File(root, "delete-cancel-source");
+        check(directory.mkdirs(), "the cancellation source directory exists");
+        FixtureSource source = new FixtureSource("app", "应用目录", directory);
+        source.deletable = true;
+        LogStore.Entry listTarget = source.add("crash-20261031-040101-001-12.txt", 1000L,
+            "wakeup-noads crash log\npackage: io.github.wakeupnoads\nlist-cancel-marker\n");
+        LogStore.Entry detailTarget = source.add("crash-20261031-040102-002-12.txt", 2000L,
+            "wakeup-noads crash log\npackage: io.github.wakeupnoads\ndetail-cancel-marker\n");
+        ManualHost host = new ManualHost();
+        LogPage.Controller controller = new LogPage.Controller(new Object(),
+            new LogStore(Collections.<LogStore.Source>singletonList(source)), host);
+        controller.present(); host.runAllIo();
+
+        controller.deleteAction();
+        controller.toggle(listTarget);
+        controller.deleteChosen();
+        check("删除 1 条日志".equals(host.confirmTitle)
+            && "删除后无法恢复。需要留底可以先导出。".equals(host.confirmMessage)
+            && "删除".equals(host.confirmAction) && host.io.isEmpty() && source.deleteCalls == 0,
+            "list deletion asks for confirmation without scheduling deletion I/O");
+        host.cancelConfirm();
+        check(host.io.isEmpty() && source.deleteCalls == 0 && ((File) listTarget.handle).isFile()
+            && ((File) detailTarget.handle).isFile(), "cancelling list deletion leaves both source files untouched");
+        controller.deleteChosen();
+        check(host.pendingConfirm != null && host.io.isEmpty() && source.deleteCalls == 0,
+            "list deletion can be requested again after cancellation");
+        host.cancelConfirm();
+
+        controller.exitSelection();
+        controller.select(detailTarget); host.runAllIo();
+        check(host.states.get(host.states.size() - 1).detail, "the cancellation fixture opens the detail page");
+        controller.deleteAction();
+        check("删除 1 条日志".equals(host.confirmTitle) && host.io.isEmpty() && source.deleteCalls == 0,
+            "detail deletion asks for confirmation without scheduling deletion I/O");
+        host.cancelConfirm();
+        check(host.io.isEmpty() && source.deleteCalls == 0 && ((File) listTarget.handle).isFile()
+            && ((File) detailTarget.handle).isFile(), "cancelling detail deletion leaves both source files untouched");
+        controller.deleteAction();
+        check(host.pendingConfirm != null && host.io.isEmpty() && source.deleteCalls == 0,
+            "detail deletion can be requested again after cancellation");
+        host.cancelConfirm();
+        controller.close();
+    }
+
+    private static void testLogExportChosenUsesListOrder(File root) throws Exception {
+        File directory = new File(root, "chosen-export-source");
+        check(directory.mkdirs(), "the selected-export source directory exists");
+        FixtureSource source = new FixtureSource("app", "应用目录", directory);
+        source.add("crash-20261031-050101-001-12.txt", 1000L,
+            "wakeup-noads crash log\npackage: io.github.wakeupnoads\npid: 111111\n");
+        source.add("crash-20261031-050102-002-12.txt", 2000L,
+            "wakeup-noads crash log\npackage: io.github.wakeupnoads\npid: 222222\n");
+        source.add("exit-20261031-050103-003-12.txt", 3000L,
+            "wakeup-noads exit log\npid: 333333\n");
+        ManualHost host = new ManualHost();
+        Object owner = new Object();
+        LogPage.Controller controller = new LogPage.Controller(owner,
+            new LogStore(Collections.<LogStore.Source>singletonList(source)), host);
+        controller.present(); host.runAllIo();
+        List<LogStore.Entry> entries = controllerResult(controller).entries;
+        check(entries.size() == 3, "the selected-export fixture lists three logs");
+
+        controller.longPress(entries.get(2));
+        controller.select(entries.get(0));
+        check(host.states.get(host.states.size() - 1).chosen.equals(Arrays.asList(entries.get(2), entries.get(0))),
+            "the selected-export fixture selects logs in reverse list order");
+        controller.exportChosen(root);
+        check(host.io.size() == 1 && host.launchCount == 0, "selected export schedules one snapshot before opening the picker");
+        host.runAllIo();
+        check(host.launchCount == 1 && host.openedTargets == 0 && !host.states.get(host.states.size() - 1).selecting
+            && host.title.matches("wakeup-noads-logs-[0-9]{8}-[0-9]{6}\\.txt"),
+            "selected export opens one timestamped save request and exits multi-select");
+        check(controller.onActivityResult(owner, LogPage.EXPORT_REQUEST_CODE,
+            LogPage.RESULT_OK, new FakeUri("content")), "the selected export accepts its content URI");
+        host.runAllIo(); host.runAllCancellation(); host.runAllIo();
+
+        String written = new String(host.target.toByteArray(), "UTF-8");
+        String firstHeading = "===== " + entries.get(0).fileName + " · 应用目录 =====";
+        String unselectedHeading = "===== " + entries.get(1).fileName + " · 应用目录 =====";
+        String lastHeading = "===== " + entries.get(2).fileName + " · 应用目录 =====";
+        int firstIndex = written.indexOf(firstHeading);
+        int lastIndex = written.indexOf(lastHeading);
+        check(firstIndex >= 0 && lastIndex > firstIndex && !written.contains(unselectedHeading),
+            "the saved target contains only selected headings in list order");
+        check(written.contains("pid: 111111"), "the actual saved target contains the first selected content");
+        check(written.contains("pid: 333333"), "the actual saved target contains the second selected content");
+        check(!written.contains("pid: 222222"), "the actual saved target excludes the unselected content");
+        check(host.launchCount == 1 && host.openedTargets == 1 && host.target.closeCalls == 1
+            && host.toasts.contains("导出成功"),
+            "the selected export opens, writes, closes, and completes exactly one save");
+        check(((File) entries.get(0).handle).isFile() && ((File) entries.get(1).handle).isFile()
+            && ((File) entries.get(2).handle).isFile(), "selected export preserves all source logs");
+        controller.close();
+    }
+
+    private static void testLogPartialDeleteKeepsFailedEntry(File root) throws Exception {
+        File deletableDirectory = new File(root, "partial-delete-app-source");
+        File refusedDirectory = new File(root, "partial-delete-legacy-source");
+        check(deletableDirectory.mkdirs() && refusedDirectory.mkdirs(), "both partial-delete source directories exist");
+        FixtureSource deletable = new FixtureSource("app", "应用目录", deletableDirectory);
+        deletable.deletable = true;
+        FixtureSource refused = new FixtureSource("legacy-download", "历史 Download", refusedDirectory);
+        LogStore.Entry deletedEntry = deletable.add("crash-20261031-060101-001-12.txt", 2000L,
+            "wakeup-noads crash log\npackage: io.github.wakeupnoads\ndelete-success\n");
+        LogStore.Entry failedEntry = refused.add("crash-20261031-060102-002-12.txt", 1000L,
+            "wakeup-noads crash log\npackage: io.github.wakeupnoads\ndelete-refused\n");
+        ManualHost host = new ManualHost();
+        LogPage.Controller controller = new LogPage.Controller(new Object(), new LogStore(Arrays.<LogStore.Source>asList(deletable, refused)), host);
+        controller.present(); host.runAllIo();
+        check(controllerResult(controller).entries.size() == 2, "the partial-delete fixture lists both sources");
+
+        controller.deleteAction();
+        controller.toggle(deletedEntry);
+        controller.toggle(failedEntry);
+        controller.deleteChosen();
+        check("删除 2 条日志".equals(host.confirmTitle) && host.io.isEmpty()
+            && ((File) deletedEntry.handle).isFile() && ((File) failedEntry.handle).isFile(),
+            "partial deletion confirms both entries before any source changes");
+        host.acceptConfirm();
+        check(host.io.size() == 1 && deletable.deleteCalls == 0 && refused.deleteCalls == 0,
+            "confirmed partial deletion schedules one I/O operation");
+        host.runAllIo();
+        LogPage.PageState state = host.states.get(host.states.size() - 1);
+        check(host.toasts.contains("已删除 1 条，1 条删除失败") && !((File) deletedEntry.handle).exists()
+            && ((File) failedEntry.handle).isFile() && deletable.deleteCalls == 1 && refused.deleteCalls == 1,
+            "partial deletion reports exact counts and only removes the successful source file");
+        check(state.result.entries.size() == 1 && state.result.entries.get(0) == failedEntry
+            && refused.entries.contains(failedEntry) && deletable.entries.isEmpty(),
+            "refresh retains the failed entry and removes the deleted entry");
+        controller.close();
+    }
+
+    private static void testControllerMergedSnapshotFailureRecovery(File parent) throws Exception {
+        assertControllerMergedSnapshotFailureRecovery(parent, false);
+        assertControllerMergedSnapshotFailureRecovery(parent, true);
+    }
+
+    private static void assertControllerMergedSnapshotFailureRecovery(File parent, boolean chosen) throws Exception {
+        String flow = chosen ? "chosen" : "all";
+        File root = new File(parent, "round-3-controller-" + flow + "-snapshot-failure");
+        check(root.mkdirs(), "the controller " + flow + " snapshot-failure root exists");
+        CountingFixtureSource source = new CountingFixtureSource("app", "应用目录", new File(root, "logs"));
+        LogStore.Entry first = source.add("crash-20261031-080101-001-12.txt", 3000L,
+            "wakeup-noads crash log\npackage: io.github.wakeupnoads\npid: 810101\n");
+        LogStore.Entry second = source.add("crash-20261031-080102-002-12.txt", 2000L,
+            "wakeup-noads crash log\npackage: io.github.wakeupnoads\npid: 810102\n");
+        LogStore.Entry third = source.add("exit-20261031-080103-003-12.txt", 1000L,
+            "wakeup-noads exit log\npid: 810103\n");
+        List<LogStore.Entry> entries = Arrays.asList(first, second, third);
+        List<byte[]> originalFiles = snapshotFixtureBytes(entries);
+        File cache = new File(root, "cache");
+        check(cache.mkdirs(), "the controller " + flow + " snapshot-failure cache exists");
+        FaultingSnapshotOutputFactory output = new FaultingSnapshotOutputFactory("body", true);
+        LogStore store = new LogStore(Collections.<LogStore.Source>singletonList(source), output);
+        Object owner = new Object();
+        ManualHost host = new ManualHost();
+        LogPage.Controller controller = new LogPage.Controller(owner, store, host);
+        controller.present(); host.runAllIo();
+        int opensAfterList = source.openCalls;
+
+        if (chosen) {
+            controller.longPress(entries.get(0));
+            controller.toggle(entries.get(1));
+            check(host.states.get(host.states.size() - 1).chosen.size() == 2,
+                "the chosen-export failure fixture selects at least two logs");
+            controller.exportChosen(cache);
+        } else controller.exportAll(cache);
+        host.runAllIo();
+        check(output.failureCount == 1 && host.launchCount == 0
+            && "无法准备完整日志".equals(last(host.toasts)) && !host.toasts.contains("导出成功")
+            && host.cacheFiles(cache).length == 0 && source.openCalls == opensAfterList + 1
+            && snapshotFixtureBytesUnchanged(entries, originalFiles),
+            flow + " export reports fixed preparation failure, never launches or succeeds, and cleans the failed snapshot");
+
+        if (chosen) {
+            controller.longPress(entries.get(0));
+            controller.toggle(entries.get(1));
+            controller.exportChosen(cache);
+        } else controller.exportAll(cache);
+        host.runAllIo();
+        check(host.launchCount == 1 && host.requestCode == LogPage.EXPORT_REQUEST_CODE,
+            flow + " export retries through one document request after the output fault is consumed");
+        check(controller.onActivityResult(owner, LogPage.EXPORT_REQUEST_CODE, LogPage.RESULT_OK, new FakeUri("content")),
+            flow + " export retry accepts its content destination");
+        host.runAllIo(); host.runAllCancellation(); host.runAllIo();
+        String written = new String(host.target.toByteArray(), "UTF-8");
+        check(host.target.closeCalls == 1 && host.openedTargets == 1 && host.toasts.contains("导出成功")
+            && host.cacheFiles(cache).length == 0 && written.contains("pid: 810101")
+            && written.contains("pid: 810102") && (chosen ? !written.contains("pid: 810103") : written.contains("pid: 810103"))
+            && snapshotFixtureBytesUnchanged(entries, originalFiles),
+            flow + " export recovers with a complete real save and leaves the source logs unchanged");
+        controller.close();
+    }
+
+    private static void testProductionLogPageSelectionAndDeleteRender() throws Exception {
+        File root = cacheTemp("log-delete-render-");
+        try {
+            File cache = new File(root, "cache"); check(cache.mkdirs(), "the render cache exists");
+            File directory = new File(root, "logs"); check(directory.mkdirs(), "the render source exists");
+            FixtureSource source = new FixtureSource("app", "应用目录", directory);
+            source.deletable = true;
+            String body = "wakeup-noads crash log\npackage: io.github.wakeupnoads\n";
+            source.add("crash-20261031-030101-001-12.txt", 1000L, body);
+            source.add("crash-20261031-030102-002-12.txt", 2000L, body);
+            source.add("crash-20261031-030103-003-12.txt", 3000L, body);
+            FakeAndroidUiCalls ui = new FakeAndroidUiCalls(1, 32);
+            FakeSettingsActivity activity = new FakeSettingsActivity(root, cache, 1, true);
+            LogPage.Controller controller = startNativeController(activity,
+                new LogStore(Collections.<LogStore.Source>singletonList(source)), ui);
+            ui.awaitRenderCount(1);
+            ui.awaitBodyText("应用崩溃");
+            assertLogGroupBeforeFooter(ui.lastBody, "ordinary list");
+            assertNoSelectionActions(ui.lastBody, "ordinary list");
+            List<FakeView> icons = toolbarIcons(activity.toolbar);
+            check(icons.size() == 3 && icons.get(0).imageResource == 101 && icons.get(1).imageResource == 103 && icons.get(2).imageResource == 106
+                && "刷新".equals(icons.get(0).contentDescription) && "全部导出".equals(icons.get(1).contentDescription)
+                && "删除".equals(icons.get(2).contentDescription), "the toolbar carries refresh, export-all, and delete icons");
+            for (FakeView icon : icons) {
+                FakeLayoutParams params = (FakeLayoutParams) icon.layoutParams;
+                check(icon.clickListener instanceof FakeClickListener && icon.visibility == 0
+                    && "androidx.appcompat.widget.Toolbar$LayoutParams".equals(params.className) && params.width == 48 && params.height == 48,
+                    "each list toolbar icon is visible, clickable, and sits in a 48dp Toolbar slot");
+            }
+            FakeView title = findTextContaining(ui.lastBody, "应用崩溃");
+            FakeView row = (FakeView) ((FakeView) ((FakeView) title.parent).parent).parent;
+            check(row.longClickListener instanceof FakeClickListener && countClass(row, "android.widget.ImageButton") == 2,
+                "a list row keeps its copy and export icons and accepts a long press");
+            int renders = ui.renderCount;
+            ((FakeClickListener) row.longClickListener).run();
+            ui.awaitRenderCount(renders + 1);
+            check("已选 1 条".equals(activity.toolbar.text) && icons.get(0).visibility == 8 && icons.get(1).visibility == 8
+                && icons.get(2).visibility == 8, "multi-select shows the chosen count and hides the toolbar icons");
+            assertSelectionActionOrder(ui.lastBody, false, "one selected log");
+            check(countClass(ui.lastBody, "com.google.android.material.checkbox.MaterialCheckBox") == 3
+                && countClass(ui.lastBody, "android.widget.ImageButton") == 0
+                && findView(ui.lastBody, "全选") != null && findView(ui.lastBody, "导出所选") != null && findView(ui.lastBody, "删除所选") != null,
+                "multi-select rows carry checkboxes and the body shows select-all, export, and delete actions");
+            int checkedBoxes = 0;
+            List<FakeView> views = new ArrayList<FakeView>();
+            collectViews(ui.lastBody, views);
+            for (FakeView view : views) {
+                if (!"com.google.android.material.checkbox.MaterialCheckBox".equals(view.className)) continue;
+                check(!view.clickable && !view.focusable, "the checkbox leaves taps to its row");
+                if (view.checked) checkedBoxes++;
+            }
+            check(checkedBoxes == 1, "only the long-pressed log is checked");
+
+            renders = ui.renderCount;
+            controller.select(controllerResult(controller).entries.get(1));
+            ui.awaitRenderCount(renders + 1);
+            check("已选 2 条".equals(activity.toolbar.text) && findView(ui.lastBody, "全选") != null,
+                "selecting another row redraws the multi-select action bar");
+            assertSelectionActionOrder(ui.lastBody, false, "two selected logs");
+
+            renders = ui.renderCount;
+            ((FakeClickListener) findView(ui.lastBody, "全选").clickListener).run();
+            ui.awaitRenderCount(renders + 1);
+            check("已选 3 条".equals(activity.toolbar.text) && findView(ui.lastBody, "取消全选") != null,
+                "select-all chooses every log and offers to clear them");
+            assertSelectionActionOrder(ui.lastBody, true, "all logs selected");
+            ((FakeClickListener) findView(ui.lastBody, "删除所选").clickListener).run();
+            FakeView dialog = ui.lastDialog;
+            check(dialog != null && "删除 3 条日志".equals(dialog.text) && "删除后无法恢复。需要留底可以先导出。".equals(dialog.message)
+                && "取消".equals(dialog.negativeText) && "删除".equals(dialog.positiveText) && dialog.showCalls == 1
+                && source.deleteCalls == 0, "the delete action opens an AlertDialog confirmation before deleting");
+            ((FakeClickListener) dialog.positiveListener).run();
+            awaitCondition(ui, "已删除 3 条日志");
+            ui.awaitBodyText("暂无日志");
+            assertNoSelectionActions(ui.lastBody, "empty list");
+            check(source.entries.isEmpty() && "本地日志".equals(activity.toolbar.text) && icons.get(0).visibility == 0
+                && icons.get(1).visibility == 8 && icons.get(2).visibility == 8,
+                "confirmed deletion empties the list and leaves only the refresh icon");
+
+            LogStore.Entry last = source.add("crash-20261031-030103-003-12.txt", 3000L, body);
+            renders = ui.renderCount;
+            ((FakeClickListener) icons.get(0).clickListener).run();
+            ui.awaitRenderCount(renders + 1);
+            ui.awaitBodyText("应用崩溃");
+            FakeView onlyTitle = findTextContaining(ui.lastBody, "应用崩溃");
+            FakeView onlyRow = (FakeView) ((FakeView) ((FakeView) onlyTitle.parent).parent).parent;
+            renders = ui.renderCount;
+            ((FakeClickListener) onlyRow.longClickListener).run();
+            ui.awaitRenderCount(renders + 1);
+            check("已选 1 条".equals(activity.toolbar.text)
+                && countClass(ui.lastBody, "com.google.android.material.checkbox.MaterialCheckBox") == 1,
+                "long-pressing the only log selects it with one checkbox");
+            assertSelectionActionOrder(ui.lastBody, true, "the only log selected");
+            renders = ui.renderCount;
+            controller.exitSelection();
+            ui.awaitRenderCount(renders + 1);
+            assertNoSelectionActions(ui.lastBody, "single log after leaving multi-select");
+            check("本地日志".equals(activity.toolbar.text), "leaving multi-select restores the list title");
+            controller.select(controllerResult(controller).entries.get(0));
+            ui.awaitBodyText("内容预览");
+            assertNoSelectionActions(ui.lastBody, "detail page");
+            check("日志详情".equals(activity.toolbar.text) && icons.get(0).visibility == 8 && icons.get(1).visibility == 8
+                && icons.get(2).visibility == 0, "detail keeps only the delete icon");
+            ((FakeClickListener) icons.get(2).clickListener).run();
+            check(ui.lastDialog != dialog && "删除 1 条日志".equals(ui.lastDialog.text), "the detail delete icon confirms the open log");
+            ((FakeClickListener) ui.lastDialog.positiveListener).run();
+            awaitCondition(ui, "已删除 1 条日志");
+            ui.awaitBodyText("暂无日志");
+            assertNoSelectionActions(ui.lastBody, "empty list after detail delete");
+            check(!((File) last.handle).exists() && "本地日志".equals(activity.toolbar.text), "deleting from detail returns to the empty list");
+            controller.detach();
+            check(countClass(activity.toolbar, "android.widget.ImageButton") == 0, "destroying the page removes all three toolbar icons");
+        } finally { deleteTree(root); }
+    }
+
+    private static void assertLogGroupBeforeFooter(FakeView body, String state) {
+        FakeView group = directChildContainingText(body, "应用崩溃");
+        FakeView footer = directChildContainingText(body, "保存位置：");
+        check(group != null && footer != null && group.parent == body && footer.parent == body
+            && body.children.indexOf(group) < body.children.indexOf(footer)
+            && countDirectChildrenContainingText(body, "应用崩溃") == 1
+            && countDirectChildrenContainingText(body, "保存位置：") == 1,
+            state + " keeps one log group before one save-location footer in the body tree");
+    }
+
+    private static void assertSelectionActionOrder(FakeView body, boolean allSelected, String state) {
+        FakeView group = directChildContainingText(body, "应用崩溃");
+        FakeView actions = directSelectionActionBar(body);
+        FakeView footer = directChildContainingText(body, "保存位置：");
+        String selectAllText = allSelected ? "取消全选" : "全选";
+        String otherSelectAllText = allSelected ? "全选" : "取消全选";
+        check(group != null && actions != null && footer != null && group.parent == body
+            && actions.parent == body && footer.parent == body
+            && body.children.indexOf(group) < body.children.indexOf(actions)
+            && body.children.indexOf(actions) < body.children.indexOf(footer)
+            && countDirectChildrenContainingText(body, "应用崩溃") == 1
+            && countDirectChildrenContainingText(body, "保存位置：") == 1
+            && countSelectionActionBars(body) == 1,
+            state + " places one action bar between the log group and save-location footer");
+        check(actions.children.size() == 3 && selectAllText.equals(actions.children.get(0).text),
+            state + " keeps the select-all control first");
+        check(actions.children.size() == 3 && "导出所选".equals(actions.children.get(1).text)
+            && "删除所选".equals(actions.children.get(2).text),
+            state + " keeps export and delete after select-all");
+        check(countText(body, selectAllText) == 1 && countText(body, otherSelectAllText) == 0
+            && countText(body, "导出所选") == 1 && countText(body, "删除所选") == 1,
+            state + " renders each selection action exactly once with the current select-all label");
+    }
+
+    private static void assertNoSelectionActions(FakeView body, String state) {
+        check(countSelectionActionBars(body) == 0 && countText(body, "全选") == 0
+            && countText(body, "取消全选") == 0 && countText(body, "导出所选") == 0
+            && countText(body, "删除所选") == 0,
+            state + " does not render a batch action bar");
+    }
+
+    private static FakeView directChildContainingText(FakeView parent, String expected) {
+        if (parent == null) return null;
+        for (FakeView child : parent.children) if (findTextContaining(child, expected) != null) return child;
+        return null;
+    }
+
+    private static int countDirectChildrenContainingText(FakeView parent, String expected) {
+        int count = 0;
+        if (parent != null) for (FakeView child : parent.children) if (findTextContaining(child, expected) != null) count++;
+        return count;
+    }
+
+    private static FakeView directSelectionActionBar(FakeView body) {
+        if (body != null) for (FakeView child : body.children) if (isSelectionActionBar(child)) return child;
+        return null;
+    }
+
+    private static int countSelectionActionBars(FakeView body) {
+        int count = 0;
+        if (body != null) for (FakeView child : body.children) if (isSelectionActionBar(child)) count++;
+        return count;
+    }
+
+    private static boolean isSelectionActionBar(FakeView view) {
+        return countText(view, "全选") > 0 || countText(view, "取消全选") > 0
+            || countText(view, "导出所选") > 0 || countText(view, "删除所选") > 0;
+    }
+
+    private static int countText(FakeView view, String expected) {
+        if (view == null) return 0;
+        int count = expected.equals(view.text) ? 1 : 0;
+        for (FakeView child : view.children) count += countText(child, expected);
+        return count;
+    }
+
+    private static List<FakeView> toolbarIcons(FakeView toolbar) {
+        List<FakeView> icons = new ArrayList<FakeView>();
+        for (FakeView child : new ArrayList<FakeView>(toolbar.children)) if ("android.widget.ImageButton".equals(child.className)) icons.add(child);
+        return icons;
+    }
+
+    private static FakeView findView(FakeView root, String text) {
+        if (root == null) return null;
+        if (text.equals(root.text)) return root;
+        for (FakeView child : new ArrayList<FakeView>(root.children)) {
+            FakeView found = findView(child, text);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private static void awaitCondition(FakeAndroidUiCalls ui, String toast) throws Exception {
+        long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+        while (!ui.toasts.contains(toast) && System.nanoTime() < deadline) Thread.sleep(10);
+        check(ui.toasts.contains(toast), "production toast shown: " + toast);
     }
 
     private static void testLogSummaryLevelsAndRecords() throws Exception {
@@ -2621,7 +3403,7 @@ public final class CrashLogTest {
     private static FakeView toolbarRefreshButton(FakeView toolbar) {
         FakeView found = null;
         for (FakeView child : new ArrayList<FakeView>(toolbar.children)) {
-            if (!"android.widget.ImageButton".equals(child.className)) continue;
+            if (!"android.widget.ImageButton".equals(child.className) || child.imageResource != 101) continue;
             check(found == null, "the toolbar carries at most one refresh icon");
             check(child.imageResource == 101 && child.layoutParams instanceof FakeLayoutParams
                 && "androidx.appcompat.widget.Toolbar$LayoutParams".equals(((FakeLayoutParams) child.layoutParams).className)
@@ -2823,7 +3605,8 @@ public final class CrashLogTest {
         final String label;
         final File root;
         final List<LogStore.Entry> entries = new ArrayList<LogStore.Entry>();
-        int closedInputs;
+        int closedInputs, deleteCalls;
+        boolean deletable;
         Throwable scanFailure;
         String unavailableMessage;
         FixtureSource(String key, String label, File root) { this.key = key; this.label = label; this.root = root; }
@@ -2840,6 +3623,12 @@ public final class CrashLogTest {
                 @Override public void close() throws IOException { try { super.close(); } finally { closedInputs++; } }
             };
         }
+        @Override public boolean delete(LogStore.Entry entry) throws Exception {
+            deleteCalls++;
+            if (!deletable || !entries.contains(entry)) return false;
+            if (!((File) entry.handle).delete()) return false;
+            entries.remove(entry); return true;
+        }
         LogStore.Entry add(String name, long modified, String content) throws IOException { return addAt(root, name, modified, content); }
         LogStore.Entry addOutside(String name, long modified, String content, File outside) throws IOException { return addAt(outside, name, modified, content); }
         private LogStore.Entry addAt(File parent, String name, long modified, String content) throws IOException {
@@ -2855,6 +3644,106 @@ public final class CrashLogTest {
         }
     }
 
+    private static final class CountingFixtureSource extends FixtureSource {
+        int openCalls;
+        CountingFixtureSource(String key, String label, File root) { super(key, label, root); }
+        @Override public InputStream open(LogStore.Entry entry) throws Exception {
+            openCalls++;
+            return super.open(entry);
+        }
+    }
+
+    private static final class MergeFaultSource extends FixtureSource {
+        final Map<String, String> faultModes = new LinkedHashMap<String, String>();
+        final Map<String, AtomicInteger> closeCounts = new LinkedHashMap<String, AtomicInteger>();
+        int openCalls;
+        MergeFaultSource(String key, String label, File root) { super(key, label, root); }
+        void configureFault(LogStore.Entry entry, String mode, AtomicInteger closeCount) {
+            faultModes.put(entry.fileName, mode);
+            if (closeCount != null) closeCounts.put(entry.fileName, closeCount);
+        }
+        @Override public InputStream open(LogStore.Entry entry) throws Exception {
+            openCalls++;
+            String mode = faultModes.get(entry.fileName);
+            if ("open".equals(mode)) throw new IOException("source-open-secret");
+            if ("null".equals(mode)) return null;
+            if ("read".equals(mode) || "close".equals(mode)) {
+                byte[] bytes = Files.readAllBytes(((File) entry.handle).toPath());
+                return new FaultInput(bytes, "read".equals(mode), "close".equals(mode), closeCounts.get(entry.fileName));
+            }
+            return super.open(entry);
+        }
+    }
+
+    private static final class FaultingSnapshotOutputFactory implements LogStore.OutputFactory {
+        private final String point;
+        private final boolean failOnceAcrossFactory;
+        final String failureMessage;
+        int openCalls, closeCalls, failureCount, placeholderWrites;
+
+        FaultingSnapshotOutputFactory(String point, boolean failOnceAcrossFactory) {
+            this.point = point;
+            this.failOnceAcrossFactory = failOnceAcrossFactory;
+            this.failureMessage = "snapshot-output-" + point + "-failure";
+        }
+
+        @Override public OutputStream open(File file) throws Exception {
+            openCalls++;
+            return new java.io.FilterOutputStream(new java.io.FileOutputStream(file)) {
+                boolean failed;
+                boolean bodyFlushed;
+
+                private boolean shouldFail() {
+                    if (failed || (failOnceAcrossFactory && failureCount > 0)) return false;
+                    failed = true;
+                    failureCount++;
+                    return true;
+                }
+
+                private boolean matches(String text) {
+                    if ("title".equals(point)) return text.startsWith("===== ");
+                    if ("separator".equals(point)) return bodyFlushed && "\n".equals(text);
+                    return "body".equals(point) && text.contains("pid:");
+                }
+
+                private void writeChecked(byte[] bytes, int offset, int length) throws IOException {
+                    String text = new String(bytes, offset, length, Charset.forName("UTF-8"));
+                    if (text.contains("[该日志已消失或不可读取]")) placeholderWrites++;
+                    if (matches(text) && shouldFail()) throw new IOException(failureMessage);
+                    out.write(bytes, offset, length);
+                }
+
+                @Override public void write(int value) throws IOException {
+                    byte[] one = new byte[] { (byte) value };
+                    writeChecked(one, 0, one.length);
+                }
+
+                @Override public void write(byte[] bytes, int offset, int length) throws IOException {
+                    writeChecked(bytes, offset, length);
+                }
+
+                @Override public void flush() throws IOException {
+                    if ("flush".equals(point) && shouldFail()) throw new IOException(failureMessage);
+                    out.flush();
+                    bodyFlushed = true;
+                }
+
+                @Override public void close() throws IOException {
+                    closeCalls++;
+                    IOException closeFailure = null;
+                    try { out.close(); }
+                    catch (IOException failure) { closeFailure = failure; }
+                    if ("close".equals(point) && shouldFail()) {
+                        IOException injected = new IOException(failureMessage);
+                        if (closeFailure != null) injected.addSuppressed(closeFailure);
+                        throw injected;
+                    }
+                    if (closeFailure != null) throw closeFailure;
+                }
+            };
+        }
+    }
+
     private static final class FakeMediaPlatform implements LogStore.MediaPlatform {
         final Object collection = new Object();
         FakeMediaCursor cursor;
@@ -2865,8 +3754,10 @@ public final class CrashLogTest {
         Object lastCollection;
         IOException queryFailure;
         boolean returnNullCursor;
-        int collectionCalls, queryCalls, openCalls;
+        int collectionCalls, queryCalls, openCalls, deleteRows = 1;
         Object openedUri;
+        final List<Object> deletedUris = new ArrayList<Object>();
+        @Override public int delete(Object context, Object uri) { deletedUris.add(uri); return deleteRows; }
         @Override public Object downloadsCollection() { collectionCalls++; return collection; }
         @Override public LogStore.MediaCursor query(Object context, Object collection, String[] projection, String selection,
                                                      String[] arguments, String sortOrder) throws Exception {
@@ -3044,14 +3935,14 @@ public final class CrashLogTest {
         final String className;
         final List<FakeView> children = new ArrayList<FakeView>();
         Object parent, layoutParams, textColor, cardBackgroundColor, backgroundTint, clickListener, navigationClickListener, typeface;
-        Object imageTint, background;
-        String text, contentDescription;
+        Object imageTint, background, longClickListener, positiveListener;
+        String text, contentDescription, message, positiveText, negativeText;
         int backgroundColor, textSizeUnit = -1, minimumHeight, orientation, singleLineCalls, maxLinesCalls;
         int gravity, visibility, imageResource, colorFilter, strokeWidth = -1, color;
         float textSize, radius, cardElevation = -1, cornerRadius;
         int[] padding = new int[] { 1, 3, 2, 5 };
-        boolean fillViewport, clipToPadding, selectable, allCaps;
-        int addViewCalls, removeViewCalls, removeAllViewsCalls;
+        boolean fillViewport, clipToPadding, selectable, allCaps, checked, clickable = true, focusable = true;
+        int addViewCalls, removeViewCalls, removeAllViewsCalls, showCalls;
         FakeView(String className) { this.className = className; }
         public Object getParent() { return parent; }
         public Object getLayoutParams() { return layoutParams; }
@@ -3111,6 +4002,7 @@ public final class CrashLogTest {
                 if ("ic_outline_save_alt_24".equals(name)) return 103;
                 if ("ic_outline_sticky_note_2_24".equals(name)) return 104;
                 if ("mtrl_ic_error".equals(name)) return 105;
+                if ("ic_outline_delete_outline_24".equals(name)) return 106;
                 return 0;
             }
             if (!"attr".equals(type)) return 0;
@@ -3203,7 +4095,7 @@ public final class CrashLogTest {
         int openCount, backRegistrations, backUnregistrations, requestInsetsCount, detachCount, finishCount, paddingWrites;
         int recycledArrays, obtainedArrays, renderCount, dialogConstructCount;
         boolean attached = true, failOpen;
-        FakeView lastScroll, lastBody;
+        FakeView lastScroll, lastBody, lastDialog;
         Runnable platformBack;
 
         FakeAndroidUiCalls(int themeId, int sdk) { this.themeId = themeId; this.sdk = sdk; }
@@ -3297,6 +4189,14 @@ public final class CrashLogTest {
             if ("setTypeface".equals(method)) { view.typeface = args[0]; return null; }
             if ("setAllCaps".equals(method)) { view.allCaps = ((Boolean) args[0]).booleanValue(); return null; }
             if ("setOnClickListener".equals(method)) { view.clickListener = args[0]; return null; }
+            if ("setOnLongClickListener".equals(method)) { view.longClickListener = args[0]; return null; }
+            if ("setChecked".equals(method)) { view.checked = ((Boolean) args[0]).booleanValue(); return null; }
+            if ("setClickable".equals(method)) { view.clickable = ((Boolean) args[0]).booleanValue(); return null; }
+            if ("setFocusable".equals(method)) { view.focusable = ((Boolean) args[0]).booleanValue(); return null; }
+            if ("setMessage".equals(method)) { view.message = args[0] == null ? null : args[0].toString(); return null; }
+            if ("setNegativeButton".equals(method)) { view.negativeText = String.valueOf(args[0]); return null; }
+            if ("setPositiveButton".equals(method)) { view.positiveText = String.valueOf(args[0]); view.positiveListener = args[1]; return null; }
+            if ("show".equals(method)) { view.showCalls++; return null; }
             if ("setNavigationOnClickListener".equals(method)) { view.navigationClickListener = args[0]; return null; }
             if ("setGravity".equals(method)) { view.gravity = intAt(args, 0); return null; }
             if ("setVisibility".equals(method)) { view.visibility = intAt(args, 0); return null; }
@@ -3318,6 +4218,7 @@ public final class CrashLogTest {
         }
         @Override public Object construct(String className, String[] parameterTypes, Object[] args) {
             if (className.contains("Dialog")) dialogConstructCount++;
+            if (className.equals("androidx.appcompat.app.AlertDialog$Builder")) { lastDialog = new FakeView(className); return lastDialog; }
             if (className.equals("android.view.ViewGroup$LayoutParams"))
                 return new FakeLayoutParams(className, intAt(args, 0), intAt(args, 1), 0);
             if (className.equals("androidx.appcompat.widget.Toolbar$LayoutParams"))
@@ -3334,6 +4235,8 @@ public final class CrashLogTest {
         }
         @Override public Object staticField(String className, String name) { return className + "." + name; }
         @Override public Object clickListener(Runnable callback) { return callback == null ? null : new FakeClickListener(callback); }
+        @Override public Object longClickListener(Runnable callback) { return callback == null ? null : new FakeClickListener(callback); }
+        @Override public Object dialogClickListener(Runnable callback) { return callback == null ? null : new FakeClickListener(callback); }
         @Override public float density(Object context) { return 1.0f; }
         @Override public int sdkInt() { return sdk; }
         @Override public Object registerBack(Object activity, Runnable callback) { backRegistrations++; platformBack = callback; return backToken; }
@@ -3591,6 +4494,13 @@ public final class CrashLogTest {
         InputStream snapshotInputOverride;
         LogPage.AndroidHost targetAdapter;
         Runnable beforeSnapshotDelete;
+        String confirmTitle, confirmMessage, confirmAction;
+        Runnable pendingConfirm;
+        @Override public void confirm(String title, String message, String action, Runnable onConfirm) {
+            confirmTitle = title; confirmMessage = message; confirmAction = action; pendingConfirm = onConfirm;
+        }
+        void acceptConfirm() { Runnable confirm = pendingConfirm; pendingConfirm = null; check(confirm != null, "a delete confirmation is pending"); confirm.run(); }
+        void cancelConfirm() { check(pendingConfirm != null, "a delete confirmation is pending"); pendingConfirm = null; }
         @Override public void executeIo(Runnable task) { io.add(task); }
         @Override public void executeCancellation(Runnable task) { cancellations.add(task); }
         @Override public void postMain(Runnable task) { if (queueMain) main.add(task); else task.run(); }

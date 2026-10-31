@@ -17,7 +17,7 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Local, read-only index of this app's crash and exit logs. Android calls are reflective. */
+/** Local index of this app's crash and exit logs; logs change only by explicit user deletion. Android calls are reflective. */
 final class LogStore {
     static final int PREVIEW_LIMIT = 256 * 1024;
     static final int COPY_LIMIT = 64 * 1024;
@@ -35,6 +35,8 @@ final class LogStore {
         String label();
         Scan scan() throws Exception;
         InputStream open(Entry entry) throws Exception;
+        /** Deletes one listed log; false or an exception means the file is still there. */
+        default boolean delete(Entry entry) throws Exception { return false; }
     }
 
     interface OutputFactory { OutputStream open(File file) throws Exception; }
@@ -54,6 +56,7 @@ final class LogStore {
                           String[] arguments, String sortOrder) throws Exception;
         Object withAppendedId(Object collection, long id) throws Exception;
         InputStream open(Object context, Object uri) throws Exception;
+        default int delete(Object context, Object uri) throws Exception { return 0; }
     }
 
     static final class Scan {
@@ -249,6 +252,12 @@ final class LogStore {
         CopyText(String text, boolean truncated) { this.text = text; this.truncated = truncated; }
     }
 
+    static final class DeleteResult {
+        final int deleted;
+        final int failed;
+        DeleteResult(int deleted, int failed) { this.deleted = deleted; this.failed = failed; }
+    }
+
     private static final class ReadResult {
         final byte[] bytes;
         final boolean truncated;
@@ -345,7 +354,93 @@ final class LogStore {
         return new CopyText(new String(data, 0, prefix, UTF_8) + marker, true);
     }
 
-    File snapshot(Entry entry, File cacheDirectory) throws IOException {
+    /** Deletes listed logs one by one; an entry that fails validation or deletion is only counted. */
+    DeleteResult delete(List<Entry> entries) {
+        int deleted = 0;
+        int failed = 0;
+        if (entries != null) for (Entry entry : entries) {
+            boolean removed = false;
+            try { removed = validEntry(entry) && entry.source.delete(entry); }
+            catch (Throwable ignored) { }
+            if (removed) deleted++; else failed++;
+        }
+        return new DeleteResult(deleted, failed);
+    }
+
+    File snapshot(final Entry entry, File cacheDirectory) throws IOException {
+        return writeSnapshot(cacheDirectory, new SnapshotWriter() {
+            @Override public void write(OutputStream output) throws Exception {
+                InputStream opened = entry.source.open(entry);
+                if (opened == null) throw new IOException("日志文件无法打开");
+                try (InputStream input = opened) { writeSanitizedSnapshot(input, output); }
+            }
+        });
+    }
+
+    /** One sanitized file holding every given log, newest first, each under its own file-name heading. */
+    File snapshotAll(final List<Entry> entries, File cacheDirectory) throws IOException {
+        if (entries == null || entries.isEmpty()) throw new IOException("没有可导出的日志");
+        return writeSnapshot(cacheDirectory, new SnapshotWriter() {
+            @Override public void write(OutputStream output) throws Exception {
+                int written = 0;
+                for (Entry entry : entries) {
+                    if (entry == null || entry.source == null || !validName(entry.fileName)) continue;
+                    if (written > 0) output.write("\n".getBytes(UTF_8));
+                    output.write(("===== " + entry.fileName + " · " + entry.sourceLabel + " =====\n").getBytes(UTF_8));
+                    try {
+                        try (InputStream input = openSnapshotInput(entry.source, entry)) {
+                            writeSanitizedSnapshot(input, output);
+                        }
+                    } catch (SourceInputFailure failure) {
+                        output.write("\n[该日志已消失或不可读取]\n".getBytes(UTF_8));
+                    }
+                    written++;
+                }
+                if (written == 0) throw new IOException("没有可导出的日志");
+            }
+        });
+    }
+
+    private static InputStream openSnapshotInput(Source source, Entry entry) throws SourceInputFailure {
+        final InputStream input;
+        try { input = source.open(entry); }
+        catch (Exception failure) { throw new SourceInputFailure(failure); }
+        if (input == null) throw new SourceInputFailure(new IOException("日志文件无法打开"));
+        return new SourceInputStream(input);
+    }
+
+    private static final class SourceInputFailure extends IOException {
+        private static final long serialVersionUID = 1L;
+        SourceInputFailure(Exception cause) { super("日志文件已消失或不可读取", cause); }
+    }
+
+    private static final class SourceInputStream extends java.io.FilterInputStream {
+        SourceInputStream(InputStream input) { super(input); }
+
+        @Override public int read() throws IOException {
+            try { return in.read(); }
+            catch (Exception failure) { throw new SourceInputFailure(failure); }
+        }
+
+        @Override public int read(byte[] bytes, int offset, int length) throws IOException {
+            try { return in.read(bytes, offset, length); }
+            catch (Exception failure) { throw new SourceInputFailure(failure); }
+        }
+
+        @Override public int available() throws IOException {
+            try { return in.available(); }
+            catch (Exception failure) { throw new SourceInputFailure(failure); }
+        }
+
+        @Override public void close() throws IOException {
+            try { in.close(); }
+            catch (Exception failure) { throw new SourceInputFailure(failure); }
+        }
+    }
+
+    private interface SnapshotWriter { void write(OutputStream output) throws Exception; }
+
+    private File writeSnapshot(File cacheDirectory, SnapshotWriter writer) throws IOException {
         if (cacheDirectory == null) throw new IOException("导出缓存不可用");
         File root = new File(cacheDirectory, EXPORT_FOLDER);
         if (!root.isDirectory() && !root.mkdirs() && !root.isDirectory()) throw new IOException("无法创建导出快照目录");
@@ -354,11 +449,9 @@ final class LogStore {
         boolean complete = false;
         IOException failure = null;
         try {
-            InputStream opened = entry.source.open(entry);
-            if (opened == null) throw new IOException("日志文件无法打开");
-            try (InputStream input = opened; OutputStream output = outputFactory.open(target)) {
+            try (OutputStream output = outputFactory.open(target)) {
                 if (output == null) throw new IOException("无法创建导出快照");
-                writeSanitizedSnapshot(input, output);
+                writer.write(output);
             }
             complete = true;
         } catch (Throwable caught) {
@@ -517,6 +610,12 @@ final class LogStore {
             if (directory == null || !file.isFile() || !inside(file, directory)) throw new IOException("日志路径已失效");
             return new FileInputStream(file);
         }
+        @Override public boolean delete(Entry entry) throws Exception {
+            if (entry == null || entry.source != this || !(entry.handle instanceof File) || directory == null) return false;
+            File file = (File) entry.handle;
+            if (!validName(file.getName()) || !file.isFile() || !inside(file, directory)) return false;
+            return file.delete();
+        }
     }
 
     static final class LegacyDownloadSource implements Source {
@@ -547,6 +646,13 @@ final class LogStore {
             File file = (File) entry.handle;
             if (!file.isFile() || !inside(file, directory) || !hasPackageHeader(file)) throw new IOException("历史日志已失效或归属不明");
             return new FileInputStream(file);
+        }
+        @Override public boolean delete(Entry entry) throws Exception {
+            if (entry == null || entry.source != this || !(entry.handle instanceof File) || directory == null
+                || !validLegacyMetadata(entry.ownerPackage, entry.relativePath, entry.fileName)) return false;
+            File file = (File) entry.handle;
+            if (!file.isFile() || !inside(file, directory) || !hasPackageHeader(file)) return false;
+            return file.delete();
         }
         private boolean hasPackageHeader(File file) {
             final int limit = 16 * 1024;
@@ -640,6 +746,12 @@ final class LogStore {
             if (stream == null) throw new IOException("历史日志已消失或不可读取");
             return (InputStream) stream;
         }
+        @Override public boolean delete(Entry entry) throws Exception {
+            if (entry == null || entry.source != this
+                || !validMediaMetadata(entry.ownerPackage, entry.relativePath, entry.fileName, entry.uriScheme)
+                || entry.handle == null) return false;
+            return platform.delete(context, entry.handle) > 0;
+        }
         private static int index(MediaCursor cursor, String name) throws Exception {
             int value = cursor.getColumnIndex(name);
             if (value < 0) throw new IOException("MediaStore 列缺失：" + name);
@@ -668,6 +780,12 @@ final class LogStore {
             Object resolver = call(context, "getContentResolver", new Class<?>[0], new Object[0]);
             return (InputStream) Class.forName("android.content.ContentResolver")
                 .getMethod("openInputStream", Class.forName("android.net.Uri")).invoke(resolver, uri);
+        }
+        @Override public int delete(Object context, Object uri) throws Exception {
+            Object resolver = call(context, "getContentResolver", new Class<?>[0], new Object[0]);
+            return ((Number) Class.forName("android.content.ContentResolver")
+                .getMethod("delete", Class.forName("android.net.Uri"), String.class, String[].class)
+                .invoke(resolver, uri, null, null)).intValue();
         }
     }
 

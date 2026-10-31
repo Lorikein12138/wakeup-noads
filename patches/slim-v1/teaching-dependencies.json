@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "baseline": {
-    "versionName": "6.6.0",
-    "versionCode": 550,
-    "path": "baseline/wakeup-v6.6.0.apk",
-    "sha256": "6556E8AC409381BFC686D3407FBE25A2C2603FDC46B4BABFF89620E333712922"
+    "versionName": "6.6.2",
+    "versionCode": 552,
+    "path": "baseline/wakeup-v6.6.2.apk",
+    "sha256": "46E43D92FEB4809D6D37643F562DDE4C1524D6B67595A357B3E44571CE7AF36C"
   },
   "routeEntrypoints": [
     {
@@ -731,7 +731,7 @@
   ],
   "baselineMethodInventory": {
     "schemaVersion": 1,
-    "baselineSha256": "6556E8AC409381BFC686D3407FBE25A2C2603FDC46B4BABFF89620E333712922",
+    "baselineSha256": "46E43D92FEB4809D6D37643F562DDE4C1524D6B67595A357B3E44571CE7AF36C",
     "fileCount": 128,
     "methodCount": 1441,
     "invokeEdgeCount": 10702,
@@ -108040,7 +108040,7 @@
   },
   "methodInventorySha256": "D606224D5E0BE11316390984AA16227973B17E2145FC0D9F17DEECAC292C61C7",
   "revisionNotes": [
-    "Recomputed from the original locked 6.6.0 decoded APK using methodInventoryFromSmali normalizationVersion 2.",
+    "Recomputed from the original locked 6.6.2 decoded APK using methodInventoryFromSmali normalizationVersion 2.",
     "Protected 82 original school-client smali files and their declared classes.",
     "Protected-method inventory: 128 files, 1441 methods, 10702 invoke edges, 0 dynamic invoke sites."
   ],

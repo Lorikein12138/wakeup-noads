@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "baselineSha256": "6556E8AC409381BFC686D3407FBE25A2C2603FDC46B4BABFF89620E333712922",
+  "baselineSha256": "46E43D92FEB4809D6D37643F562DDE4C1524D6B67595A357B3E44571CE7AF36C",
   "applicationId": "io.github.wakeupnoads",
   "packageIdentitySpecPath": "package-identity-spec.json",
   "operations": [
@@ -267,7 +267,7 @@
       "evidence": "E01",
       "relativePath": "apktool.yml",
       "fileScope": true,
-      "expectedOriginal": "  versionCode: 550\n  versionName: 6.6.0",
+      "expectedOriginal": "  versionCode: 552\n  versionName: 6.6.2",
       "replacement": "  versionCode: {{versionCode}}\n  versionName: {{releaseName}}",
       "expectedHits": 1,
       "finalAssertions": [

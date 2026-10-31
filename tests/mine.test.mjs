@@ -415,7 +415,9 @@ test('LogPage replaces only the settings list body with themed native content an
     'the native Toolbar has the two fixed list and detail titles');
   assert.match(pageOpen, /iconButton\(activity, "ic_outline_refresh_24", "刷新"[\s\S]*?Toolbar\$LayoutParams[\s\S]*?add\(ui, toolbar, refreshButton, toolbarParams\)/,
     'refresh is an icon on the reused Toolbar instead of a body button');
-  assert.match(renderPage, /"setVisibility"[\s\S]*?detail \? 8 : 0/, 'the refresh icon is hidden on the detail page');
+  assert.match(renderPage, /"setVisibility"[\s\S]*?detail \|\| selecting \? 8 : 0/, 'the refresh icon is hidden on the detail page and in multi-select');
+  assert.match(pageOpen, /iconButton\(activity, "ic_outline_save_alt_24", "全部导出"[\s\S]*?iconButton\(activity, "ic_outline_delete_outline_24", "删除"/,
+    'export-all and delete are icons on the reused Toolbar');
   assert.doesNotMatch(renderPage, /add\(ui, page\.body, refreshButton/, 'the body has no refresh button');
   assert.match(renderPage, /entry\.fileName/, 'the detail page shows the complete file name');
   assert.match(renderPage, /controller\.copy\(entry\)[\s\S]*?controller\.export\(entry, cacheDirectory\)/,
