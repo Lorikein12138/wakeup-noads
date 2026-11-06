@@ -35,6 +35,45 @@ $PatchSpecPath = Join-Path $Root 'patches/slim-v1/patch-spec.json'
 $BaselineApk = if ($BaselineApk) { [IO.Path]::GetFullPath($BaselineApk) } else { Join-Path $Root $Lock.baseline.path }
 . (Join-Path $PSScriptRoot 'signing-input.ps1')
 
+function Install-RuntimeSmali {
+    param([Parameter(Mandatory)][string]$HelperSmali, [Parameter(Mandatory)][string]$Decoded)
+    if (-not (Test-Path -LiteralPath $HelperSmali -PathType Container)) { throw 'Carrier decoding produced no helper smali' }
+    $destination = Join-Path $Decoded 'smali_classes9'
+    $originalDexRoots = @(Get-ChildItem -LiteralPath $Decoded -Directory | Where-Object { $_.Name -match '^smali(?:_classes\d+)?$' })
+    if (Test-Path -LiteralPath $destination) { throw 'smali_classes9 already exists in baseline; refusing to overwrite classes' }
+    $helperClasses = @(Get-ChildItem -LiteralPath $HelperSmali -Recurse -Filter '*.smali' -File)
+    if ($helperClasses.Count -eq 0) { throw 'Carrier decoding produced no helper smali classes' }
+    $originalDescriptors = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($dexRoot in $originalDexRoots) {
+        foreach ($originalClass in Get-ChildItem -LiteralPath $dexRoot.FullName -Recurse -Filter '*.smali' -File) {
+            # Finish reading and close the file before Select-Object stops the pipeline.
+            $header = [IO.File]::ReadAllLines($originalClass.FullName) | Where-Object { $_ -match '^\.class\s' } | Select-Object -First 1
+            if ($header -match '^\.class\s+(?:[^\s]+\s+)*(?<descriptor>L[^;]+;)\s*$') { [void]$originalDescriptors.Add($Matches.descriptor) }
+        }
+    }
+    $helperDescriptors = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($helperClass in $helperClasses) {
+        $classHeader = [IO.File]::ReadAllLines($helperClass.FullName) | Where-Object { $_ -match '^\.class\s' } | Select-Object -First 1
+        if (-not $classHeader -or $classHeader -notmatch '^\.class\s+(?:[^\s]+\s+)*(?<descriptor>L[^;]+;)\s*$') {
+            throw "Carrier class has no readable class descriptor: $($helperClass.FullName)"
+        }
+        $descriptor = $Matches.descriptor
+        $descriptorPath = $descriptor.Substring(1, $descriptor.Length - 2).Replace('/', [IO.Path]::DirectorySeparatorChar) + '.smali'
+        $relativeHelperPath = [IO.Path]::GetRelativePath($HelperSmali, $helperClass.FullName)
+        if (-not [string]::Equals($descriptorPath, $relativeHelperPath, [StringComparison]::Ordinal)) {
+            throw "Carrier class path does not match its descriptor: $($helperClass.FullName)"
+        }
+        if (-not $helperDescriptors.Add($descriptor)) { throw "Duplicate runtime class: $descriptor" }
+        if ($originalDescriptors.Contains($descriptor)) { throw "New runtime class collides with an original DEX class: $descriptor" }
+        foreach ($dexRoot in $originalDexRoots) {
+            if (Test-Path -LiteralPath (Join-Path $dexRoot.FullName $descriptorPath)) {
+                throw "New runtime class collides with an original DEX class: $descriptor"
+            }
+        }
+    }
+    Copy-Item -LiteralPath $HelperSmali -Destination $destination -Recurse
+}
+
 function Get-Sha256([string]$Path) {
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToUpperInvariant()
 }
@@ -534,28 +573,7 @@ try {
     $helperDecoded = Join-Path $work 'helper-decoded'
     Invoke-Logged $Java @("-Djava.io.tmpdir=$temp", '-jar', $ApktoolJar, 'd', '-f', '-r', '--no-assets', '-p', $ApktoolCache, '-o', $helperDecoded, $carrierApk) (Join-Path $logs 'decode-carrier.log') | Out-Null
     $helperSmali = Join-Path $helperDecoded 'smali'
-    if (-not (Test-Path -LiteralPath $helperSmali)) { throw 'Carrier decoding produced no helper smali' }
-    $smali8 = Join-Path $decoded 'smali_classes8'
-    if (Test-Path -LiteralPath $smali8) { throw 'smali_classes8 already exists in baseline; refusing to overwrite classes' }
-    Copy-Item -LiteralPath $helperSmali -Destination $smali8 -Recurse
-    $originalDexRoots = @(Get-ChildItem -LiteralPath $decoded -Directory | Where-Object { $_.Name -match '^smali(?:_classes[2-7])?$' })
-    $helperClasses = @(Get-ChildItem -LiteralPath $helperSmali -Recurse -Filter '*.smali' -File)
-    foreach ($helperClass in $helperClasses) {
-        $classHeader = [IO.File]::ReadLines($helperClass.FullName) | Where-Object { $_ -match '^\.class\s' } | Select-Object -First 1
-        if (-not $classHeader -or $classHeader -notmatch '^\.class\s+(?:[^\s]+\s+)*(?<descriptor>L[^;]+;)\s*$') {
-            throw "Carrier class has no readable class descriptor: $($helperClass.FullName)"
-        }
-        $descriptorPath = $Matches.descriptor.Substring(1, $Matches.descriptor.Length - 2).Replace('/', [IO.Path]::DirectorySeparatorChar) + '.smali'
-        $relativeHelperPath = [IO.Path]::GetRelativePath($helperSmali, $helperClass.FullName)
-        if (-not [string]::Equals($descriptorPath, $relativeHelperPath, [StringComparison]::OrdinalIgnoreCase)) {
-            throw "Carrier class path does not match its descriptor: $($helperClass.FullName)"
-        }
-        foreach ($dexRoot in $originalDexRoots) {
-            if (Test-Path -LiteralPath (Join-Path $dexRoot.FullName $descriptorPath) -PathType Leaf) {
-                throw "New runtime class collides with an original DEX class: $($Matches.descriptor)"
-            }
-        }
-    }
+    Install-RuntimeSmali -HelperSmali $helperSmali -Decoded $decoded
 
     $unsignedApk = Join-Path $output "$releaseName-unsigned.apk"
     Invoke-Logged $Java @("-Djava.io.tmpdir=$temp", '-jar', $ApktoolJar, 'b', '-p', $ApktoolCache, '-o', $unsignedApk, $decoded) (Join-Path $logs 'apktool-build.log') | Out-Null

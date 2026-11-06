@@ -114,8 +114,8 @@ test('Manifest package, authorities, and owned permissions change only by their 
 
   const oldAuthorities = [...originalManifest.matchAll(/android:authorities="([^"]+)"/g)].map((match) => match[1]);
   const newAuthorities = [...outputManifest.matchAll(/android:authorities="([^"]+)"/g)].map((match) => match[1]);
-  assert.equal(oldAuthorities.length, 25);
-  assert.equal(newAuthorities.length, 25);
+  assert.equal(oldAuthorities.length, 27);
+  assert.equal(newAuthorities.length, 27);
   assert.deepEqual(newAuthorities, oldAuthorities.map((value) => value.replace(officialId, currentId)));
   assert.equal(newAuthorities.some((value) => value.startsWith(`${officialId}.`)), false);
 

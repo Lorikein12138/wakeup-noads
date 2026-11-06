@@ -8,10 +8,10 @@ import { hasSmaliInvoke, parseSmaliClassStructure, readSmaliMethod, sameExecutab
 const baselineRoot = path.resolve(process.env.SLIM_BASELINE_DECODED_ROOT ?? 'tools/_cache/slim-v1-decoded');
 const fixtureCache = path.resolve('tools/_cache/slim-v1-review/fixtures/round-2');
 const syncPath = 'smali_classes3/com/baidu/homework/common/net/OooOo00.smali';
-const transportPath = 'smali_classes6/o0OO00o0/OooO.smali';
+const transportPath = 'smali_classes6/o0OOoO/OooOOOO.smali';
 const encryptPath = 'smali_classes6/com/suda/yzune/wakeupschedule/aaa/utils/EncryptNet.smali';
 const encryptClass = 'Lcom/suda/yzune/wakeupschedule/aaa/utils/EncryptNet;';
-const encryptDescriptor = 'public final OooO0o0(Lo000oo0O/OooO;)Lcom/suda/yzune/wakeupschedule/aaa/v1/HttpCurrencyRequest$OooO00o;';
+const encryptDescriptor = 'public final OooO0o0(Lo000oo0/OooO0o;)Lcom/suda/yzune/wakeupschedule/aaa/v1/HttpCurrencyRequest$OooO00o;';
 const transferEdge = 'SlimNetworkPolicy;->transfer(Ljava/lang/Object;Ljava/lang/Object;)Z';
 const nonEmptyDataEdge = 'Rc4PoolLifecycle;->requireNonEmptyEncryptedData(Ljava/lang/Object;)V';
 
@@ -36,7 +36,7 @@ function assertEncryptInputFrame(method) {
 function assertOriginalInputIdentity(method) {
   const labelAt = requiredIndex(method, '\n    :cond_0\n', 'ordinary branch label');
   const saveAt = requiredIndex(method, 'move-object v2, p1', 'original input save');
-  const pairCallAt = requiredIndex(method, '->OooOOO(Lo000oo0O/OooO;)Lkotlin/Pair;', 'Pair encryption call');
+  const pairCallAt = requiredIndex(method, '->OooOOO(Lo000oo0/OooO0o;)Lkotlin/Pair;', 'Pair encryption call');
   const overwrittenParameterAt = requiredIndex(method, 'move-result-object p1', 'Pair result overwrites p1');
   assert.equal(occurrenceCount(method, 'move-object v2, p1'), 1, 'the original input is saved exactly once');
   assert.ok(labelAt < saveAt && saveAt < pairCallAt && pairCallAt < overwrittenParameterAt,
@@ -75,7 +75,7 @@ test('E43 and E53 production operations guard only the exact synchronous bootstr
   await writeFile(specPath, JSON.stringify({ schemaVersion: 1, applicationId: 'io.github.wakeupnoads', operations }));
   await applyPatchSpec({ root: fixtureRoot, specPath });
 
-  const syncMethod = 'public static Oooo0oo(Lo000oo0O/OooO;Ljava/lang/Class;ZZ)Ljava/lang/Object;';
+  const syncMethod = 'public static Oooo0oo(Lo000oo0/OooO0o;Ljava/lang/Class;ZZ)Ljava/lang/Object;';
   const sync = await readSmaliMethod(fixtureRoot, syncPath, 'Lcom/baidu/homework/common/net/OooOo00;', syncMethod);
   assert.ok(sync.indexOf('consumeBootstrapChild(Ljava/lang/Object;Ljava/lang/String;)Z') < sync.indexOf(':try_start_0'),
     'the exact bootstrap child is consumed before the synchronous HTTP try/send path');
@@ -85,7 +85,7 @@ test('E43 and E53 production operations guard only the exact synchronous bootstr
   assert.match(sync, /consumeForQueue\(Ljava\/lang\/Object;Ljava\/lang\/String;\)Z/);
 
   const transport = await readSmaliMethod(
-    fixtureRoot, transportPath, 'Lo0OO00o0/OooO;',
+    fixtureRoot, transportPath, 'Lo0OOoO/OooOOOO;',
     'public OooO00o(Lcom/android/volley/Request;Ljava/util/Map;)Lorg/apache/http/HttpResponse;',
   );
   assert.match(transport, /hasBootstrapTransport\(Ljava\/lang\/Object;\)Z/);
@@ -183,7 +183,7 @@ test('T14 transfers E16 identity and gates both actual E17 Volley entry points',
 
   const asyncQueue = await readSmaliMethod(
     fixtureRoot, netPath, 'Lcom/baidu/homework/common/net/OooOo00;',
-    'public static Oooo0o0(Landroid/content/Context;Lo000oo0O/OooO;Ljava/util/List;Ljava/util/List;Ljava/util/List;Lcom/baidu/homework/common/net/OooOo00$Oooo0;Lcom/baidu/homework/common/net/OooOo00$OooOo00;)Lcom/android/volley/Request;',
+    'public static Oooo0o0(Landroid/content/Context;Lo000oo0/OooO0o;Ljava/util/List;Ljava/util/List;Ljava/util/List;Lcom/baidu/homework/common/net/OooOo00$Oooo0;Lcom/baidu/homework/common/net/OooOo00$OooOo00;)Lcom/android/volley/Request;',
   );
   const consume = asyncQueue.indexOf('consumeForQueue(Ljava/lang/Object;Ljava/lang/String;)Z');
   const cacheSuccess = asyncQueue.indexOf('onCacheResponse(Ljava/lang/Object;)V');
@@ -250,25 +250,25 @@ test('T14 rejects missing-label, duplicate-frame, and wrong-input-identity mutat
   assert.throws(() => assertOriginalInputIdentity(wrongIdentity));
 });
 
-test('raw bridge and inherited WebView bindings match the original 6.6.0 class ABI', async () => {
-  const rawPath = 'smali_classes6/o0Oo0o00.2/o00Ooo.smali';
-  const parentPath = 'smali_classes3/o000oo0O.4/OooO.smali';
-  const webViewPath = 'smali_classes6/o0OoOoo0.9/o000Oo0.smali';
+test('raw bridge and inherited WebView bindings match the original 6.7.0 class ABI', async () => {
+  const rawPath = 'smali_classes7/o0o00O0O/OooOO0.smali';
+  const parentPath = 'smali_classes3/o000oo0.1/OooO0o.smali';
+  const webViewPath = 'smali_classes7/oO0OO/OooO00o.smali';
   const raw = await readFile(path.join(baselineRoot, rawPath), 'utf8');
   const parent = await readFile(path.join(baselineRoot, parentPath), 'utf8');
   const webView = await readFile(path.join(baselineRoot, webViewPath), 'utf8');
   const policy = await readFile('runtime/src/com/suda/yzune/wakeupschedule/slim/SlimNetworkPolicy.java', 'utf8');
-  assert.match(raw, /^\.class public Lo0Oo0o00\/o00Ooo;$/m);
-  assert.match(raw, /^\.super Lo000oo0O\/OooO;$/m);
+  assert.match(raw, /^\.class public Lo0o00O0O\/OooOO0;$/m);
+  assert.match(raw, /^\.super Lo000oo0\/OooO0o;$/m);
   assert.match(raw, /^\.method public constructor <init>\(Ljava\/lang\/String;Ljava\/util\/Map;ILjava\/lang\/Class;\)V$/m);
-  assert.match(parent, /^\.class public abstract Lo000oo0O\/OooO;$/m);
+  assert.match(parent, /^\.class public abstract Lo000oo0\/OooO0o;$/m);
   for (const field of ['.field public __url:Ljava/lang/String;', '.field public __method:I', '.field public __aClass:Ljava/lang/Class;']) {
     assert.ok(parent.includes(field), `raw request parent exposes ${field}`);
   }
   assert.match(parent, /^\.method public abstract getParams\(\)Ljava\/util\/Map;$/m);
   assert.match(webView, /^\.field public o00OOoo:Lcom\/zuoyebang\/widget\/CacheHybridWebView;$/m,
     'the public WebView field is declared on the parser fragment base class');
-  assert.match(policy, /RAW_BRIDGE_CLASS = "Lo0Oo0o00\/o00Ooo;"/);
+  assert.match(policy, /RAW_BRIDGE_CLASS = "Lo0o00O0O\/OooOO0;"/);
   assert.match(policy, /getField\("o00OOoo"\)/);
   assert.doesNotMatch(raw, /Lo0OOOoO0\/OooO0O0;/, 'the old raw request ABI does not resolve to the new 6.6.0 class');
   assert.doesNotMatch(policy, /getField\("oOooo0o"\)/, 'runtime access uses the current inherited WebView field');
@@ -295,7 +295,7 @@ test('T28 guards the real RC4 helper with valid keys, bounded leases, and failur
 
   const rebuilt = await readSmaliMethod(fixtureRoot, rc4Path, 'Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;',
     'public OooOO0o()V');
-  assert.match(rebuilt, /Lo0Oo0OOO\/o0OO00O;->OooO0O0\(Ljava\/lang\/String;\)Ljava\/lang\/String;/,
+  assert.match(rebuilt, /Lo0o000O\/oo000o;->OooO0O0\(Ljava\/lang\/String;\)Ljava\/lang\/String;/,
     'pool rebuilding retains the existing versionCode-seeded baseutil key algorithm');
   assert.match(rebuilt, /Rc4PoolLifecycle;->rebuild\(Ljava\/lang\/Object;Ljava\/util\/concurrent\/BlockingQueue;Ljava\/lang\/Object;\)V/);
   assert.match(rebuilt, /:catchall_0[\s\S]*?iput-object v2, p0[\s\S]*?Rc4PoolLifecycle;->invalidate/,
@@ -309,7 +309,7 @@ test('T28 guards the real RC4 helper with valid keys, bounded leases, and failur
   const poolTakeAt = requiredIndex(encryptInput, 'Rc4PoolLifecycle;->take', 'bounded pool take');
   assert.ok(versionKeyAt < poolTakeAt, 'an invalid key sentinel stops before borrowing a cipher');
   const generationCheckAt = requiredIndex(encryptInput, 'Rc4PoolLifecycle;->requireCurrent', 'RC4 generation check');
-  const encryptCallAt = requiredIndex(encryptInput, '->OooO0oO(Ljava/lang/String;Lo0000oo/o0ooOOo;Z)Ljava/lang/String;', 'current RC4 encryption method');
+  const encryptCallAt = requiredIndex(encryptInput, '->OooO0oO(Ljava/lang/String;Lo0000O00/OooO0o;Z)Ljava/lang/String;', 'current RC4 encryption method');
   assert.ok(poolTakeAt < generationCheckAt && generationCheckAt < encryptCallAt,
     'a stale generation is rejected after lease acquisition and before current-generation encryption');
   assert.match(encryptInput, /if-eqz v8, :slim_rc4_input_success\s+throw v8[\s\S]*?return-object p1/,
@@ -382,7 +382,7 @@ test('T30 crypto mutations fail the same method and invoke-edge checks used by p
     {
       id: 'empty-encrypted-body',
       path: encryptPath,
-      descriptor: 'public final OooO0o0(Lo000oo0O/OooO;)Lcom/suda/yzune/wakeupschedule/aaa/v1/HttpCurrencyRequest$OooO00o;',
+      descriptor: 'public final OooO0o0(Lo000oo0/OooO0o;)Lcom/suda/yzune/wakeupschedule/aaa/v1/HttpCurrencyRequest$OooO00o;',
       requiredEdge: 'Rc4PoolLifecycle;->requireNonEmptyEncryptedData',
       mutate: (source) => source.replace(/    invoke-static \{p1\}, Lcom\/suda\/yzune\/wakeupschedule\/slim\/Rc4PoolLifecycle;->requireNonEmptyEncryptedData\(Ljava\/lang\/Object;\)V/, '    nop'),
     },
@@ -441,27 +441,27 @@ test('T34 routes crypto and signature failures on worker, cache and callback pat
   const report = 'Lcom/suda/yzune/wakeupschedule/slim/TeachingBootstrap;->reportNetworkFailure(Ljava/lang/Object;Ljava/lang/Throwable;)V';
   const net = 'smali_classes3/com/baidu/homework/common/net/';
   const app = 'com/suda/yzune/wakeupschedule/';
-  const sign = 'Lcom/baidu/homework/common/net/OooOo00;->OooO(Lo000oo0O/OooO;)Ljava/lang/String;';
+  const sign = 'Lcom/baidu/homework/common/net/OooOo00;->OooO(Lo000oo0/OooO0o;)Ljava/lang/String;';
   const decrypt = 'Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO0O0(Ljava/lang/String;)Ljava/lang/String;';
-  const cacheRead = 'Lo000o0OO/OooOOO;->OooO0O0(Ljava/lang/Object;)Ljava/lang/Object;';
-  const cacheWrite = 'Lo000o0OO/OooOOO;->OooO0Oo(Ljava/lang/Object;Z)Ljava/lang/Object;';
+  const cacheRead = 'Lo000o0O/OooOo00;->OooO0O0(Ljava/lang/Object;)Ljava/lang/Object;';
+  const cacheWrite = 'Lo000o0O/OooOo00;->OooO0Oo(Ljava/lang/Object;Z)Ljava/lang/Object;';
   const cases = [
     ['smali_classes3/com/android/volley/toolbox/OooOO0O.smali', 'Lcom/android/volley/toolbox/OooOO0O;', 'public final OooOO0(Ljava/io/File;)Ljava/io/File;', cacheRead,
       /return-object p1$/],
     [`${net}OooOo00$OooO0OO.smali`, 'Lcom/baidu/homework/common/net/OooOo00$OooO0OO;', 'public OooO0o0()Ljava/lang/String;', sign,
       /Request;->o00OOOo:Lcom\/android\/volley\/o0OoOo0\$OooO00o;[\s\S]*reportNetworkFailure[\s\S]*const\/4 v0, 0x0\s+return-object v0$/],
-    ['smali_classes3/o000o0o.3/Oooo000.smali', 'Lo000o0o/Oooo000;', 'public Oooo0()V', sign,
+    ['smali_classes3/o000o0o0.3/OooOO0.smali', 'Lo000o0o0/OooOO0;', 'public Oooo0()V', sign,
       /Request;->o00OOOo:Lcom\/android\/volley\/o0OoOo0\$OooO00o;[\s\S]*Request;->cancel\(\)V[\s\S]*reportNetworkFailure[\s\S]*goto :goto_0$/],
-    ['smali_classes5/o0o00o0.1/OooOO0O.smali', 'Lo0o00o0/OooOO0O;', 'public OooO0O0(Lzyb/okhttp3/oo000o$OooO00o;)Lzyb/okhttp3/Response;',
+    ['smali_classes7/o0oOoooo.15/o0oOo0O0.smali', 'Lo0oOoooo/o0oOo0O0;', 'public OooO0O0(Lzyb/okhttp3/oo000o$OooO00o;)Lzyb/okhttp3/Response;',
       'Lcom/zybang/net/v2/OooO0o;->OooO00o(Lzyb/okhttp3/Request;)Lzyb/okhttp3/Request;', /Ljava\/io\/IOException;-><init>\(Ljava\/lang\/Throwable;\)V\s+throw v1$/],
-    ['smali_classes3/o000o0o.3/o0OoOo0.smali', 'Lo000o0o/o0OoOo0;', 'public static OooO0Oo(Ljava/lang/Object;Lcom/android/volley/OooO0o$OooO00o;)Lcom/android/volley/o0OoOo0;', cacheRead,
+    ['smali_classes3/o000o0o0.3/OooOOO.smali', 'Lo000o0o0/OooOOO;', 'public static OooO0Oo(Ljava/lang/Object;Lcom/android/volley/OooO0o$OooO00o;)Lcom/android/volley/o0OoOo0;', cacheRead,
       /VolleyError;-><init>\(Ljava\/lang\/Throwable;\)V[\s\S]*o0OoOo0;->OooO00o\(Lcom\/android\/volley\/VolleyError;\)[\s\S]*return-object p0$/],
     [`${net}OooOo00$OooOOOO$OooO00o.smali`, 'Lcom/baidu/homework/common/net/OooOo00$OooOOOO$OooO00o;', 'public varargs OooO00o([Ljava/lang/Object;)Ljava/lang/Boolean;', cacheWrite,
       /sget-object p1, Ljava\/lang\/Boolean;->FALSE:Ljava\/lang\/Boolean;\s+return-object p1$/],
     [`${net}OooOo00$OooOOOO.smali`, 'Lcom/baidu/homework/common/net/OooOo00$OooOOOO;', 'public static synthetic OooO00o(Lcom/baidu/homework/common/net/OooOo00$OooOOOO;Ljava/lang/Object;)V', cacheWrite,
       /:catch_slim0\s+return-void$/],
     [`smali_classes6/${app}aaa/actions/WakeupHttpRequest$post$1.smali`, `L${app}aaa/actions/WakeupHttpRequest$post$1;`, 'public final invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;',
-      `L${app}aaa/utils/EncryptNet;->OooOOO(Lo000oo0O/OooO;)Lkotlin/Pair;`,
+      `L${app}aaa/utils/EncryptNet;->OooOOO(Lo000oo0/OooO0o;)Lkotlin/Pair;`,
       /instance-of v2, v1, Ljava\/util\/concurrent\/CancellationException;\s+if-nez v2, :cond_slim0[\s\S]*->\$errorListener:[\s\S]*reportNetworkFailure[\s\S]*return-object p1$/],
     [`smali_classes6/${app}aaa/utils/RC4HelperNew$commonDecryptStringAsync$1.smali`, `L${app}aaa/utils/RC4HelperNew$commonDecryptStringAsync$1;`, 'public final invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;', decrypt,
       /iget-object p1, p0, \S+->\$input:Ljava\/lang\/String;\s+goto :goto_slim0$/],

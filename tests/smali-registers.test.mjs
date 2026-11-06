@@ -104,14 +104,14 @@ test('the checker rejects a queue permit check that overwrites the int register 
 
 test('the checker rejects throwing the key flag instead of a caught exception', async (t) => {
   const findings = await mutantErrors(t, 'T28-E47-fail-decrypt-instead-of-returning-input', rc4Path,
-    'if-eqz v8, :slim_rc4_decrypt_success\n\n    throw v8', 'if-eqz p2, :slim_rc4_decrypt_success\n\n    throw p2');
+    'if-eqz v8, :slim_rc4_decrypt_success\n    throw v8', 'if-eqz p2, :slim_rc4_decrypt_success\n    throw p2');
   assert.ok(findings.some((finding) => /throw p2/.test(finding) && /non-Throwable/.test(finding)), findings.join('\n'));
 });
 
 test('the checker rejects a key check that overwrites the register holding the pool monitor', async (t) => {
   const findings = await mutantErrors(t, 'T28-E47-OooO0O0-reject-invalid-key', rc4Path,
-    'iget-object v0, v1, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO0O0:Ljava/lang/String;\n\n    invoke-static {v0}',
-    'iget-object v2, v1, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO0O0:Ljava/lang/String;\n\n    invoke-static {v2}');
+    'iget-object v0, v1, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO0O0:Ljava/lang/String;\n    invoke-static {v0}',
+    'iget-object v2, v1, Lcom/suda/yzune/wakeupschedule/aaa/utils/oOO00O;->OooO0O0:Ljava/lang/String;\n    invoke-static {v2}');
   assert.ok(findings.some((finding) => /monitor-exit v2 no longer holds the locked object: monitor-exit v2/.test(finding)), findings.join('\n'));
 });
 

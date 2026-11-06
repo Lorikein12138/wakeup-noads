@@ -133,7 +133,7 @@ public final class TeachingBootstrap {
                 try {
                     ClassLoader loader = TeachingBootstrap.class.getClassLoader();
                     Class<?> contextType = Class.forName("android.content.Context", false, loader);
-                    Class<?> inputType = Class.forName("o000oo0O.OooO", false, loader);
+                    Class<?> inputType = Class.forName("o000oo0.OooO0o", false, loader);
                     Class<?> successType = Class.forName("com.baidu.homework.common.net.OooOo00$Oooo0", false, loader);
                     Class<?> errorType = Class.forName("com.baidu.homework.common.net.OooOo00$OooOo00", false, loader);
                     Method method = owner.getClass().getMethod("o00oOoo", contextType, boolean.class, inputType, successType, errorType);
@@ -365,7 +365,7 @@ public final class TeachingBootstrap {
 
         @Override public int actualVersionCode() {
             try {
-                Object value = invokeStatic("o000o0OO.OooOOO0", "OooOO0");
+                Object value = invokeStatic("o000o0O.OooOOOO", "OooOO0");
                 return value instanceof Number ? ((Number) value).intValue() : 0;
             } catch (ReflectiveOperationException | RuntimeException exception) {
                 return 0;
@@ -374,7 +374,7 @@ public final class TeachingBootstrap {
 
         @Override public boolean isBaseutilReady() {
             try {
-                return Boolean.TRUE.equals(invokeStatic("o0Oo0OOO.o0OO00O", "OooO0oO"));
+                return Boolean.TRUE.equals(invokeStatic("o0o000O.oo000o", "OooO0oO"));
             } catch (ReflectiveOperationException | RuntimeException exception) {
                 return false;
             }
@@ -382,7 +382,7 @@ public final class TeachingBootstrap {
 
         @Override public boolean initializeOrRebindBaseutil() {
             try {
-                return Boolean.TRUE.equals(invokeStatic("o0Oo0OOO.o0OO00O", "OooO0o"));
+                return Boolean.TRUE.equals(invokeStatic("o0o000O.oo000o", "OooO0o"));
             } catch (ReflectiveOperationException | RuntimeException exception) {
                 throw new IllegalStateException("baseutil initialization failed", exception);
             }
@@ -390,7 +390,7 @@ public final class TeachingBootstrap {
 
         @Override public boolean hasVersionCodeSeededKey(int versionCode) {
             try {
-                Object key = classFor("o0Oo0OOO.o0OO00O")
+                Object key = classFor("o0o000O.oo000o")
                     .getMethod("OooO0O0", String.class).invoke(null, String.valueOf(versionCode));
                 return isUsableVersionKey(key);
             } catch (ReflectiveOperationException | RuntimeException exception) {

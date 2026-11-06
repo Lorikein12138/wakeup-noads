@@ -8,9 +8,9 @@ import { readSmaliMethod } from './smali-helpers.mjs';
 const cacheRoot = path.resolve('tools/_cache/slim-v1-decoded');
 const fixtureRoot = path.resolve('tools/_cache/slim-v1-review/fixtures');
 const e04 = 'smali_classes6/com/suda/yzune/wakeupschedule/aaa/utils/OooOOOO.smali';
-const e23 = 'smali_classes6/o0OO0oOo.3/o000oOoO.smali';
+const e23 = 'smali_classes6/o0Oo0/OooOOO.smali';
 const e04Class = 'Lcom/suda/yzune/wakeupschedule/aaa/utils/OooOOOO;';
-const e23Class = 'Lo0OO0oOo/o000oOoO;';
+const e23Class = 'Lo0Oo0/OooOOO;';
 const specPath = path.resolve('patches/slim-v1/patch-spec.json');
 
 function assertReturn(body, value, resultType) {
@@ -36,8 +36,8 @@ async function assertAdPatches(root) {
     assertReturn(method, '0x0', 'Z');
     assert.doesNotMatch(method, /ABItemBean|invoke-interface/);
   }
-  const callback = await readSmaliMethod(root, e23, e23Class, 'public static final OooOo0o(Landroid/content/Context;Lo000o0OO/OooO;)V');
-  assert.equal((callback.match(/invoke-interface \{p1, v0\}, Lo000o0OO\/OooO;->OooO00o\(Ljava\/lang\/Object;\)V/g) ?? []).length, 1);
+  const callback = await readSmaliMethod(root, e23, e23Class, 'public static final OooOo0o(Landroid/content/Context;Lo000o0O/OooOO0O;)V');
+  assert.equal((callback.match(/invoke-interface \{p1, v0\}, Lo000o0O\/OooOO0O;->OooO00o\(Ljava\/lang\/Object;\)V/g) ?? []).length, 1);
   assert.doesNotMatch(callback, /Lcom\/homework\/abtest\/|Net\.class|OooOOO0\(\)V/);
   const schoolIframe = await readSmaliMethod(root, e23, e23Class, 'public static final OooOO0o(Ljava/lang/String;)Z');
   const baselineIframe = await readSmaliMethod(cacheRoot, e23, e23Class, 'public static final OooOO0o(Ljava/lang/String;)Z');

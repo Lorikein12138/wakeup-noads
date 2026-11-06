@@ -17,7 +17,7 @@ public final class Rc4PoolLifecycleTest {
     }
 
     private static void testFourInstancesPublishOnlyAfterCompleteConstruction() {
-        for (final String versionCode : new String[] { "550", "552" }) {
+        for (final String versionCode : new String[] { "550", "552", "560" }) {
             final Object owner = new Object();
             final BlockingQueue<Object> pool = new ArrayBlockingQueue<Object>(4);
             final AtomicInteger creates = new AtomicInteger();

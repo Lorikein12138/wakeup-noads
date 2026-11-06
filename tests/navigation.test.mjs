@@ -11,12 +11,12 @@ const fixtures = path.resolve('tools/_cache/slim-v1-review/fixtures/round-2');
 const activityPath = 'smali_classes6/com/suda/yzune/wakeupschedule/schedule/ScheduleActivity.smali';
 const tabsPath = 'smali_classes6/com/suda/yzune/wakeupschedule/widget/MainAiTitleTabView.smali';
 const listenerPath = 'smali_classes6/com/suda/yzune/wakeupschedule/widget/MainAiTitleTabView$OooO0o.smali';
-const adapterPath = 'smali_classes6/o0OO00Oo.1/OooOOO0.smali';
-const switchesPath = 'smali_classes6/o0OO0oOo.3/o000oOoO.smali';
+const adapterPath = 'smali_classes6/o0OOoO0o.1/o00oO0o.smali';
+const switchesPath = 'smali_classes6/o0Oo0/OooOOO.smali';
 const activityClass = 'Lcom/suda/yzune/wakeupschedule/schedule/ScheduleActivity;';
 const tabsClass = 'Lcom/suda/yzune/wakeupschedule/widget/MainAiTitleTabView;';
-const adapterClass = 'Lo0OO00Oo/OooOOO0;';
-const switchesClass = 'Lo0OO0oOo/o000oOoO;';
+const adapterClass = 'Lo0OOoO0o/o00oO0o;';
+const switchesClass = 'Lo0Oo0/OooOOO;';
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 
 async function patchedFixture(t, { joint = false, layout = false } = {}) {
@@ -287,11 +287,11 @@ function tabExecuteMethod(source, callbackSource, descriptor, args, world) {
       }
       return tabExecuteMethod(source, callbackSource, callDescriptor, [receiver, ...callArgs], world);
     }
-    if (owner === 'Lo0OO00Oo/OooOOO0;') {
+    if (owner === 'Lo0OOoO0o/o00oO0o;') {
       if (name === 'OooO0O0') return receiver.tabs;
       if (name === 'getCount') return receiver.tabs.length;
     }
-    if (owner === 'Lo0OO00Oo/OooOOO;' && name === 'OooO0O0') return receiver.id;
+    if (owner === 'Lo0OOoO0o/o0ooOOo;' && name === 'OooO0O0') return receiver.id;
     if (owner === 'Landroidx/viewpager/widget/ViewPager;') {
       if (name === 'getAdapter') return receiver.adapter;
       if (name === 'getCurrentItem') return receiver.currentItem;
@@ -302,14 +302,14 @@ function tabExecuteMethod(source, callbackSource, descriptor, args, world) {
     }
     if (owner === 'Lcom/suda/yzune/wakeupschedule/schedule/ScheduleViewModel;' && name === 'Oooo0o') return receiver.night;
     if (owner === 'Lcom/suda/yzune/wakeupschedule/utils/ScheduleSpUtils;' && name === 'OooO0Oo') return world.preferenceNight;
-    if (owner === 'Lo0o0OO0/o000oOoO;' && name === 'getValue') return receiver.value;
+    if (owner === 'Lkotlin/Lazy;' && name === 'getValue') return receiver.value;
     if (owner === 'Landroidx/core/view/ViewGroupKt;' && name === 'getChildren') return { items: callArgs[0].children };
-    if (owner === 'Lkotlin/sequences/OooOo00;' && name === 'iterator') return { items: receiver.items, index: 0 };
+    if (owner === 'Lkotlin/sequences/Sequence;' && name === 'iterator') return { items: receiver.items, index: 0 };
     if (owner === 'Ljava/util/List;' && name === 'iterator') return { items: receiver, index: 0 };
     if (owner === 'Ljava/util/Iterator;' && name === 'hasNext') return receiver.index < receiver.items.length;
     if (owner === 'Ljava/util/Iterator;' && name === 'next') return receiver.items[receiver.index++];
     if (owner === 'Ljava/util/List;' && name === 'get') return receiver[callArgs[0]] ?? null;
-    if (owner === 'Lkotlin/collections/o00000O0;' && name === 'o0Oo0oo') return callArgs[0][callArgs[1]] ?? null;
+    if (owner === 'Lkotlin/collections/o00000O;' && name === 'getOrNull') return callArgs[0][callArgs[1]] ?? null;
     if (owner === 'Ljava/lang/String;' && name === 'hashCode') {
       let result = 0; for (const character of receiver) result = (Math.imul(result, 31) + character.charCodeAt(0)) | 0; return result;
     }
@@ -330,12 +330,12 @@ function tabExecuteMethod(source, callbackSource, descriptor, args, world) {
       assert.ok(callArgs[1] >= 0 && callArgs[1] <= 255, 'production ColorUtils receives an 8-bit alpha');
       return ((callArgs[0] & 0x00ffffff) | (callArgs[1] << 24)) | 0;
     }
-    if (owner === 'Lkotlin/text/o000000O;' && name === 'OoooOoo') {
+    if (owner === 'Lkotlin/text/o000000;' && name === 'startsWith$default') {
       const value = callArgs[2] ? callArgs[0].toLowerCase() : callArgs[0];
       const prefix = callArgs[2] ? callArgs[1].toLowerCase() : callArgs[1];
       return value.startsWith(prefix);
     }
-    if (owner === 'Lkotlin/text/o00000OO;' && name === 'o0000') return callArgs[0].startsWith(callArgs[1]) ? callArgs[0].slice(callArgs[1].length) : callArgs[0];
+    if (owner === 'Lkotlin/text/o00000OO;' && name === 'removePrefix') return callArgs[0].startsWith(callArgs[1]) ? callArgs[0].slice(callArgs[1].length) : callArgs[0];
     if (owner === 'Landroid/view/View;' && name === 'setBackgroundColor') { receiver.backgroundColor = callArgs[0] | 0; return undefined; }
     if (owner === 'Landroid/view/View;' && name === 'setVisibility') { receiver.visibility = callArgs[0]; return undefined; }
     if (owner === 'Landroid/view/View;' && name === 'findViewById') return receiver.views.get(callArgs[0]) ?? null;
@@ -348,11 +348,11 @@ function tabExecuteMethod(source, callbackSource, descriptor, args, world) {
     if (owner === 'Landroid/widget/TextView;' && name === 'setTextColor') { receiver.textColor = callArgs[0] | 0; return undefined; }
     if (owner === 'Landroidx/appcompat/widget/AppCompatImageView;' && name === 'setImageResource') { receiver.imageResource = callArgs[0]; return undefined; }
     if (owner === 'Ljava/lang/Math;' && name === 'rint') return Math.round(callArgs[0]);
-    if (owner === 'Lo000ooO0/OooOo;' && name === 'OooO0o') return world.density;
-    if (owner === 'Lo000oo0o/OooOo00;' && name === 'OooOOOo') return undefined;
-    if (owner === 'Lkotlin/jvm/internal/o00oO0o;' && name === 'OooO0Oo') return callArgs[0] === callArgs[1];
-    if (owner === 'Lkotlin/jvm/internal/o00oO0o;' && ['OooO', 'OooO0o', 'OooO0o0', 'OooO0oO', 'OooO0oo'].includes(name)) return undefined;
-    if (owner === 'Lkotlin/jvm/internal/o00oO0o;' && name === 'OooOoO0') throw new Error('unexpected null check failure in official tab code');
+    if (owner === 'Lo000oo/OooOO0;' && name === 'OooO0o') return world.density;
+    if (owner === 'Lo000oo0O/OooOOO;' && name === 'OooOOOo') return undefined;
+    if (owner === 'Lkotlin/jvm/internal/Intrinsics;' && name === 'areEqual') return callArgs[0] === callArgs[1];
+    if (owner === 'Lkotlin/jvm/internal/Intrinsics;' && ['checkNotNull', 'checkNotNullParameter', 'checkNotNullExpressionValue'].includes(name)) return undefined;
+    if (owner === 'Lkotlin/jvm/internal/Intrinsics;' && name === 'throwUninitializedPropertyAccessException') throw new Error('unexpected null check failure in official tab code');
     if (owner === 'Lkotlin/jvm/functions/Function2;' && name === 'invoke') {
       const emitted = [callArgs[0], callArgs[1]];
       world.pageStyle.push(emitted);
@@ -375,7 +375,7 @@ function tabExecuteMethod(source, callbackSource, descriptor, args, world) {
       const parts = tail.split(',').map((part) => part.trim());
       let jump = null;
       if (op === 'const-class') write(parts[0], { kind: 'class', descriptor: parts[1] });
-      else if (op === 'const-string') {
+      else if ((op === 'const-string' || op === 'const-string/jumbo')) {
         const comma = tail.indexOf(','); write(parts[0], JSON.parse(tail.slice(comma + 1).trim()));
       } else if (op === 'const/high16') write(parts[0], tabFloatBits(parts[1]));
       else if (/^const(?:\/4|\/16)?$/.test(op)) write(parts[0], tabInt(parts[1]));
@@ -440,15 +440,15 @@ function extractTabAdditions(onCreate) {
     if (unconditionalJump) { skipUntil = unconditionalJump[1]; continue; }
     let match = line.match(/^\s*new-instance\s+(\w+),\s*(\S+)/);
     if (match) { types.set(match[1], match[2]); strings.delete(match[1]); continue; }
-    match = line.match(/^\s*const-string\s+(\w+),\s*(".*")\s*$/);
+    match = line.match(/^\s*const-string(?:\/jumbo)?\s+(\w+),\s*(".*")\s*$/);
     if (match) { strings.set(match[1], decodedSmaliString(match[2])); types.delete(match[1]); continue; }
-    match = line.match(/^\s*invoke-direct\s+\{([^}]+)\},\s*Lo0OO00Oo\/OooOOO;-><init>/);
+    match = line.match(/^\s*invoke-direct\s+\{([^}]+)\},\s*Lo0OOoO0o\/o0ooOOo;-><init>/);
     if (match) {
       const registers = match[1].split(',').map((value) => value.trim());
       const objectRegister = registers[0];
       const stringArgs = registers.slice(1).filter((register) => strings.has(register));
-      const fragmentRegister = registers.slice(1).find((register) => types.has(register) && types.get(register) !== 'Lo0OO00Oo/OooOOO;');
-      if (types.get(objectRegister) === 'Lo0OO00Oo/OooOOO;' && stringArgs.length >= 2 && fragmentRegister) {
+      const fragmentRegister = registers.slice(1).find((register) => types.has(register) && types.get(register) !== 'Lo0OOoO0o/o0ooOOo;');
+      if (types.get(objectRegister) === 'Lo0OOoO0o/o0ooOOo;' && stringArgs.length >= 2 && fragmentRegister) {
         tabs.set(objectRegister, {
           id: strings.get(stringArgs[0]),
           title: strings.get(stringArgs[1]),
@@ -505,7 +505,7 @@ function makeTabBinding(input) {
   const tabViews = adapter.tabs.map(() => {
     const title = { textSize: 14, textColor: 0, alpha: 0, translationX: -1 };
     const icon = { imageResource: 0, visibility: 0 };
-    return { title, icon, views: new Map([[0x7f090abb, title], [0x7f0903cf, icon]]) };
+    return { title, icon, views: new Map([[0x7f090db8, title], [0x7f09040f, icon]]) };
   });
   const backgroundImage = { visibility: 0, drawable: input.drawable, imageResource: 0 };
   const tab = {
@@ -609,9 +609,9 @@ test('home assembles only schedule and mine while the upstream calendar class re
     { id: 'mine', title: '我的', fragment: 'Lcom/suda/yzune/wakeupschedule/aaa/fragment/MineFragment;' },
   ]);
   assert.equal(hasTwoHomeTabContract(onCreate, tabs), true, 'the patched onCreate has exactly the retained two tabs');
-  const calendarConstructor = onCreate.indexOf('invoke-direct {v5, v7, v8, v6}, Lo0OO00Oo/OooOOO;-><init>');
+  const calendarConstructor = onCreate.indexOf('invoke-direct {v5, v7, v8, v6}, Lo0OOoO0o/o0ooOOo;-><init>');
   const hiddenCalendarAdd = onCreate.indexOf('\n    nop\n', calendarConstructor);
-  const calendarFragmentRead = onCreate.indexOf('invoke-virtual {v5}, Lo0OO00Oo/OooOOO;->OooO00o()', calendarConstructor);
+  const calendarFragmentRead = onCreate.indexOf('invoke-virtual {v5}, Lo0OOoO0o/o0ooOOo;->OooO00o()', calendarConstructor);
   assert.ok(calendarConstructor >= 0 && hiddenCalendarAdd > calendarConstructor && calendarFragmentRead > hiddenCalendarAdd,
     'the calendar tab list insertion is replaced by nop while upstream fragment bookkeeping remains');
   assert.equal((onCreate.match(/const-string v7, "calendar"/g) ?? []).length, 1,
@@ -656,8 +656,8 @@ test('schedule and mine IDs resolve against the actual two tabs; all other IDs f
   const adapter = await readSmaliMethod(root, adapterPath, adapterClass, 'public final OooO00o(Ljava/lang/String;)I');
   const route = await readSmaliMethod(root, activityPath, activityClass, 'public final o0000oO0(Ljava/lang/String;)V');
   assert.match(adapter, /Iterable;->iterator\(\)[\s\S]*?const\/4 v2, -0x1[\s\S]*?const\/4 v3, 0x0/);
-  assert.match(adapter, /OooOOO;->OooO0O0\(\)Ljava\/lang\/String;[\s\S]*?if-eqz v4, :cond_2[\s\S]*?return v3[\s\S]*?:cond_3[\s\S]*?return v2/);
-  assert.match(route, /OooOOO0;->OooO00o\(Ljava\/lang\/String;\)I[\s\S]*?if-gez p1, :slim_v1_schedule_tab_resolved[\s\S]*?const-string p1, "schedule"[\s\S]*?setCurrentItem\(I\)V/);
+  assert.match(adapter, /o0ooOOo;->OooO0O0\(\)Ljava\/lang\/String;[\s\S]*?if-eqz v4, :cond_2[\s\S]*?return v3[\s\S]*?:cond_3[\s\S]*?return v2/);
+  assert.match(route, /o00oO0o;->OooO00o\(Ljava\/lang\/String;\)I[\s\S]*?if-gez p1, :slim_v1_schedule_tab_resolved[\s\S]*?const-string p1, "schedule"[\s\S]*?setCurrentItem\(I\)V/);
   const resolve = (id) => {
     const found = tabs.findIndex((tab) => tab.id === id);
     return found >= 0 ? found : tabs.findIndex((tab) => tab.id === 'schedule');
@@ -711,8 +711,8 @@ test('tab labels and page callbacks continue to use the adapter list and dynamic
   const loadTabs = await readSmaliMethod(root, tabsPath, tabsClass, 'private final loadTabs(Ljava/util/List;)V');
   const setViewPager = await readSmaliMethod(root, tabsPath, tabsClass, 'public final setViewPager(Landroidx/viewpager/widget/ViewPager;Lcom/suda/yzune/wakeupschedule/schedule/ScheduleViewModel;)V');
   assert.match(loadTabs, /List;->size\(\)I[\s\S]*?move-result v0[\s\S]*?div-int\/2addr v2, v0[\s\S]*?Iterable;->iterator\(\)/);
-  assert.match(loadTabs, /add-int\/lit8 v5, v4, 0x1[\s\S]*?OooOOO;->OooO0OO\(\)Ljava\/lang\/String;[\s\S]*?MainAiTitleTabView\$OooO0O0;-><init>\(Lcom\/suda\/yzune\/wakeupschedule\/widget\/MainAiTitleTabView;ILjava\/lang\/String;\)V/);
-  assert.match(setViewPager, /OooOOO0;->OooO0O0\(\)Ljava\/util\/List;[\s\S]*?loadTabs\(Ljava\/util\/List;\)V[\s\S]*?getCount\(\)I/);
+  assert.match(loadTabs, /add-int\/lit8 v5, v4, 0x1[\s\S]*?o0ooOOo;->OooO0OO\(\)Ljava\/lang\/String;[\s\S]*?MainAiTitleTabView\$OooO0O0;-><init>\(Lcom\/suda\/yzune\/wakeupschedule\/widget\/MainAiTitleTabView;ILjava\/lang\/String;\)V/);
+  assert.match(setViewPager, /o00oO0o;->OooO0O0\(\)Ljava\/util\/List;[\s\S]*?loadTabs\(Ljava\/util\/List;\)V[\s\S]*?getCount\(\)I/);
 });
 
 test('production initial tab refresh uses the official palette for every current page and later refresh path', async (t) => {
@@ -759,16 +759,16 @@ test('joint offline/network patch keeps the two-tab home local and preserves onl
   const onCreate = await readSmaliMethod(root, activityPath, activityClass, 'public onCreate(Landroid/os/Bundle;)V');
   const tabs = extractTabAdditions(onCreate);
   assert.equal(hasTwoHomeTabContract(onCreate, tabs), true, 'the joint patch retains only schedule and mine');
-  const switches = await readSmaliMethod(root, switchesPath, switchesClass, 'public static final OooOOOO()Z');
-  const callback = await readSmaliMethod(root, switchesPath, switchesClass, 'public static final OooOo0o(Landroid/content/Context;Lo000o0OO/OooO;)V');
-  assert.match(switches, /const\/4 v0, 0x0\s+return v0/);
+  const switches = await readSmaliMethod(root, switchesPath, switchesClass, 'public static final OooOOOo()Z');
+  const callback = await readSmaliMethod(root, switchesPath, switchesClass, 'public static final OooOo0o(Landroid/content/Context;Lo000o0O/OooOO0O;)V');
+  assert.match(switches, /const\/4 v0, 0x0\s+\.line 2\s+return v0/);
   assert.match(callback, /OooO00o\(Ljava\/lang\/Object;\)V[\s\S]*?return-void/);
   assert.doesNotMatch(callback, /enqueue|execute|startActivity|Http|Request|OooO0OO\(/);
 
   const localTasks = await readSmaliMethod(root, activityPath, activityClass, 'public final oo0o0Oo()V');
   assert.match(localTasks, /ScheduleActivity\$OooO0o;-><init>/);
   assert.match(localTasks, /ScheduleActivity\$OooO;-><init>/);
-  assert.match(localTasks, /iget-object v4, p0, Lcom\/suda\/yzune\/wakeupschedule\/schedule\/ScheduleActivity;->o00Oo00:Lo0O0oO\/OooO0o;[\s\S]*?invoke-virtual \{v4, v2\}, Lo0O0oO\/OooO0o;->OooO0o\(\[Lcom\/homework\/launchmanager\/task\/OooO00o;\)/);
+  assert.match(localTasks, /iget-object v4, p0, Lcom\/suda\/yzune\/wakeupschedule\/schedule\/ScheduleActivity;->o00Oo00:Lo0O0OoO0\/OooOo00;[\s\S]*?invoke-virtual \{v4, v2\}, Lo0O0OoO0\/OooOo00;->OooO0o\(\[Lcom\/homework\/launchmanager\/task\/OooO00o;\)/);
   for (const signature of [
     'public final o0000()V',
     'public final o00000Oo()V',

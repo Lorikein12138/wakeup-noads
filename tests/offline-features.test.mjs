@@ -100,7 +100,7 @@ test('T11 ignores legacy s_update=true and preserves local setting behavior', as
   );
   const legacyPreferences = { s_update: true };
   assert.equal(legacyPreferences.s_update, true, 'the fixture models a previously persisted enabled value');
-  assert.doesNotMatch(settingsList, /s_update|0x7f13033d/);
+  assert.doesNotMatch(settingsList, /s_update|0x7f1303f3/);
   assert.doesNotMatch(updateToggle, /s_update/);
   for (const setting of ['dynamic_colors', 'schedule_blank_area', 'show_timetable_error', 'key_schedule_vibrate']) {
     assert.match(settingsList, new RegExp(setting));

@@ -1,15 +1,15 @@
-package o0Oo0o00;
+package o0o00O0O;
 
 import java.util.Map;
 
-/** JVM fixture matching the 6.6.0 raw parser input's public construction ABI. */
-public final class o00Ooo {
+/** JVM fixture matching the 6.7.0 raw parser input's public construction ABI. */
+public final class OooOO0 {
     private final String url;
     public final Map<?, ?> parameters;
     public final int method;
     public final Class<?> responseType;
 
-    public o00Ooo(String url, Map<?, ?> parameters, int method, Class<?> responseType) {
+    public OooOO0(String url, Map<?, ?> parameters, int method, Class<?> responseType) {
         this.url = url;
         this.parameters = parameters;
         this.method = method;

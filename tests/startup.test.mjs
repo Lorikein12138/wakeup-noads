@@ -9,34 +9,34 @@ const baseline = path.resolve(process.env.SLIM_BASELINE_DECODED_ROOT ?? 'tools/_
 const fixtures = path.resolve('tools/_cache/slim-v1-review/fixtures/round-2');
 const basePath = 'smali_classes6/com/suda/yzune/wakeupschedule/BaseApplication.smali';
 const splashPath = 'smali_classes6/com/suda/yzune/wakeupschedule/SplashActivity.smali';
-const channelPath = 'smali_classes6/o0OO0o00/OooOOOO.smali';
+const channelPath = 'smali_classes6/o0OOooO.2/o000OO.smali';
 const baseClass = 'Lcom/suda/yzune/wakeupschedule/BaseApplication;';
 const splashClass = 'Lcom/suda/yzune/wakeupschedule/SplashActivity;';
-const channelClass = 'Lo0OO0o00/OooOOOO;';
-const hotfixPath = 'smali_classes6/o0OO0o00/OooOO0O.smali';
-const hotfixClass = 'Lo0OO0o00/OooOO0O;';
+const channelClass = 'Lo0OOooO/o000OO;';
+const hotfixPath = 'smali_classes6/o0OOooO.2/o0000oo.smali';
+const hotfixClass = 'Lo0OOooO/o0000oo;';
 const taskFiles = [
   'smali_classes6/o0OO0o0O.1/OooOO0.smali',
-  'smali_classes6/o0OO0o00/Oooo0.smali',
-  'smali_classes6/o0OO0o0O.1/OooOO0O.smali',
+  'smali_classes6/o0OOooO.2/o000O000.smali',
+  'smali_classes6/o0OOooOo.3/o00oOoo.smali',
   hotfixPath,
-  'smali_classes6/o0OO0o00/OooOOO0.smali',
+  'smali_classes6/o0OOooO.2/o0000O0.smali',
   channelPath,
-  'smali_classes6/o0OO0o00/OooO0O0.smali',
-  'smali_classes6/o0OO0o00/Oooo000.smali',
-  'smali_classes6/o0OO0o0.1/OooO.smali',
+  'smali_classes6/o0OOooO.2/o00000O.smali',
+  'smali_classes6/o0OOooO.2/o000.smali',
+  'smali_classes6/o0OOooOO.2/o000OOo0.smali',
 ];
 const hotfixRemovedDescriptors = [
-  'Lo0OO0o0O/OooOo00;',
-  'Lo0OO0o0O/OooOOOO;',
-  'Lo0OO0o00/OooO0o;',
+  'Lo0OOooOo/o00O00O;',
+  'Lo0OOooOo/o00O00;',
+  'Lo0OOooO/o0000Ooo;',
 ];
 const removedDescriptors = [
-  'Lo0OO0o00/OooO;',
-  'Lo0OO0o0O/OooOo00;', 'Lo0OO0o0O/OooOOOO;',
-  'Lo0OO0o00/OooOo00;', 'Lo0OO0o00/OooOOO;', 'Lo0OO0o0O/OooO0o;',
-  'Lo0OO0o00/OooO0o;', 'Lo0OO0o0O/OooO;', 'Lo0OO0o00/OooOO0;',
-  'Lo0OO0o00/OooO00o;', 'Lo0OO0o00/OooOo;', 'Lo0OO0o0/OooO0o;',
+  'Lo0OOooO/o0000;',
+  'Lo0OOooOo/o00O00O;', 'Lo0OOooOo/o00O00;',
+  'Lo0OOooO/o0000O;', 'Lo0OOooO/o0000O0O;', 'Lo0OOooOo/o00;',
+  'Lo0OOooO/o0000Ooo;', 'Lo0OOooOo/o00O0000;', 'Lo0OOooO/o0000O00;',
+  'Lo0OOooO/o00000O0;', 'Lo0OOooO/o0000OO0;', 'Lo0OOooOO/o000OO00;',
 ];
 
 async function assertNoRemovedTaskDependencies(root, descriptors) {
@@ -90,19 +90,19 @@ test('E02 startup keeps local initialization, WebView, and reminder tasks with n
   const root = await patchedFixture(t);
   const graph = await readSmaliMethod(root, basePath, baseClass, 'public final OooOo()V');
   const retained = [
-    'Lo0OO0o0O/OooOO0;',
-    'Lo0OO0o00/Oooo0;',
-    'Lo0OO0o0O/OooOO0O;',
-    'Lo0OO0o00/OooOO0O;',
-    'Lo0OO0o00/OooOOO0;',
-    'Lo0OO0o00/OooOOOO;',
-    'Lo0OO0o00/OooO0O0;',
-    'Lo0OO0o00/Oooo000;',
-    'Lo0OO0o0/OooO;',
+    'Lo0OOooOo/o0O0ooO;',
+    'Lo0OOooO/o000O000;',
+    'Lo0OOooOo/o00oOoo;',
+    'Lo0OOooO/o0000oo;',
+    'Lo0OOooO/o0000O0;',
+    'Lo0OOooO/o000OO;',
+    'Lo0OOooO/o00000O;',
+    'Lo0OOooO/o000;',
+    'Lo0OOooOO/o000OOo0;',
   ];
   const registered = [...graph.matchAll(/new-instance\s+v\d+,\s*(L[^;]+;)/g)]
     .map((match) => match[1])
-    .filter((descriptor) => descriptor !== 'Lo0O0oO/OooO0o;');
+    .filter((descriptor) => descriptor !== 'Lo0O0OoO0/OooOo00;');
   assert.deepEqual(registered, retained, 'the task graph retains only the reviewed local and teaching prerequisites');
   for (const relative of taskFiles) {
     await stat(path.join(baseline, relative));
@@ -112,19 +112,19 @@ test('E02 startup keeps local initialization, WebView, and reminder tasks with n
     }
   }
   await assertNoRemovedTaskDependencies(root, removedDescriptors);
-  const hotfixDependencies = await readSmaliMethod(root, 'smali_classes6/o0OO0o00/OooOO0O.smali', 'Lo0OO0o00/OooOO0O;', 'public OooO00o()Ljava/util/List;');
-  assert.equal(hotfixDependencies.match(/const-class v2, Lo0OO0o0O\/OooOO0;/g)?.length, 1);
+  const hotfixDependencies = await readSmaliMethod(root, 'smali_classes6/o0OOooO.2/o0000oo.smali', 'Lo0OOooO/o0000oo;', 'public OooO00o()Ljava/util/List;');
+  assert.equal(hotfixDependencies.match(/const-class v2, Lo0OOooOo\/o0O0ooO;/g)?.length, 1);
   assert.equal(hotfixDependencies.match(/filled-new-array \{v2\}, \[Ljava\/lang\/Class;/g)?.length, 1);
   for (const descriptor of hotfixRemovedDescriptors) assert.equal(hotfixDependencies.includes(descriptor), false);
-  const originalRun = await readSmaliMethod(baseline, 'smali_classes6/o0OO0o00/OooOO0O.smali', 'Lo0OO0o00/OooOO0O;', 'public run()V');
-  const patchedRun = await readSmaliMethod(root, 'smali_classes6/o0OO0o00/OooOO0O.smali', 'Lo0OO0o00/OooOO0O;', 'public run()V');
+  const originalRun = await readSmaliMethod(baseline, 'smali_classes6/o0OOooO.2/o0000oo.smali', 'Lo0OOooO/o0000oo;', 'public run()V');
+  const patchedRun = await readSmaliMethod(root, 'smali_classes6/o0OOooO.2/o0000oo.smali', 'Lo0OOooO/o0000oo;', 'public run()V');
   assert.equal(patchedRun, originalRun, 'HotFix run() is unchanged from the 6.6.0 baseline');
 });
 
 test('E02 rejects the retained HotFix task when the dependency-pruning operation is absent', async (t) => {
   const root = await patchedFixture(t, { omitHotfixDependencyOperation: true });
-  const hotfixPath = 'smali_classes6/o0OO0o00/OooOO0O.smali';
-  const original = await readSmaliMethod(baseline, hotfixPath, 'Lo0OO0o00/OooOO0O;', 'public OooO00o()Ljava/util/List;');
+  const hotfixPath = 'smali_classes6/o0OOooO.2/o0000oo.smali';
+  const original = await readSmaliMethod(baseline, hotfixPath, 'Lo0OOooO/o0000oo;', 'public OooO00o()Ljava/util/List;');
   for (const descriptor of hotfixRemovedDescriptors) {
     assert.ok(original.includes(descriptor), 'the raw HotFix input still contains ' + descriptor);
     await assert.rejects(assertNoRemovedTaskDependencies(root, [descriptor]), descriptor);
@@ -136,8 +136,8 @@ test('E03 goes through the existing privacy and local main-page path while forwa
   const init = await readSmaliMethod(root, splashPath, splashClass, 'public final init()V');
   const launch = await readSmaliMethod(root, splashPath, splashClass, 'public final o00ooo()V');
   const jump = await readSmaliMethod(root, splashPath, splashClass, 'public final o00Ooo(Landroid/app/Activity;)V');
-  assert.match(init, /Lo0OO0oO0\/OooO00o;->OooO00o\(\)V/);
-  assert.match(init, /o000oOoO;->OooOo0o\(Landroid\/content\/Context;Lo000o0OO\/OooO;\)V/);
+  assert.match(init, /Lo0Oo00o0\/OooO0O0;->OooO00o\(\)V/);
+  assert.match(init, /OooOOO;->OooOo0o\(Landroid\/content\/Context;Lo000o0O\/OooOO0O;\)V/);
   assert.match(init, /SplashActivity;->o00ooo\(\)V/);
   assert.doesNotMatch(init, /fromPush|ADET_Norequest|reportAppFullLaunch|addTag/);
   assert.doesNotMatch(launch, /aaa\/utils\/OooOOOO;->OooO0OO\(\)Z|SplashActivity\$OooO0OO;|fetchAD|reportAppFullLaunch/);
@@ -181,7 +181,7 @@ test('E56 installs the local crash log first in attachBaseContext and leaves the
   assert.ok(install > 0 && install < attachSuper, 'the crash log is installed with the base context before any other startup work');
   assert.equal(attach.match(/CrashLog;->install/g).length, 1);
   const baselineAttach = await readSmaliMethod(baseline, basePath, baseClass, descriptor);
-  assert.equal(attach.replace(/    invoke-static \{p1\}, Lcom\/suda\/yzune\/wakeupschedule\/slim\/CrashLog;->install\(Ljava\/lang\/Object;\)V\r?\n\r?\n/, ''), baselineAttach,
+  assert.equal(attach.replace(/    invoke-static \{p1\}, Lcom\/suda\/yzune\/wakeupschedule\/slim\/CrashLog;->install\(Ljava\/lang\/Object;\)V\r?\n/, ''), baselineAttach,
     'only the install call is added');
   const source = await readFile('runtime/src/com/suda/yzune/wakeupschedule/slim/CrashLog.java', 'utf8');
   assert.match(source, /public static void install\(Object context\)/);

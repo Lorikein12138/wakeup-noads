@@ -116,7 +116,7 @@ function executeSettingsSmali(source, descriptor, args, world) {
     if (owner === 'Lcom/suda/yzune/wakeupschedule/AppDatabase;' && name === 'OooOo0o') { world.daoLookups += 1; return world.dao; }
     if (owner === 'Landroid/app/Activity;' && name === 'getApplication') return world.application;
     if (owner === 'Landroidx/core/view/WindowInsetsControllerCompat;') return undefined;
-    if (owner === 'Lkotlin/jvm/internal/o00oO0o;') return undefined;
+    if (owner === 'Lkotlin/jvm/internal/Intrinsics;') return undefined;
     if (owner === 'Ljava/util/ArrayList;' && name === '<init>') return [];
     if (owner === settingsClass && name === 'oo0o0Oo') { world.settingsDataBuilds += 1; return undefined; }
     if (owner === 'Lcom/chad/library/adapter/base/BaseQuickAdapter;') { world.adapterCalls.push(name); return undefined; }
@@ -238,7 +238,7 @@ test('T10 binds both settings and the local log entry while cutting login, Compo
   assert.match(result, /invoke-super \{p0, p1, p2, p3\}, Landroidx\/fragment\/app\/Fragment;->onActivityResult\(IILandroid\/content\/Intent;\)V[\s\S]*?LogPage;->onActivityResult\(Ljava\/lang\/Object;IILjava\/lang\/Object;\)V/);
   assert.equal((result.match(/LogPage;->onActivityResult/g) ?? []).length, 1);
   const destroy = await readSmaliMethod(root, fragmentPath, fragmentClass, 'public onDestroy()V');
-  assert.match(destroy, /LogPage;->close\(Ljava\/lang\/Object;\)V[\s\S]*?invoke-super \{p0\}, Lo000o0O0\/OooO0OO;->onDestroy\(\)V[\s\S]*?sput-object v0, Lcom\/suda\/yzune\/wakeupschedule\/aaa\/utils\/o000OOo0;->OooO00o/);
+  assert.match(destroy, /LogPage;->close\(Ljava\/lang\/Object;\)V[\s\S]*?invoke-super \{p0\}, Loooo00o\/o000O00;->onDestroy\(\)V[\s\S]*?sput-object v0, Lcom\/suda\/yzune\/wakeupschedule\/aaa\/utils\/o000OOo0;->OooO00o/);
   assert.equal((destroy.match(/LogPage;->close\(Ljava\/lang\/Object;\)V/g) ?? []).length, 1);
   const bridge = await readFile('runtime/src/com/suda/yzune/wakeupschedule/slim/LogPage.java', 'utf8');
   for (const signature of [
@@ -374,7 +374,7 @@ test('T36 course and advanced settings no longer inflate the donate menu', async
     for (const [, relative, owner, descriptor] of targets) {
       const method = await readSmaliMethod(root, relative, owner, descriptor);
       const body = method.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-      assert.deepEqual(body, [`.method ${descriptor}`, '.locals 1', 'const/4 v0, 0x0', 'return-object v0', '.end method'],
+      assert.deepEqual(body, [`.method ${descriptor}`, '.locals 1', 'const/4 v0, 0x0', '.line 2', 'return-object v0', '.end method'],
         'the menu method returns null so the base onCreateOptionsMenu inflates nothing');
     }
   }
@@ -383,12 +383,12 @@ test('T36 course and advanced settings no longer inflate the donate menu', async
 test('T10 click routing preserves both host callbacks and ends every removed menu route', async (t) => {
   const root = await patchedFixture(t);
   const click = await readSmaliMethod(root, fragmentPath, fragmentClass, 'public onClick(Landroid/view/View;)V');
-  assert.match(click, /const v1, 0x7f0906f2\s+if-ne v0, v1, :settings_global/);
-  assert.match(click, /const v1, 0x7f0906ee\s+if-ne v0, v1, :settings_done/);
+  assert.match(click, /const v1, 0x7f090736\s+if-ne v0, v1, :settings_global/);
+  assert.match(click, /const v1, 0x7f090732\s+if-ne v0, v1, :settings_done/);
   assert.equal((click.match(/ScheduleActivity;->o0000O0O\(\)/g) ?? []).length, 2);
   for (const call of [
-    'ScheduleFragment;->o00oOOo0()Lkotlin/jvm/functions/Function0;',
-    'ScheduleFragment;->o00OOOoO()Lkotlin/jvm/functions/Function0;',
+    'ScheduleFragment;->o00oO0O0()Lkotlin/jvm/functions/Function0;',
+    'ScheduleFragment;->o00OOOOo()Lkotlin/jvm/functions/Function0;',
     'MineActivity;->o00Oo0()V',
     'MineActivity;->ooOO()V',
   ]) assert.equal((click.match(new RegExp(call.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) ?? []).length, 1, call);

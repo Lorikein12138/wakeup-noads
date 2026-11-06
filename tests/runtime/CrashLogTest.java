@@ -63,7 +63,8 @@ public final class CrashLogTest {
         testLogStoreDeleteAndMergedSnapshot();
         testLogPageControllerSelectionDeleteAndExportAll();
         testProductionLogPageSelectionAndDeleteRender();
-        System.out.println("CrashLogTest passed (10 legacy + 6 round-1 + 7 round-2 + 7 round-3 + 5 round-4 + 1 round-5 + 1 local-log + 3 log-delete-export groups)");
+        testLogPageListenerProxyAnswersFrameworkDefaultMethods();
+        System.out.println("CrashLogTest passed (10 legacy + 6 round-1 + 7 round-2 + 7 round-3 + 5 round-4 + 1 round-5 + 1 local-log + 3 log-delete-export + 1 listener-proxy groups)");
     }
 
     private static void testCrashReportCarriesHeaderThreadAndCauses() {
@@ -2356,6 +2357,48 @@ public final class CrashLogTest {
         controller.close();
     }
 
+    /** Mirrors android.view.View.OnLongClickListener on API 36, which added a boolean default method. */
+    interface Api36LongClickListener {
+        boolean onLongClick(Object view);
+        default boolean onLongClickUseDefaultHapticFeedback(Object view) { return true; }
+    }
+
+    /** A listener shape with other primitive default methods a future framework could add. */
+    interface FutureListener {
+        void onEvent(Object view);
+        default int priority() { return 7; }
+        default long token() { return 7L; }
+        default boolean consumes() { return true; }
+        default String tag() { return "framework"; }
+    }
+
+    private static void testLogPageListenerProxyAnswersFrameworkDefaultMethods() {
+        final int[] calls = new int[1];
+        Runnable action = () -> calls[0]++;
+        Api36LongClickListener longClick = (Api36LongClickListener) LogPage.listenerProxy(
+            Api36LongClickListener.class, "onLongClick", action, Boolean.TRUE, "LogPageLongClickListener");
+        boolean handled = longClick.onLongClick(null);
+        boolean haptic;
+        try {
+            haptic = longClick.onLongClickUseDefaultHapticFeedback(null);
+        } catch (NullPointerException crash) {
+            throw new AssertionError("API 36 long-press haptic query must not unbox null", crash);
+        }
+        check(handled && haptic && calls[0] == 1,
+            "long-press proxy consumes the press once and keeps the framework haptic default");
+        check(longClick.equals(longClick) && !longClick.equals(new Object())
+            && longClick.hashCode() == System.identityHashCode(longClick)
+            && "LogPageLongClickListener".equals(longClick.toString()),
+            "long-press proxy answers Object methods by identity and label");
+
+        FutureListener future = (FutureListener) LogPage.listenerProxy(
+            FutureListener.class, "onEvent", action, null, "LogPageClickListener");
+        future.onEvent(null);
+        check(calls[0] == 2 && future.priority() == 0 && future.token() == 0L && !future.consumes()
+            && future.tag() == null,
+            "unknown framework methods get a neutral value for their return type instead of null");
+    }
+
     private static void testProductionLogPageSelectionAndDeleteRender() throws Exception {
         File root = cacheTemp("log-delete-render-");
         try {
@@ -2886,26 +2929,46 @@ public final class CrashLogTest {
             final CountDownLatch releaseFinalizingLock = new CountDownLatch(1);
             final AtomicReference<Throwable> phaseFailure = new AtomicReference<Throwable>();
             final AtomicReference<Throwable> callbackFailure = new AtomicReference<Throwable>();
+            final CountDownLatch finalizingEntered = new CountDownLatch(1);
+            final CountDownLatch finalizingObserverLocked = new CountDownLatch(1);
+            final AtomicReference<String> finalizingObservedState = new AtomicReference<String>();
+            // finishSession closes every registered resource right after it publishes FINALIZING, so this
+            // resource parks the production thread inside that phase instead of racing to observe it.
+            addSessionResource(finalizingSession, new java.io.Closeable() {
+                @Override public void close() throws IOException {
+                    try { finalizingObservedState.set(activeSessionState(finalizingSession)); }
+                    catch (Exception failure) { throw new IOException("finalizing state read failed", failure); }
+                    finalizingEntered.countDown();
+                    try {
+                        if (!finalizingObserverLocked.await(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                            throw new IOException("finalizing observer lock timeout");
+                        }
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException("finalizing observer wait interrupted", interrupted);
+                    }
+                }
+            });
             final Thread finalizingObserver = new Thread(new Runnable() {
                 @Override public void run() {
-                    long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
                     try {
-                        while (System.nanoTime() < deadline) {
-                            if ("FINALIZING".equals(activeSessionState(finalizingSession))) {
-                                synchronized (finalizingLock) {
-                                    finalizingLockHeld.countDown();
-                                    if (!releaseFinalizingLock.await(5, java.util.concurrent.TimeUnit.SECONDS)) {
-                                        throw new IOException("finalizing test latch timeout");
-                                    }
-                                }
-                                return;
-                            }
-                            Thread.yield();
+                        if (!finalizingEntered.await(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                            throw new IOException("production FINALIZING state was not observed");
                         }
-                        throw new IOException("production FINALIZING state was not observed");
+                        if (!"FINALIZING".equals(finalizingObservedState.get())) {
+                            throw new IOException("production cleanup ran outside FINALIZING: " + finalizingObservedState.get());
+                        }
+                        synchronized (finalizingLock) {
+                            finalizingLockHeld.countDown();
+                            finalizingObserverLocked.countDown();
+                            if (!releaseFinalizingLock.await(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                                throw new IOException("finalizing test latch timeout");
+                            }
+                        }
                     } catch (Throwable failure) {
                         phaseFailure.set(failure);
                         finalizingLockHeld.countDown();
+                        finalizingObserverLocked.countDown();
                     }
                 }
             }, "calendar-tab-r4-finalizing-observer");
@@ -3536,6 +3599,15 @@ public final class CrashLogTest {
         java.lang.reflect.Field field = session.getClass().getDeclaredField("lock");
         field.setAccessible(true);
         return field.get(session);
+    }
+
+    private static void addSessionResource(Object session, java.io.Closeable stream) throws Exception {
+        Class<?> resourceType = Class.forName(LogPage.class.getName() + "$ManagedResource");
+        java.lang.reflect.Constructor<?> constructor = resourceType.getDeclaredConstructor(java.io.Closeable.class);
+        constructor.setAccessible(true);
+        java.lang.reflect.Method add = session.getClass().getDeclaredMethod("addResource", resourceType);
+        add.setAccessible(true);
+        add.invoke(session, constructor.newInstance(stream));
     }
 
     private static boolean hasRegisteredController(Object activity) throws Exception {

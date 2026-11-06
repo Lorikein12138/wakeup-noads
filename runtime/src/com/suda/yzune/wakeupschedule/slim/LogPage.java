@@ -64,11 +64,7 @@ public final class LogPage {
         final WeakReference<Object> owner = new WeakReference<Object>(fragment);
         try {
             Class<?> listenerType = Class.forName("android.view.View$OnClickListener");
-            Object listener = Proxy.newProxyInstance(listenerType.getClassLoader(), new Class<?>[] { listenerType },
-                (proxy, method, args) -> {
-                    if ("onClick".equals(method.getName())) show(owner.get());
-                    return null;
-                });
+            Object listener = listenerProxy(listenerType, "onClick", () -> show(owner.get()), null, "LogPageEntryListener");
             row.getClass().getMethod("setOnClickListener", listenerType).invoke(row, listener);
         } catch (Throwable ignored) {
             // A missing Android view API must not break MineFragment creation.
@@ -827,6 +823,41 @@ public final class LogPage {
         for (final ManagedResource resource : resources) {
             host.executeCancellation(new Runnable() { @Override public void run() { try { resource.close(); } catch (Throwable ignored) { } } });
         }
+    }
+
+    /**
+     * Builds a framework listener proxy. Android keeps adding default methods to listener interfaces
+     * (API 36 added OnLongClickListener.onLongClickUseDefaultHapticFeedback), and a proxy receives those
+     * calls too, so every method other than the callback must return a value its return type can unbox.
+     */
+    static Object listenerProxy(Class<?> type, final String callbackName, final Runnable callback,
+            final Object callbackResult, final String label) {
+        return Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[] { type },
+            (proxy, method, args) -> {
+                String name = method.getName();
+                int arity = method.getParameterTypes().length;
+                if (callbackName.equals(name)) { callback.run(); return callbackResult; }
+                if ("hashCode".equals(name) && arity == 0) return System.identityHashCode(proxy);
+                if ("equals".equals(name) && arity == 1) return proxy == args[0];
+                if ("toString".equals(name) && arity == 0) return label;
+                return neutralResult(method);
+            });
+    }
+
+    static Object neutralResult(Method method) {
+        Class<?> type = method.getReturnType();
+        if (!type.isPrimitive() || type == void.class) return null;
+        if (type == boolean.class) {
+            // Matches the framework default: keep the system haptic feedback for a handled long press.
+            return "onLongClickUseDefaultHapticFeedback".equals(method.getName()) ? Boolean.TRUE : Boolean.FALSE;
+        }
+        if (type == char.class) return Character.valueOf('\0');
+        if (type == byte.class) return Byte.valueOf((byte) 0);
+        if (type == short.class) return Short.valueOf((short) 0);
+        if (type == int.class) return Integer.valueOf(0);
+        if (type == long.class) return Long.valueOf(0L);
+        if (type == float.class) return Float.valueOf(0f);
+        return Double.valueOf(0d);
     }
 
     private static String canonical(File file) {
@@ -1803,39 +1834,18 @@ public final class LogPage {
         }
         @Override public Object clickListener(final Runnable callback) throws Exception {
             if (callback == null) return null;
-            Class<?> listenerType = Class.forName("android.view.View$OnClickListener");
-            return Proxy.newProxyInstance(listenerType.getClassLoader(), new Class<?>[] { listenerType },
-                (proxy, method, args) -> {
-                    if ("onClick".equals(method.getName())) callback.run();
-                    if ("hashCode".equals(method.getName())) return System.identityHashCode(proxy);
-                    if ("equals".equals(method.getName())) return proxy == args[0];
-                    if ("toString".equals(method.getName())) return "LogPageClickListener";
-                    return null;
-                });
+            return listenerProxy(Class.forName("android.view.View$OnClickListener"),
+                "onClick", callback, null, "LogPageClickListener");
         }
         @Override public Object longClickListener(final Runnable callback) throws Exception {
             if (callback == null) return null;
-            Class<?> listenerType = Class.forName("android.view.View$OnLongClickListener");
-            return Proxy.newProxyInstance(listenerType.getClassLoader(), new Class<?>[] { listenerType },
-                (proxy, method, args) -> {
-                    if ("onLongClick".equals(method.getName())) { callback.run(); return Boolean.TRUE; }
-                    if ("hashCode".equals(method.getName())) return System.identityHashCode(proxy);
-                    if ("equals".equals(method.getName())) return proxy == args[0];
-                    if ("toString".equals(method.getName())) return "LogPageLongClickListener";
-                    return null;
-                });
+            return listenerProxy(Class.forName("android.view.View$OnLongClickListener"),
+                "onLongClick", callback, Boolean.TRUE, "LogPageLongClickListener");
         }
         @Override public Object dialogClickListener(final Runnable callback) throws Exception {
             if (callback == null) return null;
-            Class<?> listenerType = Class.forName("android.content.DialogInterface$OnClickListener");
-            return Proxy.newProxyInstance(listenerType.getClassLoader(), new Class<?>[] { listenerType },
-                (proxy, method, args) -> {
-                    if ("onClick".equals(method.getName())) callback.run();
-                    if ("hashCode".equals(method.getName())) return System.identityHashCode(proxy);
-                    if ("equals".equals(method.getName())) return proxy == args[0];
-                    if ("toString".equals(method.getName())) return "LogPageDialogListener";
-                    return null;
-                });
+            return listenerProxy(Class.forName("android.content.DialogInterface$OnClickListener"),
+                "onClick", callback, null, "LogPageDialogListener");
         }
         @Override public float density(Object context) throws Exception {
             Object resources = invoke(context, "getResources", new String[0], new Object[0]);
@@ -1857,14 +1867,7 @@ public final class LogPage {
             if (sdkInt() < 33) return null;
             Object dispatcher = activity.getClass().getMethod("getOnBackInvokedDispatcher").invoke(activity);
             Class<?> callbackType = Class.forName("android.window.OnBackInvokedCallback");
-            Object proxy = Proxy.newProxyInstance(callbackType.getClassLoader(), new Class<?>[] { callbackType },
-                (proxyObject, method, args) -> {
-                    if ("onBackInvoked".equals(method.getName())) callback.run();
-                    if ("hashCode".equals(method.getName())) return System.identityHashCode(proxyObject);
-                    if ("equals".equals(method.getName())) return proxyObject == args[0];
-                    if ("toString".equals(method.getName())) return "LogPageBackCallback";
-                    return null;
-                });
+            Object proxy = listenerProxy(callbackType, "onBackInvoked", callback, null, "LogPageBackCallback");
             dispatcher.getClass().getMethod("registerOnBackInvokedCallback", int.class, callbackType).invoke(dispatcher, 0, proxy);
             return new BackRegistration(dispatcher, proxy, callbackType);
         }

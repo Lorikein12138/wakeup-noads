@@ -333,11 +333,11 @@ test('candidate keeps every school implementation, Cookie/session and public par
   const encryptNetPath = 'smali_classes6/com/suda/yzune/wakeupschedule/aaa/utils/EncryptNet.smali';
   assertPrivateInvokeAbi(await readFile(path.join(candidateRoot, encryptNetPath), 'utf8'), {
     classDescriptor: 'Lcom/suda/yzune/wakeupschedule/aaa/utils/EncryptNet;',
-    targetMethodDescriptor: 'OooO0oV(Lo000oo0O/OooO;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V',
+    targetMethodDescriptor: 'OooO0oV(Lo000oo0/OooO0o;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V',
     callers: [
-      { methodDescriptor: 'public final OooO0o(Lo000oo0O/OooO;Lkotlin/jvm/functions/Function1;)V' },
-      { methodDescriptor: 'public static final OooOO0O(Landroid/content/Context;Lo000oo0O/OooO;Lcom/baidu/homework/common/net/OooOo00$Oooo0;Lcom/baidu/homework/common/net/OooOo00$OooOo00;)V' },
-      { methodDescriptor: 'public final OooOOO0(Landroid/content/Context;Lo000oo0O/OooO;Lo0o0OOO/o000Oo0;)Ljava/lang/Object;' },
+      { methodDescriptor: 'public final OooO0o(Lo000oo0/OooO0o;Lkotlin/jvm/functions/Function1;)V' },
+      { methodDescriptor: 'public static final OooOO0O(Landroid/content/Context;Lo000oo0/OooO0o;Lcom/baidu/homework/common/net/OooOo00$Oooo0;Lcom/baidu/homework/common/net/OooOo00$OooOo00;)V' },
+      { methodDescriptor: 'public final OooOOO0(Landroid/content/Context;Lo000oo0/OooO0o;Lo0oo0ooo/o0O0o00O;)Ljava/lang/Object;' },
     ],
   }, encryptNetPath);
   const schoolFiles = await assertSchoolTreeUnchanged();
@@ -351,7 +351,7 @@ test('candidate keeps every school implementation, Cookie/session and public par
     ['smali_classes6/com/suda/yzune/wakeupschedule/schedule_import/login_school/OooO00o.smali', 'Lcom/suda/yzune/wakeupschedule/schedule_import/login_school/OooO00o;', 'public loadForRequest(Lokhttp3/HttpUrl;)Ljava/util/List;'],
     ['smali_classes6/com/suda/yzune/wakeupschedule/schedule_import/login_school/OooO00o.smali', 'Lcom/suda/yzune/wakeupschedule/schedule_import/login_school/OooO00o;', 'public saveFromResponse(Lokhttp3/HttpUrl;Ljava/util/List;)V'],
     ['smali_classes6/com/suda/yzune/wakeupschedule/schedule_import/login_school/hust/MobileHub.smali', 'Lcom/suda/yzune/wakeupschedule/schedule_import/login_school/hust/MobileHub;', 'public static final synthetic access$getCookieStore$p(Lcom/suda/yzune/wakeupschedule/schedule_import/login_school/hust/MobileHub;)Ljava/util/HashMap;'],
-    ['smali_classes6/com/suda/yzune/wakeupschedule/schedule_import/login_school/jlu/UIMS.smali', 'Lcom/suda/yzune/wakeupschedule/schedule_import/login_school/jlu/UIMS;', 'public final getVPNSCookie(Lo0o0OOO/o000Oo0;)Ljava/lang/Object;'],
+    ['smali_classes6/com/suda/yzune/wakeupschedule/schedule_import/login_school/jlu/UIMS.smali', 'Lcom/suda/yzune/wakeupschedule/schedule_import/login_school/jlu/UIMS;', 'public final getVPNSCookie(Lo0oo0ooo/o0O0o00O;)Ljava/lang/Object;'],
   ];
   const methodHashes = [];
   for (const [relative, descriptor, signature] of protectedMethods) {
@@ -824,11 +824,42 @@ test('candidate keeps every school implementation, Cookie/session and public par
   }
 });
 
+test('candidate preserves the complete official DEX 8 and installs referenced runtime methods in DEX 9', async (t) => {
+  assert.ok(candidateRoot, 'pass the fresh built candidate for the DEX audit');
+  const dependency = JSON.parse(await readFile(dependencyPath, 'utf8'));
+  const spec = JSON.parse(await readFile(specPath, 'utf8'));
+  const identity = JSON.parse(await readFile('patches/slim-v1/package-identity-spec.json', 'utf8'));
+  const officialFiles = await listSmaliFiles(baselineRoot, 'smali_classes8');
+  assert.deepEqual(await listSmaliFiles(candidateRoot, 'smali_classes8'), officialFiles, 'the original eighth DEX class set is preserved');
+  const root = await mkdtemp(path.join(mutationRoot, 'dex8-expected-'));
+  assert.ok(root.startsWith(mutationRoot + path.sep));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const operations = [...spec.operations, ...identity.operations].filter((operation) => operation.relativePath.startsWith('smali_classes8/'));
+  const modified = new Set(operations.map((operation) => operation.relativePath));
+  for (const relative of modified) {
+    await mkdir(path.dirname(path.join(root, relative)), { recursive: true });
+    await copyFile(path.join(baselineRoot, relative), path.join(root, relative));
+  }
+  if (operations.length) {
+    const localSpec = path.join(root, 'spec.json');
+    await writeFile(localSpec, JSON.stringify({ schemaVersion: 1, applicationId: spec.applicationId, operations }));
+    await applyPatchSpec({ root, specPath: localSpec });
+  }
+  for (const relative of officialFiles) {
+    const expected = await readFile(path.join(modified.has(relative) ? root : baselineRoot, relative), 'utf8');
+    assert.equal(normalizeSmaliClass(await readFile(path.join(candidateRoot, relative), 'utf8')), normalizeSmaliClass(expected), `${relative} equals official plus approved operations`);
+  }
+  for (const reference of [dependency.cryptoLifecycle.versionCodeSeed.runtimeCheck, dependency.cryptoLifecycle.cacheInvalidation.implementation]) {
+    assert.ok(reference.path.startsWith('smali_classes9/'), 'runtime references use the fixed ninth DEX');
+    await readSmaliMethod(candidateRoot, reference.path, reference.classDescriptor, reference.methodDescriptor);
+  }
+});
+
 test('preservation guards detect JS bridge, parser, Cookie and permission widening mutations', async () => {
   const actualBridge = await readSmaliMethod(
     baselineRoot,
-    'smali_classes6/com/suda/yzune/wakeupschedule/schedule_import/v2/ParserFragment$configWebView$7.smali',
-    'Lcom/suda/yzune/wakeupschedule/schedule_import/v2/ParserFragment$configWebView$7;',
+    'smali_classes6/com/suda/yzune/wakeupschedule/schedule_import/v2/ParserFragment$configWebView$8.smali',
+    'Lcom/suda/yzune/wakeupschedule/schedule_import/v2/ParserFragment$configWebView$8;',
     'public onAction(Landroid/app/Activity;Lorg/json/JSONObject;Lcom/baidu/homework/common/ui/widget/HybridWebView$OooOo;)V',
   );
   const actualParser = await readSmaliMethod(
@@ -888,16 +919,16 @@ test('T30 exact method and native hash checks identify loader, initialization, a
   const cases = [
     {
       id: 'native-loader-removed',
-      relative: 'smali_classes6/o0Oo0OOO.6/o0OO00O.smali',
-      classDescriptor: 'Lo0Oo0OOO/o0OO00O;',
+      relative: 'smali_classes7/o0o000O/oo000o.smali',
+      classDescriptor: 'Lo0o000O/oo000o;',
       descriptor: 'static constructor <clinit>()V',
       edge: 'Ljava/lang/System;->loadLibrary(Ljava/lang/String;)V',
       mutate: (method) => method.replace('invoke-static {v0}, Ljava/lang/System;->loadLibrary(Ljava/lang/String;)V', 'nop'),
     },
     {
       id: 'nativeSetToken-edge-removed',
-      relative: 'smali_classes6/o0Oo0OOO.6/o0OO00O.smali',
-      classDescriptor: 'Lo0Oo0OOO/o0OO00O;',
+      relative: 'smali_classes7/o0o000O/oo000o.smali',
+      classDescriptor: 'Lo0o000O/oo000o;',
       descriptor: 'public static declared-synchronized OooO0o()Z',
       edge: 'NativeHelper;->nativeSetToken(',
       mutate: (method) => method.replace(/    invoke-static \{v0, v2, v3, v4\}, Lcom\/zuoyebang\/baseutil\/NativeHelper;->nativeSetToken\([^\r\n]+/, '    const/4 v0, 0x0'),
@@ -906,8 +937,8 @@ test('T30 exact method and native hash checks identify loader, initialization, a
       id: 'sync-bootstrap-overall-return',
       relative: 'smali_classes3/com/baidu/homework/common/net/OooOo00.smali',
       classDescriptor: 'Lcom/baidu/homework/common/net/OooOo00;',
-      descriptor: 'public static Oooo0oo(Lo000oo0O/OooO;Ljava/lang/Class;ZZ)Ljava/lang/Object;',
-      edge: 'Lo000o0o/OooOo;->OooO00o(',
+      descriptor: 'public static Oooo0oo(Lo000oo0/OooO0o;Ljava/lang/Class;ZZ)Ljava/lang/Object;',
+      edge: 'Lo000o0o0/OooO;->OooO00o(',
       mutate: (method) => `${method.split('\n', 1)[0]}\n    .locals 1\n    const/4 v0, 0x0\n    return-object v0\n.end method\n`,
     },
     {
@@ -915,7 +946,7 @@ test('T30 exact method and native hash checks identify loader, initialization, a
       relative: 'smali_classes6/com/suda/yzune/wakeupschedule/schedule_import/LoginWebActivity.smali',
       classDescriptor: 'Lcom/suda/yzune/wakeupschedule/schedule_import/LoginWebActivity;',
       descriptor: 'public final o0OoOo0(Landroid/os/Bundle;)Ljava/lang/Boolean;',
-      mutate: (method) => method.replace('const-string v1, "ziyan"', 'const-string v1, "unknown"'),
+      mutate: (method) => method.replace('const-string/jumbo v1, "ziyan"', 'const-string/jumbo v1, "unknown"'),
     },
   ];
   for (const mutation of cases) {

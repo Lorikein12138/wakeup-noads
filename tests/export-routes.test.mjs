@@ -9,7 +9,7 @@ const baseline = path.resolve(process.env.SLIM_BASELINE_DECODED_ROOT ?? 'tools/_
 const fixtures = path.resolve('tools/_cache/slim-v1-review/fixtures/round-2');
 const files = [
   'res/layout/share_schedule_popup_window.xml',
-  'smali_classes6/o0OOOo0.1/o000oOoO.smali',
+  'smali_classes6/o0Oo0ooo.6/o00OOOO0.smali',
   'smali_classes6/com/suda/yzune/wakeupschedule/schedule/ScheduleFragment.smali',
 ];
 
@@ -35,26 +35,26 @@ test('export menu and click binding retain only local iCalendar', async (t) => {
   const root = await patchedFixture(t);
   const xml = await readFile(path.join(root, files[0]), 'utf8');
   assert.deepEqual([...xml.matchAll(/android:id="@id\/([^"]+)"/g)].map((match) => match[1]), ['export_as_cal_file']);
-  const binding = await readSmaliMethod(root, files[1], 'Lo0OOOo0/o000oOoO;', 'public OooO0o0()V');
+  const binding = await readSmaliMethod(root, files[1], 'Lo0Oo0ooo/o00OOOO0;', 'public OooO0o0()V');
   const boundIds = [...binding.matchAll(/^\s*const\s+v\d+,\s*(0x7f090[0-9a-f]{3})\s*$/gm)].map((match) => match[1]);
-  assert.deepEqual(boundIds, ['0x7f090285']);
+  assert.deepEqual(boundIds, ['0x7f090296']);
   assert.ok(binding.indexOf('return-void') > binding.lastIndexOf('setOnClickListener('), 'listeners are bound before the method returns');
   assert.equal((binding.match(/setOnClickListener\(Landroid\/view\/View\$OnClickListener;\)V/g) ?? []).length, 1);
 });
 
 test('removed share routes return before online helper or viewmodel calls while iCalendar export remains', async (t) => {
   const root = await patchedFixture(t);
-  const route = await readSmaliMethod(root, files[2], 'Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;', 'public static final o00OooO(Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;Landroid/content/Context;Ljava/lang/Integer;)Lo0o0OO0/o000OOo;');
+  const route = await readSmaliMethod(root, files[2], 'Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;', 'public static final o00Ooo0(Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;Landroid/content/Context;Ljava/lang/Integer;)Lkotlin/Unit;');
   const continueDefinition = route.indexOf('\n    :slim_removed_route_continue\n');
   assert.ok(continueDefinition >= 0);
   const guard = route.slice(route.indexOf('if-eqz p2, :slim_removed_route_continue'), continueDefinition);
-  assert.match(guard, /0x7f090907[\s\S]*0x7f090908[\s\S]*return-object p0/);
+  assert.match(guard, /0x7f090bfd[\s\S]*0x7f090bfe[\s\S]*return-object p0/);
   assert.match(guard, /if-eqz p2, :slim_removed_route_continue\s+invoke-virtual \{p2\}, Ljava\/lang\/Integer;->intValue\(\)I/, 'the guard reads the Integer menu id parameter');
   assert.doesNotMatch(guard, /\bp1\b/, 'the guard never treats the Context parameter as the menu id');
   const returnDefinition = route.indexOf('\n    :slim_removed_route_return\n');
   assert.match(route.slice(returnDefinition, continueDefinition), /return-object p0/);
   const continuingRoutes = route.slice(continueDefinition);
-  assert.match(continuingRoutes, /0x7f090285[\s\S]*o00OooOo\(Lo0o0OO0\/o000oOoO;\)Ljava\/lang\/String;[\s\S]*o00O0o\(Ljava\/lang\/String;\)V/);
+  assert.match(continuingRoutes, /0x7f090296[\s\S]*o00Ooo0o\(Lkotlin\/Lazy;\)Ljava\/lang\/String;[\s\S]*o00oOOo\(Ljava\/lang\/String;\)V/);
   const onlineShare = route.indexOf('o000O0;->OooOOo(Landroidx/fragment/app/FragmentActivity;)V');
   const onlineRefresh = route.indexOf('ScheduleViewModel;->o0000Ooo(Landroid/content/Context;)Lkotlinx/coroutines/o00O0OOO;');
   assert.ok(onlineShare > continueDefinition && onlineRefresh > continueDefinition,

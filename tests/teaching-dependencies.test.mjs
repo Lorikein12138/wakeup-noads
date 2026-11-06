@@ -9,7 +9,7 @@ import { hasSmaliInvoke, readSmaliMethod, sameExecutableSmaliMethod, smaliInvoke
 const root = path.resolve(process.env.SLIM_BASELINE_DECODED_ROOT ?? 'tools/_cache/slim-v1-decoded');
 const cache = path.resolve('tools/_cache/slim-v1-review/fixtures/round-2');
 const relativePath = 'smali_classes6/com/suda/yzune/wakeupschedule/aaa/utils/o00O0000.smali';
-const baseutilRelativePath = 'smali_classes6/o0Oo0OOO.6/o0OO00O.smali';
+const baseutilRelativePath = 'smali_classes7/o0o000O/oo000o.smali';
 const classDescriptor = 'Lcom/suda/yzune/wakeupschedule/aaa/utils/o00O0000;';
 const protectedPaths = [
   'smali_classes6/com/suda/yzune/wakeupschedule/aaa/base/OooO00o.smali',
@@ -108,7 +108,7 @@ test('error cleanup completes once locally without app-account request or relaun
   assert.equal(errorMethod.split('o00O0O0;->OooO00o(Landroid/content/Context;Ljava/lang/CharSequence;)V').length - 1, 1, 'original local error toast completes once');
   assert.equal(cleanupMethod.split('OooO0oo()V').length - 1, 1, 'local logout state notification remains');
   assert.doesNotMatch(errorMethod, /LoginActivity|startActivityForResult/);
-  assert.match(errorMethod, /o00O0000\$OooO00o;-><init>\(Landroid\/app\/Activity;\)V[\s\S]*Lo0o0O000\/OooO0OO;->OooO0o\(Ljava\/lang\/Runnable;\)V/,
+  assert.match(errorMethod, /o00O0000\$OooO00o;-><init>\(Landroid\/app\/Activity;\)V[\s\S]*Lo0oo0\/OooOo00;->OooO0o\(Ljava\/lang\/Runnable;\)V/,
     'the existing Runnable refreshes the local MineFragment without starting a login activity');
   assert.doesNotMatch(cleanupMethod, /Saas_submit_logout|Oooo0O0\(Landroid\/content\/Context;|JiguangCallback/);
 });
@@ -120,7 +120,7 @@ test('E44 public parameters and school-specific Cookie/session implementations r
     [protectedPaths[1], 'Lcom/suda/yzune/wakeupschedule/aaa/base/Config;', 'public static OooO0Oo()Ljava/util/Map;'],
     [protectedPaths[2], 'Lcom/suda/yzune/wakeupschedule/schedule_import/login_school/OooO00o;', 'public loadForRequest(Lokhttp3/HttpUrl;)Ljava/util/List;'],
     [protectedPaths[2], 'Lcom/suda/yzune/wakeupschedule/schedule_import/login_school/OooO00o;', 'public saveFromResponse(Lokhttp3/HttpUrl;Ljava/util/List;)V'],
-    [protectedPaths[5], 'Lcom/suda/yzune/wakeupschedule/schedule_import/login_school/jlu/UIMS;', 'public final getVPNSCookie(Lo0o0OOO/o000Oo0;)Ljava/lang/Object;'],
+    [protectedPaths[5], 'Lcom/suda/yzune/wakeupschedule/schedule_import/login_school/jlu/UIMS;', 'public final getVPNSCookie(Lo0oo0ooo/o0O0o00O;)Ljava/lang/Object;'],
   ];
   for (const [relative, descriptor, method] of guardedMethods) {
     assert.equal(
@@ -146,13 +146,13 @@ test('T30 rejects account, public-parameter, Cookie, and school-password behavio
   const mutations = [
     {
       id: 'dxuss-empty', relativePath, classDescriptor, descriptor: readOnlyMethods[0],
-      edge: 'o0Oo0oo;->OooOO0(Ljava/lang/Enum;)Ljava/lang/String;',
-      replace: (method) => method.replace('invoke-static {v0}, Lo000ooO/o0Oo0oo;->OooOO0(Ljava/lang/Enum;)Ljava/lang/String;', 'const/4 v0, 0x0'),
+      edge: 'Oooo0;->OooOO0(Ljava/lang/Enum;)Ljava/lang/String;',
+      replace: (method) => method.replace('invoke-static {v0}, Lo000ooO0/Oooo0;->OooOO0(Ljava/lang/Enum;)Ljava/lang/String;', 'const/4 v0, 0x0'),
     },
     {
       id: 'userinfo-null', relativePath, classDescriptor, descriptor: readOnlyMethods[1],
-      edge: 'o0Oo0oo;->OooO0oo(Ljava/lang/Enum;Ljava/lang/Class;)Ljava/lang/Object;',
-      replace: (method) => method.replace('invoke-static {v0, v1}, Lo000ooO/o0Oo0oo;->OooO0oo(Ljava/lang/Enum;Ljava/lang/Class;)Ljava/lang/Object;', 'const/4 v0, 0x0'),
+      edge: 'Oooo0;->OooO0oo(Ljava/lang/Enum;Ljava/lang/Class;)Ljava/lang/Object;',
+      replace: (method) => method.replace('invoke-static {v0, v1}, Lo000ooO0/Oooo0;->OooO0oo(Ljava/lang/Enum;Ljava/lang/Class;)Ljava/lang/Object;', 'const/4 v0, 0x0'),
     },
     {
       id: 'session-always-false', relativePath, classDescriptor, descriptor: readOnlyMethods[2],
@@ -217,19 +217,19 @@ test('E41 redaction patch keeps loader fallback, cached-token reads, and native 
   await writeFile(specPath, JSON.stringify({ schemaVersion: 1, applicationId: 'io.github.wakeupnoads', operations }, null, 2));
   const result = await applyPatchSpec({ root: fixtureRoot, specPath });
   const patched = await readFile(targetPath, 'utf8');
-  const init = await readSmaliMethod(fixtureRoot, baseutilRelativePath, 'Lo0Oo0OOO/o0OO00O;', 'public static declared-synchronized OooO0o()Z');
-  const clinit = await readSmaliMethod(fixtureRoot, baseutilRelativePath, 'Lo0Oo0OOO/o0OO00O;', 'static constructor <clinit>()V');
-  const statistics = await readSmaliMethod(fixtureRoot, baseutilRelativePath, 'Lo0Oo0OOO/o0OO00O;', 'public static varargs OooOOO0([Ljava/lang/String;)V');
+  const init = await readSmaliMethod(fixtureRoot, baseutilRelativePath, 'Lo0o000O/oo000o;', 'public static declared-synchronized OooO0o()Z');
+  const clinit = await readSmaliMethod(fixtureRoot, baseutilRelativePath, 'Lo0o000O/oo000o;', 'static constructor <clinit>()V');
+  const statistics = await readSmaliMethod(fixtureRoot, baseutilRelativePath, 'Lo0o000O/oo000o;', 'public static varargs OooOOO0([Ljava/lang/String;)V');
   assert.equal(result.operations.length, 5);
   assert.match(clinit, /loadLibrary\(Ljava\/lang\/String;\)V/);
-  assert.match(clinit, /Lo00oo0oO\/o00O0000;->OooO00o\(Landroid\/content\/Context;Ljava\/lang\/String;\)V/);
+  assert.match(clinit, /Lo00oOO\/OooOOOO;->OooO00o\(Landroid\/content\/Context;Ljava\/lang\/String;\)V/);
   assert.doesNotMatch(clinit, /invoke-static \{v0\}, Lo000OOO\/OooO00o;->OooO0OO\(Ljava\/lang\/String;\)V/);
   assert.match(init, /NativeHelper;->nativeSetToken/);
   assert.match(init, /Lcom\/zuoyebang\/baseutil\/NativeHelper;->nativeInitBaseUtil\(Landroid\/content\/Context;Ljava\/lang\/String;\)Ljava\/lang\/String;/);
   assert.match(init, /Lcom\/zuoyebang\/baseutil\/NativeHelper;->nativeSetToken/);
-  assert.match(init, /Lo000o0OO\/OooOOO0;->OooOO0\(\)I/);
+  assert.match(init, /Lo000o0O\/OooOOOO;->OooOO0\(\)I/);
   assert.match(init, /Ljava\/lang\/String;->valueOf\(I\)Ljava\/lang\/String;/);
-  assert.match(init, /Lo0Oo0OOO\/o0OO00O;->OooO0O0\(Ljava\/lang\/String;\)Ljava\/lang\/String;/);
+  assert.match(init, /Lo0o000O\/oo000o;->OooO0O0\(Ljava\/lang\/String;\)Ljava\/lang\/String;/);
   assert.doesNotMatch(init, /invoke-interface \{v4, v6, v7\}, Lo0ooOOO0\/o00OOOO0;->OooO0OO\(Ljava\/lang\/String;\[Ljava\/lang\/Object;\)V/);
   assert.doesNotMatch(init, /invoke-interface \{v4, v7, v8\}, Lo0ooOOO0\/o00OOOO0;->OooO0OO\(Ljava\/lang\/String;\[Ljava\/lang\/Object;\)V/);
   assert.doesNotMatch(init, /invoke-interface \{v6, v7, v8\}, Lo0ooOOO0\/o00OOOO0;->OooO0OO\(Ljava\/lang\/String;\[Ljava\/lang\/Object;\)V/);

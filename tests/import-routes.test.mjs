@@ -9,7 +9,7 @@ const baseline = path.resolve(process.env.SLIM_BASELINE_DECODED_ROOT ?? 'tools/_
 const fixtures = path.resolve('tools/_cache/slim-v1-review/fixtures/round-2');
 const files = [
   'res/layout/import_schedule_popup_window.xml',
-  'smali_classes6/o0OOOo0.1/Oooo0.smali',
+  'smali_classes6/o0Oo0ooo.6/o0o0Oo.smali',
   'smali_classes6/com/suda/yzune/wakeupschedule/schedule/ScheduleFragment.smali',
   'smali_classes6/com/suda/yzune/wakeupschedule/schedule_import/LoginWebActivity.smali',
 ];
@@ -37,27 +37,27 @@ test('import menu contains only the four retained rows and binds only their list
   const xml = await readFile(path.join(root, files[0]), 'utf8');
   const ids = [...xml.matchAll(/android:id="@id\/([^"]+)"/g)].map((match) => match[1]);
   assert.deepEqual(ids, ['import_dialog_from_eas', 'import_dialog_from_excel', 'import_dialog_from_html', 'import_dialog_from_backup']);
-  const binding = await readSmaliMethod(root, files[1], 'Lo0OOOo0/Oooo0;', 'public OooO0o0()V');
-  const boundIds = [...binding.matchAll(/^\s*const\s+v\d+,\s*(0x7f09038[a-f])\s*$/gm)].map((match) => match[1]);
-  assert.deepEqual(boundIds, ['0x7f09038c', '0x7f09038d', '0x7f09038e', '0x7f09038b']);
+  const binding = await readSmaliMethod(root, files[1], 'Lo0Oo0ooo/o0o0Oo;', 'public OooO0o0()V');
+  const boundIds = [...binding.matchAll(/^\s*const\s+v\d+,\s*(0x7f0903c[a-f])\s*$/gm)].map((match) => match[1]);
+  assert.deepEqual(boundIds, ['0x7f0903cb', '0x7f0903cc', '0x7f0903cd', '0x7f0903ca']);
   assert.ok(binding.indexOf('return-void') > binding.lastIndexOf('setOnClickListener('), 'listeners are bound before the method returns');
   assert.equal((binding.match(/setOnClickListener\(Landroid\/view\/View\$OnClickListener;\)V/g) ?? []).length, 4);
 });
 
 test('removed share-code and apply IDs return before LoginWebActivity dispatch', async (t) => {
   const root = await patchedFixture(t);
-  const route = await readSmaliMethod(root, files[2], 'Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;', 'public static final o00OoooO(Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;Ljava/lang/Integer;)Lo0o0OO0/o000OOo;');
+  const route = await readSmaliMethod(root, files[2], 'Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;', 'public static final o00OooO(Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;Ljava/lang/Integer;)Lkotlin/Unit;');
   const returnDefinition = route.indexOf('\n    :slim_removed_route_return\n');
   const continueDefinition = route.indexOf('\n    :slim_removed_route_continue\n');
   assert.ok(returnDefinition >= 0 && continueDefinition > returnDefinition);
   const guard = route.slice(route.indexOf('if-eqz p1, :slim_removed_route_continue'), continueDefinition);
-  assert.match(guard, /invoke-virtual \{p1\}, Ljava\/lang\/Integer;->intValue\(\)I[\s\S]*?0x7f09038f[\s\S]*?if-eq v0, v1, :slim_removed_route_return[\s\S]*?0x7f09038a[\s\S]*?if-eq v0, v1, :slim_removed_route_return[\s\S]*?goto :slim_removed_route_continue/);
-  assert.match(route.slice(returnDefinition, continueDefinition), /sget-object p0, Lo0o0OO0\/o000OOo;->OooO00o:Lo0o0OO0\/o000OOo;[\s\S]*?return-object p0/);
+  assert.match(guard, /invoke-virtual \{p1\}, Ljava\/lang\/Integer;->intValue\(\)I[\s\S]*?0x7f0903ce[\s\S]*?if-eq v0, v1, :slim_removed_route_return[\s\S]*?0x7f0903c9[\s\S]*?if-eq v0, v1, :slim_removed_route_return[\s\S]*?goto :slim_removed_route_continue/);
+  assert.match(route.slice(returnDefinition, continueDefinition), /sget-object p0, Lkotlin\/Unit;->INSTANCE:Lkotlin\/Unit;[\s\S]*?return-object p0/);
   const retainedRoutes = route.slice(continueDefinition);
-  assert.match(retainedRoutes, /0x7f09038c[\s\S]*?->o00Oo00o\(\)V/);
-  assert.match(retainedRoutes, /0x7f09038d[\s\S]*?o0oo0000;-><init>/);
-  assert.match(retainedRoutes, /0x7f09038e[\s\S]*?schedule\/o;-><init>/);
-  assert.match(retainedRoutes, /0x7f09038b[\s\S]*?oO00000;-><init>/);
+  assert.match(retainedRoutes, /0x7f0903cb[\s\S]*?->o00OOooo\(\)V/);
+  assert.match(retainedRoutes, /0x7f0903cc[\s\S]*?o0OOOO0o;-><init>/);
+  assert.match(retainedRoutes, /0x7f0903cd[\s\S]*?schedule\/o0OOo000;-><init>/);
+  assert.match(retainedRoutes, /0x7f0903ca[\s\S]*?o0o0000;-><init>/);
   assert.ok(route.indexOf('const-class v0, Lcom/suda/yzune/wakeupschedule/schedule_import/LoginWebActivity;') > continueDefinition);
 });
 

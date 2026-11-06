@@ -109,7 +109,7 @@ test('E08 skips import-feedback behavior and E15 returns an already-completed no
     fixtureRoot,
     relativePaths[4],
     'Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;',
-    'public final oo00o(Lcom/suda/yzune/wakeupschedule/schedule/SchedulePagerItemLayout;)V',
+    'public final o00O00Oo(Lcom/suda/yzune/wakeupschedule/schedule/SchedulePagerItemLayout;)V',
   );
   const feedbackDisabled = schedule.indexOf('goto :cond_a');
   const feedbackBranch = schedule.indexOf('showImportFeedback(');
@@ -119,7 +119,7 @@ test('E08 skips import-feedback behavior and E15 returns an already-completed no
   assert.match(schedule, /showImportFeedback\(/, 'the preserved feedback body is unreachable through the forced-false branch');
 
   const uploadPath = relativePaths[5];
-  const importMethod = 'public final o000OOo(Ljava/lang/String;)Lkotlinx/coroutines/o00O0OOO;';
+  const importMethod = 'public final o00000O(Ljava/lang/String;)Lkotlinx/coroutines/o00O0OOO;';
   const submit = await readSmaliMethod(
     fixtureRoot,
     uploadPath,
@@ -133,19 +133,19 @@ test('E08 skips import-feedback behavior and E15 returns an already-completed no
 
   const defaultJobFactory = await readSmaliMethod(
     root,
-    'smali_classes7/kotlinx/coroutines/JobKt__JobKt.smali',
+    'smali_classes8/kotlinx/coroutines/JobKt__JobKt.smali',
     'Lkotlinx/coroutines/JobKt__JobKt;',
     'public static synthetic OooO0O0(Lkotlinx/coroutines/o00O0OOO;ILjava/lang/Object;)Lkotlinx/coroutines/oo0o0Oo;',
   );
   const newJobFactory = await readSmaliMethod(
     root,
-    'smali_classes7/kotlinx/coroutines/JobKt__JobKt.smali',
+    'smali_classes8/kotlinx/coroutines/JobKt__JobKt.smali',
     'Lkotlinx/coroutines/JobKt__JobKt;',
     'public static final OooO00o(Lkotlinx/coroutines/o00O0OOO;)Lkotlinx/coroutines/oo0o0Oo;',
   );
   const completeJob = await readSmaliMethod(
     root,
-    'smali_classes7/kotlinx/coroutines/oo0oOO0.smali',
+    'smali_classes8/kotlinx/coroutines/oo0oOO0.smali',
     'Lkotlinx/coroutines/oo0oOO0;',
     'public complete()Z',
   );

@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class SlimNetworkPolicy {
     public static final String SCHOOL_LIST_CLASS = "Lcom/suda/yzune/wakeupschedule/aaa/model/SchoolListBean$OooO00o;";
     public static final String SCRIPT_PLUGIN_CLASS = "Lcom/suda/yzune/wakeupschedule/aaa/model/ScriptEnpluginBean$OooO00o;";
-    public static final String RAW_BRIDGE_CLASS = "Lo0Oo0o00/o00Ooo;";
+    public static final String RAW_BRIDGE_CLASS = "Lo0o00O0O/OooOO0;";
     public static final String HTTP_CURRENCY_WRAPPER_CLASS = "Lcom/suda/yzune/wakeupschedule/aaa/v1/HttpCurrencyRequest$OooO00o;";
     public static final String DX_HTTP_WRAPPER_CLASS = "Lcom/suda/yzune/wakeupschedule/aaa/v1/HybridHttpCurrencyRequest$OooO00o;";
     public static final String API_HOST = "api.wakeup.fun";

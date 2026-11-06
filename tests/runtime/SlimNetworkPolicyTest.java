@@ -11,7 +11,7 @@ import com.suda.yzune.wakeupschedule.schedule_import.LoginWebActivity;
 import com.suda.yzune.wakeupschedule.schedule_import.DXParserLoginFragment;
 import com.suda.yzune.wakeupschedule.schedule_import.WebViewLoginFragment;
 import com.suda.yzune.wakeupschedule.schedule_import.v2.ParserFragment;
-import o0Oo0o00.o00Ooo;
+import o0o00O0O.OooOO0;
 
 public final class SlimNetworkPolicyTest {
     private static final String SCHOOL = SlimNetworkPolicy.SCHOOL_LIST_CLASS;
@@ -159,7 +159,7 @@ public final class SlimNetworkPolicyTest {
         owner.o00OOoo = currentView;
         check(SlimNetworkPolicy.bindCurrentWebView(owner, currentView), "v2 view creation records the current WebView before bridge actions");
 
-        o00Ooo input = newRawInput("https://api.wakeup.fun/wakeup/script/parse?step=1");
+        OooOO0 input = newRawInput("https://api.wakeup.fun/wakeup/script/parse?step=1");
         check(SlimNetworkPolicy.registerV2BridgeInput(input, owner, activity, currentView, input.toString()),
             "production v2 adapter accepts the exact attached LoginWebActivity and current WebView");
         check(SlimNetworkPolicy.ownerFor(SlimNetworkPolicy.parentFor(input)) == owner,
@@ -168,7 +168,7 @@ public final class SlimNetworkPolicyTest {
             "same raw input cannot be registered twice");
         check(SlimNetworkPolicy.revokeOwner(owner) == 1, "view teardown revokes the production adapter permit");
 
-        o00Ooo stale = newRawInput("https://api.wakeup.fun/wakeup/script/parse?step=2");
+        OooOO0 stale = newRawInput("https://api.wakeup.fun/wakeup/script/parse?step=2");
         check(SlimNetworkPolicy.registerV2BridgeInput(stale, owner, activity, new Object(), stale.toString()) == false,
             "a WebView other than the Fragment's current field is rejected");
         activity.destroyed = true;
@@ -193,7 +193,7 @@ public final class SlimNetworkPolicyTest {
         owner.activity = activity;
         owner.o00OOoo = currentView;
         check(SlimNetworkPolicy.bindCurrentWebView(owner, currentView), "DX view creation records the current WebView before iframe actions");
-        o00Ooo input = newRawInput("https://api.wakeup.fun/wakeup/script/parse?step=dx");
+        OooOO0 input = newRawInput("https://api.wakeup.fun/wakeup/script/parse?step=dx");
         check(SlimNetworkPolicy.registerDxBridgeInput(input, owner, activity, currentView, input.toString()),
             "production DX adapter accepts the current iframe bridge owner and view");
         check(SlimNetworkPolicy.parentFor(input) != null, "DX request receives an owner-bound parent identity");
@@ -493,8 +493,8 @@ public final class SlimNetworkPolicyTest {
         return SlimNetworkPolicy.registerDynamic(request, owner, view, view, url, source, true, true, false);
     }
 
-    private static o00Ooo newRawInput(String url) {
-        return new o00Ooo(url, Collections.<String, String>emptyMap(), 1, Object.class);
+    private static OooOO0 newRawInput(String url) {
+        return new OooOO0(url, Collections.<String, String>emptyMap(), 1, Object.class);
     }
 
     private static void check(boolean condition, String message) {
