@@ -2416,6 +2416,8 @@ public final class CrashLogTest {
                 new LogStore(Collections.<LogStore.Source>singletonList(source)), ui);
             ui.awaitRenderCount(1);
             ui.awaitBodyText("应用崩溃");
+            // The JVM host runs posted UI callbacks on its I/O thread. The footer is appended last.
+            ui.awaitBodyText(LOG_FOOTER);
             assertLogGroupBeforeFooter(ui.lastBody, "ordinary list");
             assertNoSelectionActions(ui.lastBody, "ordinary list");
             List<FakeView> icons = toolbarIcons(activity.toolbar);
@@ -2473,6 +2475,7 @@ public final class CrashLogTest {
             ((FakeClickListener) dialog.positiveListener).run();
             awaitCondition(ui, "已删除 3 条日志");
             ui.awaitBodyText("暂无日志");
+            ui.awaitBodyText(LOG_FOOTER);
             assertNoSelectionActions(ui.lastBody, "empty list");
             check(source.entries.isEmpty() && "本地日志".equals(activity.toolbar.text) && icons.get(0).visibility == 0
                 && icons.get(1).visibility == 8 && icons.get(2).visibility == 8,
@@ -2483,6 +2486,7 @@ public final class CrashLogTest {
             ((FakeClickListener) icons.get(0).clickListener).run();
             ui.awaitRenderCount(renders + 1);
             ui.awaitBodyText("应用崩溃");
+            ui.awaitBodyText(LOG_FOOTER);
             FakeView onlyTitle = findTextContaining(ui.lastBody, "应用崩溃");
             FakeView onlyRow = (FakeView) ((FakeView) ((FakeView) onlyTitle.parent).parent).parent;
             renders = ui.renderCount;
@@ -2499,6 +2503,7 @@ public final class CrashLogTest {
             check("本地日志".equals(activity.toolbar.text), "leaving multi-select restores the list title");
             controller.select(controllerResult(controller).entries.get(0));
             ui.awaitBodyText("内容预览");
+            ui.awaitBodyText("wakeup-noads crash log");
             assertNoSelectionActions(ui.lastBody, "detail page");
             check("日志详情".equals(activity.toolbar.text) && icons.get(0).visibility == 8 && icons.get(1).visibility == 8
                 && icons.get(2).visibility == 0, "detail keeps only the delete icon");
@@ -2507,6 +2512,7 @@ public final class CrashLogTest {
             ((FakeClickListener) ui.lastDialog.positiveListener).run();
             awaitCondition(ui, "已删除 1 条日志");
             ui.awaitBodyText("暂无日志");
+            ui.awaitBodyText(LOG_FOOTER);
             assertNoSelectionActions(ui.lastBody, "empty list after detail delete");
             check(!((File) last.handle).exists() && "本地日志".equals(activity.toolbar.text), "deleting from detail returns to the empty list");
             controller.detach();

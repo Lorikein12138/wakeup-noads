@@ -326,7 +326,7 @@ test('production main and identity specs apply every 6.7.2 operation atomically 
   const allOperations = [...patchSpec.operations, ...identitySpec.operations];
   const targetPaths = [...new Set(allOperations.map(({ relativePath }) => relativePath))].sort();
   const baselineApkPath = path.resolve(lock.baseline.path);
-  assert.equal(patchSpec.operations.length, 416);
+  assert.equal(patchSpec.operations.length, 424);
   assert.equal(identitySpec.operations.length, 42);
   const authority24 = identitySpec.operations.findIndex(({ id }) => id === 'T18-E01-authority-24');
   assert.deepEqual(identitySpec.operations.slice(authority24 + 1, authority24 + 3).map(({ id }) => id),
@@ -374,7 +374,7 @@ test('production main and identity specs apply every 6.7.2 operation atomically 
   }
   assert.deepEqual(result.files.map(({ relativePath }) => relativePath).sort(),
     targetPaths, 'every changed production target is reported once');
-  assert.equal(result.operations.length, 458);
+  assert.equal(result.operations.length, 466);
   const nibbleOperands = /^(invoke-(virtual|super|direct|static|interface|polymorphic|custom)|filled-new-array|iget[a-z-]*|iput[a-z-]*|instance-of|new-array|move|move-object|move-wide|neg-[a-z]+|not-[a-z]+|(int|long|float|double)-to-[a-z]+|array-length|[a-z-]+\/2addr|if-(eq|ne|lt|ge|gt|le)|const\/4)$/;
   for (const relative of targetPaths) {
     let open = false;

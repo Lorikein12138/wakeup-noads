@@ -3,10 +3,19 @@ import assert from 'node:assert/strict';
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { applyPatchSpec } from '../scripts/patch.mjs';
+import { parseSmaliClassStructure, sameExecutableSmaliMethod } from './smali-helpers.mjs';
 
 const baseline = path.resolve(process.env.SLIM_BASELINE_DECODED_ROOT ?? 'tools/_cache/slim-v1-decoded');
 const fixtures = path.resolve('tools/_cache/slim-v1-review/fixtures/round-2');
 const manifestPath = 'AndroidManifest.xml';
+const schedulePackage = 'com/suda/yzune/wakeupschedule/schedule';
+const schedulePath = `smali_classes6/${schedulePackage}`;
+const mainStyleFragment = 'Lcom/suda/yzune/wakeupschedule/schedule_settings/MainStyleFragment;';
+const scheduleClassFiles = new Map([
+  ...['ScheduleFragment', 'ScheduleFragment$OooO', 'o00'].map((name) => [name, `${schedulePath}/${name}.smali`]),
+  ['MainStyleFragment', `smali_classes6/${mainStyleFragment.slice(1, -1)}.smali`],
+]);
+const scheduleFiles = [...scheduleClassFiles.values()];
 
 function scanComponents(xml) {
   const tokenRe = /<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<![^>]*>|<\/?[A-Za-z_][\w:.-]*(?:\s[^>]*)?\/?\s*>/g;
@@ -62,14 +71,23 @@ function countIntentFilters(block) {
   return (block.match(/<intent-filter\b/g) ?? []).length;
 }
 
-async function patchedFixture(t) {
+async function patchedFixture(t, { schedule = false } = {}) {
   await mkdir(fixtures, { recursive: true });
   const root = await mkdtemp(path.join(fixtures, 'manifest-simulation-'));
+  assert.ok(root.startsWith(`${fixtures}${path.sep}`), 'fixture stays below tools/_cache');
   t.after(() => rm(root, { recursive: true, force: true }));
   await copyFile(path.join(baseline, manifestPath), path.join(root, manifestPath));
   const fullSpec = JSON.parse(await readFile('patches/slim-v1/patch-spec.json', 'utf8'));
-  const operations = fullSpec.operations.filter((operation) => operation.id.startsWith('T15-E01-'));
+  const operations = fullSpec.operations.filter((operation) =>
+    operation.id.startsWith('T15-E01-') && operation.relativePath === manifestPath);
   assert.equal(operations.length, 210, 'the source manifest was expanded into exact component operations');
+  if (schedule) {
+    for (const file of scheduleFiles) {
+      await mkdir(path.dirname(path.join(root, file)), { recursive: true });
+      await copyFile(path.join(baseline, file), path.join(root, file));
+    }
+    operations.push(...fullSpec.operations.filter(({ relativePath }) => scheduleFiles.includes(relativePath)));
+  }
   const specPath = path.join(root, 'manifest-fixture-spec.json');
   await writeFile(specPath, JSON.stringify({ schemaVersion: 1, applicationId: 'io.github.wakeupnoads', operations }));
   await applyPatchSpec({ root, specPath });
@@ -94,6 +112,94 @@ test('T15 expands every exact Manifest close rule into a counted component allow
     assert.equal(operation.xmlNode.name, operation.componentName);
     assert.match(operation.expectedOriginal, new RegExp(`android:name="${operation.componentName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`));
     assert.equal(operation.rule.length > 0, true);
+  }
+});
+
+test('T15 schedule menu and VIP handlers do not reference closed components in the output', async (t) => {
+  const root = process.env.SLIM_VERIFIED_DECODED_ROOT ?? (await patchedFixture(t, { schedule: true })).root;
+  const xml = await readFile(path.join(root, manifestPath), 'utf8');
+  const closedNames = scanComponents(xml)
+    .filter(({ startTag }) => androidAttribute(startTag, 'enabled') === 'false')
+    .map(({ name }) => name);
+  assert.ok(closedNames.includes('com.suda.yzune.wakeupschedule.aaa.activity.CommonCacheHybridActivity'));
+
+  const classes = new Map();
+  const fragment = `L${schedulePackage}/ScheduleFragment;`;
+  const bannerClick = `o00O0o00(Lcom/suda/yzune/wakeupschedule/aaa/model/Bannerconf$HomeSourceBanner;${fragment}Landroid/view/View;)Lkotlin/Unit;`;
+  for (const [className, file] of scheduleClassFiles) {
+    const source = await readFile(path.join(root, file), 'utf8');
+    assert.doesNotMatch(source, /vip-wakeup\/page\/cashier|wakeup-core\/page\/pages\/widget\/index/);
+    const parsed = parseSmaliClassStructure(source, file);
+    classes.set(className, parsed);
+    for (const { methodDescriptor, canonicalBody } of parsed.methods) {
+      for (const name of closedNames) {
+        // This callback needs the remote HomeSourceBanner response, which T14 does not allow.
+        if (className === 'ScheduleFragment' && methodDescriptor === bannerClick && name.endsWith('.FullWebTransActivity')) continue;
+        const descriptor = `L${name.replaceAll('.', '/')}`;
+        assert.ok(!canonicalBody.includes(`${descriptor};`) && !canonicalBody.includes(`${descriptor}$`)
+          && !canonicalBody.includes(`"${name}"`), `${className}.${methodDescriptor} references ${name}`);
+      }
+    }
+  }
+
+  const method = (className, descriptor) => {
+    const found = classes.get(className).methods.find(({ methodDescriptor }) => methodDescriptor === descriptor);
+    assert.ok(found, `${className}.${descriptor} exists`);
+    return found;
+  };
+  const instructions = ({ source }) => source.split('\n')
+    .map((line) => line.trim().replace(/\s+#.*$/, ''))
+    .filter((line) => line && !line.startsWith('.line ') && !line.startsWith('#')).join('\n');
+  const contact = instructions(method('ScheduleFragment', `o00OoO0(${fragment})Lkotlin/Unit;`));
+  assert.match(contact, /"https:\/\/www\.wakeup\.fun\/contact\.html"/);
+  assert.match(contact, /Landroid\/net\/Uri;->parse\(Ljava\/lang\/String;\)Landroid\/net\/Uri;/);
+  assert.match(contact, /"android\.intent\.action\.VIEW"/);
+  assert.match(contact, /Landroid\/content\/Intent;-><init>\(Ljava\/lang\/String;Landroid\/net\/Uri;\)V/);
+  assert.match(contact, /(:\w+)\ninvoke-virtual .*->startActivity\(Landroid\/content\/Intent;\)V\n(:\w+)\n\.catch Landroid\/content\/ActivityNotFoundException; \{\1 \.\. \2\}/);
+
+  const widget = method('ScheduleFragment', `o0oOO(${fragment})Lkotlin/Unit;`);
+  assert.match(widget.canonicalBody, /sget-object v0, Lkotlin\/Unit;->INSTANCE:Lkotlin\/Unit;\nreturn-object v0$/);
+  for (const descriptor of [
+    `o00oo0o(${fragment}Landroidx/fragment/app/FragmentActivity;Landroid/view/View;)V`,
+    'o00o0oOO()V',
+    'o00oOOo0()V',
+  ]) {
+    assert.match(method('ScheduleFragment', descriptor).canonicalBody, /^\.locals 0\nreturn-void$/);
+  }
+  assert.match(method('ScheduleFragment$OooO', 'OooO0o0()V').canonicalBody, /^\.locals 0\nreturn-void$/);
+  // The VIP skin prompt's "去开通" button would otherwise open the closed cashier (from=skin1).
+  assert.match(method('MainStyleFragment',
+    `o0000o0O(Landroidx/fragment/app/FragmentActivity;${mainStyleFragment}Landroid/view/View;)V`).canonicalBody,
+  /^\.locals 0\nreturn-void$/);
+
+  const item = instructions(method('o00', 'OooO0OO(III)Landroid/widget/LinearLayout;'));
+  const visibility = item.match(/\n(:\w+)\nconst\/16 v1, 0x8\ninvoke-virtual \{v0, v1\}, Landroid\/view\/View;->setVisibility\(I\)V\n(:\w+)/);
+  assert.ok(visibility, 'the menu factory has a GONE branch and a visible branch');
+  const [, gone, visible] = visibility;
+  assert.ok(item.includes([
+    'invoke-virtual {v0, p1}, Landroid/view/View;->setId(I)V',
+    'const v1, 0x7f090786',
+    `if-eq p1, v1, ${gone}`,
+    'const v1, 0x7f090788',
+    `if-eq p1, v1, ${gone}`,
+    'const v1, 0x7f090789',
+    `if-ne p1, v1, ${visible}`,
+    gone,
+  ].join('\n')), 'only the widget, night mode and simple mode IDs enter the GONE branch');
+
+  // The zero-width, reciprocal chains let ConstraintLayout redistribute each row among visible items.
+  // The lifecycle and membership checks still run their upstream branches.
+  for (const [className, descriptors] of [
+    ['o00', ['<init>(Landroid/content/Context;)V', 'OooOo0(Z)V', 'OooOo00(Z)V']],
+    ['ScheduleFragment', ['onResume()V', 'o00O0O0o()V', 'o00O0OO0()V']],
+  ]) {
+    const file = `${schedulePath}/${className}.smali`;
+    const original = parseSmaliClassStructure(await readFile(path.join(baseline, file), 'utf8'), file);
+    for (const descriptor of descriptors) {
+      const before = original.methods.find(({ methodDescriptor }) => methodDescriptor === descriptor);
+      assert.ok(before, `${className}.${descriptor} exists in the baseline`);
+      assert.ok(sameExecutableSmaliMethod(method(className, descriptor).source, before.source), `${className}.${descriptor}`);
+    }
   }
 });
 

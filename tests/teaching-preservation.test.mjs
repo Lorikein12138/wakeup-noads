@@ -34,6 +34,16 @@ async function listSmaliFiles(root, relative = '') {
   return results.sort();
 }
 
+async function smaliClassIndex(root, relative) {
+  const index = new Map();
+  for (const file of await listSmaliFiles(root, relative)) {
+    const descriptor = (await readFile(path.join(root, file), 'utf8')).match(/^\.class\s.*?(L[^;\s]+;)\s*$/m)?.[1];
+    assert.ok(descriptor && !index.has(descriptor), `${file} declares one unique class`);
+    index.set(descriptor, file);
+  }
+  return index;
+}
+
 async function listFiles(root, relative = '') {
   const items = await readdir(path.join(root, relative), { withFileTypes: true });
   const results = [];
@@ -829,8 +839,10 @@ test('candidate preserves the complete official DEX 8 and installs referenced ru
   const dependency = JSON.parse(await readFile(dependencyPath, 'utf8'));
   const spec = JSON.parse(await readFile(specPath, 'utf8'));
   const identity = JSON.parse(await readFile('patches/slim-v1/package-identity-spec.json', 'utf8'));
-  const officialFiles = await listSmaliFiles(baselineRoot, 'smali_classes8');
-  assert.deepEqual(await listSmaliFiles(candidateRoot, 'smali_classes8'), officialFiles, 'the original eighth DEX class set is preserved');
+  // apktool suffixes case-colliding package directories (.1, .2, ...) in thread order, so classes pair by descriptor.
+  const officialClasses = await smaliClassIndex(baselineRoot, 'smali_classes8');
+  const candidateClasses = await smaliClassIndex(candidateRoot, 'smali_classes8');
+  assert.deepEqual([...candidateClasses.keys()].sort(), [...officialClasses.keys()].sort(), 'the original eighth DEX class set is preserved');
   const root = await mkdtemp(path.join(mutationRoot, 'dex8-expected-'));
   assert.ok(root.startsWith(mutationRoot + path.sep));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -845,9 +857,9 @@ test('candidate preserves the complete official DEX 8 and installs referenced ru
     await writeFile(localSpec, JSON.stringify({ schemaVersion: 1, applicationId: spec.applicationId, operations }));
     await applyPatchSpec({ root, specPath: localSpec });
   }
-  for (const relative of officialFiles) {
+  for (const [descriptor, relative] of officialClasses) {
     const expected = await readFile(path.join(modified.has(relative) ? root : baselineRoot, relative), 'utf8');
-    assert.equal(normalizeSmaliClass(await readFile(path.join(candidateRoot, relative), 'utf8')), normalizeSmaliClass(expected), `${relative} equals official plus approved operations`);
+    assert.equal(normalizeSmaliClass(await readFile(path.join(candidateRoot, candidateClasses.get(descriptor)), 'utf8')), normalizeSmaliClass(expected), `${relative} equals official plus approved operations`);
   }
   for (const reference of [dependency.cryptoLifecycle.versionCodeSeed.runtimeCheck, dependency.cryptoLifecycle.cacheInvalidation.implementation]) {
     assert.ok(reference.path.startsWith('smali_classes9/'), 'runtime references use the fixed ninth DEX');

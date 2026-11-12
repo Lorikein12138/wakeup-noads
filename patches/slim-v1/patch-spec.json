@@ -2706,6 +2706,227 @@
       ]
     },
     {
+      "id": "T15-E01-hide-unavailable-schedule-menu-items",
+      "evidence": "E01",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/schedule/o00.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/schedule/o00;",
+        "methodDescriptor": "public final OooO0OO(III)Landroid/widget/LinearLayout;"
+      },
+      "expectedMethodSha256": "0151FBC6CBEA1E28370CAC5FD87AB0CB4E0926FB22EFD8EA8040F7A747157834",
+      "finalAssertions": [
+        {
+          "text": "const v1, 0x7f090786"
+        },
+        {
+          "text": "const v1, 0x7f090788"
+        },
+        {
+          "text": "const v1, 0x7f090789"
+        },
+        {
+          "text": "invoke-virtual {v0, v1}, Landroid/view/View;->setVisibility(I)V"
+        }
+      ],
+      "replacementMethod": ".method public final OooO0OO(III)Landroid/widget/LinearLayout;\n    .locals 10\n\n    .line 1\n    new-instance v0, Ljava/lang/Integer;\n\n    .line 2\n    .line 3\n    invoke-direct {v0, p1}, Ljava/lang/Integer;-><init>(I)V\n\n    .line 4\n    .line 5\n    .line 6\n    new-instance v1, Ljava/lang/Integer;\n\n    .line 7\n    .line 8\n    invoke-direct {v1, p2}, Ljava/lang/Integer;-><init>(I)V\n\n    .line 9\n    .line 10\n    .line 11\n    new-instance v2, Ljava/lang/Integer;\n\n    .line 12\n    .line 13\n    invoke-direct {v2, p3}, Ljava/lang/Integer;-><init>(I)V\n\n    .line 14\n    .line 15\n    .line 16\n    filled-new-array {v0, v1, v2}, [Ljava/lang/Object;\n\n    .line 17\n    .line 18\n    .line 19\n    move-result-object v3\n\n    .line 20\n    sget-object v5, Lcom/suda/yzune/wakeupschedule/schedule/o00;->changeQuickRedirect:Lcom/meituan/robust/ChangeQuickRedirect;\n\n    .line 21\n    .line 22\n    sget-object v0, Ljava/lang/Integer;->TYPE:Ljava/lang/Class;\n\n    .line 23\n    .line 24\n    filled-new-array {v0, v0, v0}, [Ljava/lang/Class;\n\n    .line 25\n    .line 26\n    .line 27\n    move-result-object v8\n\n    .line 28\n    const-class v9, Landroid/widget/LinearLayout;\n\n    .line 29\n    .line 30\n    const/4 v6, 0x0\n\n    .line 31\n    const/16 v7, 0x1562\n\n    .line 32\n    .line 33\n    move-object v4, p0\n\n    .line 34\n    invoke-static/range {v3 .. v9}, Lcom/meituan/robust/PatchProxy;->proxy([Ljava/lang/Object;Ljava/lang/Object;Lcom/meituan/robust/ChangeQuickRedirect;ZI[Ljava/lang/Class;Ljava/lang/Class;)Lcom/meituan/robust/PatchProxyResult;\n\n    .line 35\n    .line 36\n    .line 37\n    move-result-object v0\n\n    .line 38\n    iget-boolean v1, v0, Lcom/meituan/robust/PatchProxyResult;->isSupported:Z\n\n    .line 39\n    .line 40\n    if-eqz v1, :cond_0\n\n    .line 41\n    .line 42\n    iget-object p1, v0, Lcom/meituan/robust/PatchProxyResult;->result:Ljava/lang/Object;\n\n    .line 43\n    .line 44\n    check-cast p1, Landroid/widget/LinearLayout;\n\n    .line 45\n    .line 46\n    return-object p1\n\n    .line 47\n    :cond_0\n    new-instance v0, Landroid/widget/LinearLayout;\n\n    .line 48\n    .line 49\n    invoke-virtual {p0}, Lcom/suda/yzune/wakeupschedule/schedule/o00;->OooO()Landroid/content/Context;\n\n    .line 50\n    .line 51\n    .line 52\n    move-result-object v1\n\n    .line 53\n    invoke-direct {v0, v1}, Landroid/widget/LinearLayout;-><init>(Landroid/content/Context;)V\n\n    .line 54\n    .line 55\n    .line 56\n    invoke-virtual {v0, p1}, Landroid/view/View;->setId(I)V\n\n    # Keep the row chains connected while removing these items from measurement.\n    const v1, 0x7f090786    # widget\n    if-eq p1, v1, :slim_menu_gone\n    const v1, 0x7f090788    # night mode\n    if-eq p1, v1, :slim_menu_gone\n    const v1, 0x7f090789    # simple mode\n    if-ne p1, v1, :slim_menu_visible\n    :slim_menu_gone\n    const/16 v1, 0x8\n    invoke-virtual {v0, v1}, Landroid/view/View;->setVisibility(I)V\n    :slim_menu_visible\n\n\n    .line 57\n    .line 58\n    .line 59\n    const/4 p1, 0x1\n\n    .line 60\n    invoke-virtual {v0, p1}, Landroid/widget/LinearLayout;->setOrientation(I)V\n\n    .line 61\n    .line 62\n    .line 63\n    const/16 p1, 0x11\n\n    .line 64\n    .line 65\n    invoke-virtual {v0, p1}, Landroid/widget/LinearLayout;->setGravity(I)V\n\n    .line 66\n    .line 67\n    .line 68\n    new-instance p1, Landroidx/appcompat/widget/AppCompatImageView;\n\n    .line 69\n    .line 70\n    invoke-virtual {v0}, Landroid/view/View;->getContext()Landroid/content/Context;\n\n    .line 71\n    .line 72\n    .line 73\n    move-result-object v1\n\n    .line 74\n    invoke-direct {p1, v1}, Landroidx/appcompat/widget/AppCompatImageView;-><init>(Landroid/content/Context;)V\n\n    .line 75\n    .line 76\n    .line 77\n    invoke-virtual {p1, p3}, Landroidx/appcompat/widget/AppCompatImageView;->setImageResource(I)V\n\n    .line 78\n    .line 79\n    .line 80\n    sget-object p3, Landroid/widget/ImageView$ScaleType;->FIT_CENTER:Landroid/widget/ImageView$ScaleType;\n\n    .line 81\n    .line 82\n    invoke-virtual {p1, p3}, Landroid/widget/ImageView;->setScaleType(Landroid/widget/ImageView$ScaleType;)V\n\n    .line 83\n    .line 84\n    .line 85\n    new-instance p3, Landroid/widget/LinearLayout$LayoutParams;\n\n    .line 86\n    .line 87\n    invoke-virtual {v0}, Landroid/view/View;->getContext()Landroid/content/Context;\n\n    .line 88\n    .line 89\n    .line 90\n    move-result-object v1\n\n    .line 91\n    const-string v2, \"getContext(...)\"\n\n    .line 92\n    .line 93\n    invoke-static {v1, v2}, Lkotlin/jvm/internal/Intrinsics;->checkNotNullExpressionValue(Ljava/lang/Object;Ljava/lang/String;)V\n\n    .line 94\n    .line 95\n    .line 96\n    const/16 v3, 0x20\n\n    .line 97\n    .line 98\n    int-to-float v3, v3\n\n    .line 99\n    invoke-virtual {v1}, Landroid/content/Context;->getResources()Landroid/content/res/Resources;\n\n    .line 100\n    .line 101\n    .line 102\n    move-result-object v1\n\n    .line 103\n    invoke-virtual {v1}, Landroid/content/res/Resources;->getDisplayMetrics()Landroid/util/DisplayMetrics;\n\n    .line 104\n    .line 105\n    .line 106\n    move-result-object v1\n\n    .line 107\n    iget v1, v1, Landroid/util/DisplayMetrics;->density:F\n\n    .line 108\n    .line 109\n    mul-float/2addr v1, v3\n\n    .line 110\n    float-to-int v1, v1\n\n    .line 111\n    invoke-virtual {v0}, Landroid/view/View;->getContext()Landroid/content/Context;\n\n    .line 112\n    .line 113\n    .line 114\n    move-result-object v4\n\n    .line 115\n    invoke-static {v4, v2}, Lkotlin/jvm/internal/Intrinsics;->checkNotNullExpressionValue(Ljava/lang/Object;Ljava/lang/String;)V\n\n    .line 116\n    .line 117\n    .line 118\n    invoke-virtual {v4}, Landroid/content/Context;->getResources()Landroid/content/res/Resources;\n\n    .line 119\n    .line 120\n    .line 121\n    move-result-object v4\n\n    .line 122\n    invoke-virtual {v4}, Landroid/content/res/Resources;->getDisplayMetrics()Landroid/util/DisplayMetrics;\n\n    .line 123\n    .line 124\n    .line 125\n    move-result-object v4\n\n    .line 126\n    iget v4, v4, Landroid/util/DisplayMetrics;->density:F\n\n    .line 127\n    .line 128\n    mul-float/2addr v3, v4\n\n    .line 129\n    float-to-int v3, v3\n\n    .line 130\n    invoke-direct {p3, v1, v3}, Landroid/widget/LinearLayout$LayoutParams;-><init>(II)V\n\n    .line 131\n    .line 132\n    .line 133\n    invoke-virtual {v0, p1, p3}, Landroid/view/ViewGroup;->addView(Landroid/view/View;Landroid/view/ViewGroup$LayoutParams;)V\n\n    .line 134\n    .line 135\n    .line 136\n    new-instance p1, Landroidx/appcompat/widget/AppCompatTextView;\n\n    .line 137\n    .line 138\n    invoke-virtual {v0}, Landroid/view/View;->getContext()Landroid/content/Context;\n\n    .line 139\n    .line 140\n    .line 141\n    move-result-object p3\n\n    .line 142\n    invoke-direct {p1, p3}, Landroidx/appcompat/widget/AppCompatTextView;-><init>(Landroid/content/Context;)V\n\n    .line 143\n    .line 144\n    .line 145\n    const/high16 p3, 0x41400000    # 12.0f\n\n    .line 146\n    .line 147\n    invoke-virtual {p1, p3}, Landroid/widget/TextView;->setTextSize(F)V\n\n    .line 148\n    .line 149\n    .line 150\n    invoke-virtual {p1, p2}, Landroid/widget/TextView;->setText(I)V\n\n    .line 151\n    .line 152\n    .line 153\n    const-string p2, \"#ff141414\"\n\n    .line 154\n    .line 155\n    invoke-static {p2}, Landroid/graphics/Color;->parseColor(Ljava/lang/String;)I\n\n    .line 156\n    .line 157\n    .line 158\n    move-result p2\n\n    .line 159\n    invoke-virtual {p1, p2}, Landroid/widget/TextView;->setTextColor(I)V\n\n    .line 160\n    .line 161\n    .line 162\n    new-instance p2, Landroid/widget/LinearLayout$LayoutParams;\n\n    .line 163\n    .line 164\n    const/4 p3, -0x2\n\n    .line 165\n    invoke-direct {p2, p3, p3}, Landroid/widget/LinearLayout$LayoutParams;-><init>(II)V\n\n    .line 166\n    .line 167\n    .line 168\n    invoke-virtual {v0}, Landroid/view/View;->getContext()Landroid/content/Context;\n\n    .line 169\n    .line 170\n    .line 171\n    move-result-object p3\n\n    .line 172\n    invoke-static {p3, v2}, Lkotlin/jvm/internal/Intrinsics;->checkNotNullExpressionValue(Ljava/lang/Object;Ljava/lang/String;)V\n\n    .line 173\n    .line 174\n    .line 175\n    const/16 v1, 0x8\n\n    .line 176\n    .line 177\n    int-to-float v1, v1\n\n    .line 178\n    invoke-virtual {p3}, Landroid/content/Context;->getResources()Landroid/content/res/Resources;\n\n    .line 179\n    .line 180\n    .line 181\n    move-result-object p3\n\n    .line 182\n    invoke-virtual {p3}, Landroid/content/res/Resources;->getDisplayMetrics()Landroid/util/DisplayMetrics;\n\n    .line 183\n    .line 184\n    .line 185\n    move-result-object p3\n\n    .line 186\n    iget p3, p3, Landroid/util/DisplayMetrics;->density:F\n\n    .line 187\n    .line 188\n    mul-float/2addr v1, p3\n\n    .line 189\n    float-to-int p3, v1\n\n    .line 190\n    iput p3, p2, Landroid/widget/LinearLayout$LayoutParams;->topMargin:I\n\n    .line 191\n    .line 192\n    sget-object p3, Lkotlin/Unit;->INSTANCE:Lkotlin/Unit;\n\n    .line 193\n    .line 194\n    invoke-virtual {v0, p1, p2}, Landroid/view/ViewGroup;->addView(Landroid/view/View;Landroid/view/ViewGroup$LayoutParams;)V\n\n    .line 195\n    .line 196\n    .line 197\n    return-object v0\n.end method\n"
+    },
+    {
+      "id": "T15-E01-open-contact-in-browser",
+      "evidence": "E01",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/schedule/ScheduleFragment.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;",
+        "methodDescriptor": "public static final o00OoO0(Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;)Lkotlin/Unit;"
+      },
+      "expectedMethodSha256": "C51E907DD42BDAD0FCDEEEB2B117CA843E783EA8858341C95638183F9B4D7B97",
+      "finalAssertions": [
+        {
+          "text": "https://www.wakeup.fun/contact.html"
+        },
+        {
+          "text": "android.intent.action.VIEW"
+        },
+        {
+          "text": "Landroid/net/Uri;->parse"
+        },
+        {
+          "text": ".catch Landroid/content/ActivityNotFoundException;"
+        },
+        {
+          "text": "->startActivity(Landroid/content/Intent;)V"
+        },
+        {
+          "text": "CommonCacheHybridActivity;",
+          "present": false
+        }
+      ],
+      "replacementMethod": ".method public static final o00OoO0(Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;)Lkotlin/Unit;\n    .locals 4\n\n    invoke-virtual {p0}, Landroidx/fragment/app/Fragment;->getActivity()Landroidx/fragment/app/FragmentActivity;\n    move-result-object v0\n    if-eqz v0, :done\n\n    const-string v1, \"https://www.wakeup.fun/contact.html\"\n    invoke-static {v1}, Landroid/net/Uri;->parse(Ljava/lang/String;)Landroid/net/Uri;\n    move-result-object v1\n    const-string v2, \"android.intent.action.VIEW\"\n    new-instance v3, Landroid/content/Intent;\n    invoke-direct {v3, v2, v1}, Landroid/content/Intent;-><init>(Ljava/lang/String;Landroid/net/Uri;)V\n\n    :try_start\n    invoke-virtual {v0, v3}, Landroid/content/Context;->startActivity(Landroid/content/Intent;)V\n    :try_end\n    .catch Landroid/content/ActivityNotFoundException; {:try_start .. :try_end} :no_browser\n    goto :done\n\n    :no_browser\n    move-exception v0\n\n    :done\n    sget-object v0, Lkotlin/Unit;->INSTANCE:Lkotlin/Unit;\n    return-object v0\n.end method\n"
+    },
+    {
+      "id": "T15-E01-disable-schedule-widget-route",
+      "evidence": "E01",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/schedule/ScheduleFragment.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;",
+        "methodDescriptor": "public static final o0oOO(Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;)Lkotlin/Unit;"
+      },
+      "expectedMethodSha256": "D7704834C25B6745B9CDBAB439234C72FF6F24DC302BD7F0EAF14F43B53F483A",
+      "finalAssertions": [
+        {
+          "text": "return-object v0"
+        },
+        {
+          "text": "CommonCacheHybridActivity;",
+          "present": false
+        },
+        {
+          "text": "->startActivity(Landroid/content/Intent;)V",
+          "present": false
+        }
+      ],
+      "replacementMethod": ".method public static final o0oOO(Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;)Lkotlin/Unit;\n    .locals 1\n    sget-object v0, Lkotlin/Unit;->INSTANCE:Lkotlin/Unit;\n    return-object v0\n.end method\n"
+    },
+    {
+      "id": "T15-E01-disable-schedule-simple-mode-cashier",
+      "evidence": "E01",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/schedule/ScheduleFragment.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;",
+        "methodDescriptor": "public static final o00oo0o(Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;Landroidx/fragment/app/FragmentActivity;Landroid/view/View;)V"
+      },
+      "expectedMethodSha256": "906952FDA8F8424029AC0724C6198A94C5E73BEC2D92C101996EE7764F416DBC",
+      "finalAssertions": [
+        {
+          "text": "return-void"
+        },
+        {
+          "text": "from=simple",
+          "present": false
+        },
+        {
+          "text": "CommonCacheHybridActivity;",
+          "present": false
+        },
+        {
+          "text": "->startActivity(Landroid/content/Intent;)V",
+          "present": false
+        }
+      ],
+      "replacementMethod": ".method public static final o00oo0o(Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;Landroidx/fragment/app/FragmentActivity;Landroid/view/View;)V\n    .locals 0\n    return-void\n.end method\n"
+    },
+    {
+      "id": "T15-E01-disable-main-style-skin-cashier",
+      "evidence": "E01",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/schedule_settings/MainStyleFragment.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/schedule_settings/MainStyleFragment;",
+        "methodDescriptor": "public static final o0000o0O(Landroidx/fragment/app/FragmentActivity;Lcom/suda/yzune/wakeupschedule/schedule_settings/MainStyleFragment;Landroid/view/View;)V"
+      },
+      "expectedMethodSha256": "B5431A3DE404273207BC80FAB5A07F0519D6F593BE73F578995F01E711DA447A",
+      "finalAssertions": [
+        {
+          "text": "return-void"
+        },
+        {
+          "text": "from=skin1",
+          "present": false
+        },
+        {
+          "text": "CommonCacheHybridActivity;",
+          "present": false
+        },
+        {
+          "text": "->startActivity(Landroid/content/Intent;)V",
+          "present": false
+        }
+      ],
+      "replacementMethod": ".method public static final o0000o0O(Landroidx/fragment/app/FragmentActivity;Lcom/suda/yzune/wakeupschedule/schedule_settings/MainStyleFragment;Landroid/view/View;)V\n    .locals 0\n    return-void\n.end method\n"
+    },
+    {
+      "id": "T15-E01-disable-schedule-night-mode-cashier",
+      "evidence": "E01",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/schedule/ScheduleFragment.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;",
+        "methodDescriptor": "public final o00o0oOO()V"
+      },
+      "expectedMethodSha256": "0884FF1F82694430C4634FC166A2594B558D577D7F4A09814653067DD816EA82",
+      "finalAssertions": [
+        {
+          "text": "return-void"
+        },
+        {
+          "text": "from=night",
+          "present": false
+        },
+        {
+          "text": "CommonCacheHybridActivity;",
+          "present": false
+        },
+        {
+          "text": "->startActivity(Landroid/content/Intent;)V",
+          "present": false
+        }
+      ],
+      "replacementMethod": ".method public final o00o0oOO()V\n    .locals 0\n    return-void\n.end method\n"
+    },
+    {
+      "id": "T15-E01-skip-schedule-night-mode-vip-dialog",
+      "evidence": "E01",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/schedule/ScheduleFragment.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment;",
+        "methodDescriptor": "public final o00oOOo0()V"
+      },
+      "expectedMethodSha256": "849DEA8F1AE5B6310BC7FBCBB90B017A590C43A3A0BFADAEDEF2CCF37A5C3B8F",
+      "finalAssertions": [
+        {
+          "text": "return-void"
+        },
+        {
+          "text": "DarkModeVipDialog",
+          "present": false
+        },
+        {
+          "text": "CommonCacheHybridActivity;",
+          "present": false
+        },
+        {
+          "text": "->startActivity(Landroid/content/Intent;)V",
+          "present": false
+        }
+      ],
+      "replacementMethod": ".method public final o00oOOo0()V\n    .locals 0\n    return-void\n.end method\n"
+    },
+    {
+      "id": "T15-E01-disable-schedule-popup-cashier",
+      "evidence": "E01",
+      "relativePath": "smali_classes6/com/suda/yzune/wakeupschedule/schedule/ScheduleFragment$OooO.smali",
+      "method": {
+        "classDescriptor": "Lcom/suda/yzune/wakeupschedule/schedule/ScheduleFragment$OooO;",
+        "methodDescriptor": "public OooO0o0()V"
+      },
+      "expectedMethodSha256": "5151D5F8BA72E621A1FC37487D1BE273DEB9CF94F221BBDE9E2082CB86BBFEA6",
+      "finalAssertions": [
+        {
+          "text": "return-void"
+        },
+        {
+          "text": "from=popup",
+          "present": false
+        },
+        {
+          "text": "CommonCacheHybridActivity;",
+          "present": false
+        },
+        {
+          "text": "->startActivity(Landroid/content/Intent;)V",
+          "present": false
+        }
+      ],
+      "replacementMethod": ".method public OooO0o0()V\n    .locals 0\n    return-void\n.end method\n"
+    },
+    {
       "id": "T15-E01-app-owned-closed-components-com-suda-yzune-wakeupschedule-aaa-activity-DebugTestActivity",
       "evidence": "E01",
       "relativePath": "AndroidManifest.xml",
