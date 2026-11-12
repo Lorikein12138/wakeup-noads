@@ -250,7 +250,7 @@ test('T14 rejects missing-label, duplicate-frame, and wrong-input-identity mutat
   assert.throws(() => assertOriginalInputIdentity(wrongIdentity));
 });
 
-test('raw bridge and inherited WebView bindings match the original 6.7.0 class ABI', async () => {
+test('raw bridge and inherited WebView bindings match the original 6.7.2 class ABI', async () => {
   const rawPath = 'smali_classes7/o0o00O0O/OooOO0.smali';
   const parentPath = 'smali_classes3/o000oo0.1/OooO0o.smali';
   const webViewPath = 'smali_classes7/oO0OO/OooO00o.smali';

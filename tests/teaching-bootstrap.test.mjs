@@ -50,7 +50,7 @@ test('E41 keeps the original loader, nativeSetToken, and readiness contract whil
   );
   assert.match(initializer, /NativeHelper;->nativeSetToken\(/, 'the original native token setup remains reachable');
   assert.equal((initializer.match(/invoke-interface \{[^\n]+\}, Lo0ooOOO0\/o00OOOO0;->OooO0OO\(Ljava\/lang\/String;\[Ljava\/lang\/Object;\)V/g) ?? []).length, 0,
-    'the 6.7.0 initializer no longer sends any initialization result to the logging interface');
+    'the 6.7.2 initializer no longer sends any initialization result to the logging interface');
   assert.match(ready, /sget-boolean v0, Lo0o000O\/oo000o;->OooO0O0:Z/,
     'the concrete E41 readiness accessor remains available to the Java adapter');
   assert.match(stats, /return-void/, 'the telemetry callback is inert after the exact method replacement');
@@ -61,7 +61,7 @@ test('E41 keeps the original loader, nativeSetToken, and readiness contract whil
     'native load failure no longer emits an online report');
 });
 
-test('production reflection bindings match the 6.7.0 privacy, version, baseutil, DX, and RC4 ABI', async () => {
+test('production reflection bindings match the 6.7.2 privacy, version, baseutil, DX, and RC4 ABI', async () => {
   const bootstrapPath = 'runtime/src/com/suda/yzune/wakeupschedule/slim/TeachingBootstrap.java';
   const networkPath = 'runtime/src/com/suda/yzune/wakeupschedule/slim/SlimNetworkPolicy.java';
   const rc4RuntimePath = 'runtime/src/com/suda/yzune/wakeupschedule/slim/Rc4PoolLifecycle.java';

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "baseline": {
-    "versionName": "6.7.0",
-    "versionCode": 560,
-    "path": "baseline/wakeup-v6.7.0.apk",
-    "sha256": "4D099629DF24AEFC996AF0286A47096EECB28946D5567CD8200EC041F72D42E2"
+    "versionName": "6.7.2",
+    "versionCode": 562,
+    "path": "baseline/wakeup-v6.7.2.apk",
+    "sha256": "39C9B9A35C19C4C7593EA34A7C5D93E099959DE350D0B433AE273AE1B2DA4F94"
   },
   "routeEntrypoints": [
     {
@@ -739,7 +739,7 @@
   ],
   "baselineMethodInventory": {
     "schemaVersion": 1,
-    "baselineSha256": "4D099629DF24AEFC996AF0286A47096EECB28946D5567CD8200EC041F72D42E2",
+    "baselineSha256": "39C9B9A35C19C4C7593EA34A7C5D93E099959DE350D0B433AE273AE1B2DA4F94",
     "fileCount": 129,
     "methodCount": 1468,
     "invokeEdgeCount": 10831,
@@ -109606,7 +109606,7 @@
   },
   "methodInventorySha256": "297A63CFAF6F482B867BEA95ED75EAE901D373539AE573BD371D8F33B2B0C5A2",
   "revisionNotes": [
-    "Recomputed from the original locked 6.7.0 decoded APK using methodInventoryFromSmali normalizationVersion 2.",
+    "Recomputed from the original locked 6.7.2 decoded APK using methodInventoryFromSmali normalizationVersion 2.",
     "Protected 82 original school-client smali files and their declared classes.",
     "Protected-method inventory: 129 files, 1468 methods, 10831 invoke edges, 0 dynamic invoke sites.",
     "The Tsinghua login/save coroutine child is explicitly protected from the original official source."

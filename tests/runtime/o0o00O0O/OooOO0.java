@@ -2,7 +2,7 @@ package o0o00O0O;
 
 import java.util.Map;
 
-/** JVM fixture matching the 6.7.0 raw parser input's public construction ABI. */
+/** JVM fixture matching the 6.7.2 raw parser input's public construction ABI. */
 public final class OooOO0 {
     private final String url;
     public final Map<?, ?> parameters;
