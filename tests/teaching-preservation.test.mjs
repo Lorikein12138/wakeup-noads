@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { applyPatchSpec } from '../scripts/patch.mjs';
-import { assertPrivateInvokeAbi, executableSmaliMethod, methodInventoryFromSmali, normalizeSmaliClass, normalizeSmaliMethod, parseSmaliClassStructure, readSmaliMethod, sameExecutableSmaliMethod, sameSmaliMethodInventory, smaliInvokeEdges } from './smali-helpers.mjs';
+import { assertPrivateInvokeAbi, declaredSmaliClassDescriptor, executableSmaliMethod, methodInventoryFromSmali, normalizeSmaliClass, normalizeSmaliMethod, parseSmaliClassStructure, readSmaliClass, readSmaliMethod, sameExecutableSmaliMethod, sameSmaliMethodInventory, smaliInvokeEdges } from './smali-helpers.mjs';
 
 const repoRoot = process.cwd();
 const baselineRoot = path.resolve(process.env.SLIM_BASELINE_DECODED_ROOT ?? 'tools/_cache/slim-v1-decoded');
@@ -37,7 +37,7 @@ async function listSmaliFiles(root, relative = '') {
 async function smaliClassIndex(root, relative) {
   const index = new Map();
   for (const file of await listSmaliFiles(root, relative)) {
-    const descriptor = (await readFile(path.join(root, file), 'utf8')).match(/^\.class\s.*?(L[^;\s]+;)\s*$/m)?.[1];
+    const descriptor = declaredSmaliClassDescriptor(await readFile(path.join(root, file), 'utf8'));
     assert.ok(descriptor && !index.has(descriptor), `${file} declares one unique class`);
     index.set(descriptor, file);
   }
@@ -229,15 +229,52 @@ test('shared Smali normalizer sorts method keys, preserves target topology, and 
     'Smali escape spelling normalizes by decoded string value');
 });
 
+test('Smali readers resolve reassigned package suffixes and reject mismatches and ambiguity', async (t) => {
+  await mkdir(mutationRoot, { recursive: true });
+  const fixture = await mkdtemp(path.join(mutationRoot, 'class-paths-'));
+  assert.ok(fixture.startsWith(mutationRoot + path.sep));
+  t.after(() => rm(fixture, { recursive: true, force: true }));
+  const baseline = path.join(fixture, 'baseline');
+  const candidate = path.join(fixture, 'candidate');
+  const method = 'public static run()V';
+  const source = (descriptor) => `.class public ${descriptor}\n.super Ljava/lang/Object;\n\n.method ${method}\n    .locals 0\n    return-void\n.end method\n`;
+  const writeClass = async (root, relative, descriptor) => {
+    const file = path.join(root, relative);
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, source(descriptor));
+  };
+  await writeClass(baseline, 'a.1/X.smali', 'La/X;');
+  await writeClass(baseline, 'A.2/Y.smali', 'LA/Y;');
+  await writeClass(candidate, 'a.2/X.smali', 'La/X;');
+  await writeClass(candidate, 'A.1/Y.smali', 'LA/Y;');
+  for (const [relative, descriptor] of [['a.1/X.smali', 'La/X;'], ['A.2/Y.smali', 'LA/Y;']]) {
+    assert.equal(await readSmaliClass(candidate, relative, descriptor), await readSmaliClass(baseline, relative, descriptor));
+    assert.equal(await readSmaliMethod(candidate, relative, descriptor, method), await readSmaliMethod(baseline, relative, descriptor, method));
+  }
+
+  // The exact path can contain the wrong class, and fallback must ignore other package casing.
+  await writeClass(candidate, 'a.6/X.smali', 'La/Wrong;');
+  await writeClass(candidate, 'A.3/X.smali', 'La/X;');
+  assert.equal(await readSmaliClass(candidate, 'a.6/X.smali', 'La/X;'), source('La/X;'));
+  await assert.rejects(readSmaliClass(candidate, 'a.2/X.smali', 'LA/X;'), /Class descriptor mismatch/);
+  await assert.rejects(readSmaliMethod(candidate, 'a.2/X.smali', 'LA/X;', method), /Class descriptor mismatch/);
+  await assert.rejects(readSmaliClass(candidate, 'a.4/Z.smali', 'La/Z;'), { code: 'ENOENT' });
+
+  await writeClass(candidate, 'a.5/X.smali', 'La/X;');
+  await assert.rejects(readSmaliClass(candidate, 'a.4/X.smali', 'La/X;'), /Ambiguous Smali class/);
+  await assert.rejects(readSmaliMethod(candidate, 'a.4/X.smali', 'La/X;', method), /Ambiguous Smali class/);
+});
+
 async function assertSchoolTreeUnchanged() {
   const dependency = JSON.parse(await readFile(dependencyPath, 'utf8'));
-  const baseFiles = await listSmaliFiles(baselineRoot, dependency.teachingDependencies.schoolClientRoot);
-  const candidateFiles = await listSmaliFiles(candidateRoot, dependency.teachingDependencies.schoolClientRoot);
-  assert.deepEqual(candidateFiles, baseFiles, 'no school client, anonymous class, or coroutine file is added or removed');
+  const schoolRoot = dependency.teachingDependencies.schoolClientRoot;
+  const baselineClasses = await smaliClassIndex(baselineRoot, schoolRoot);
+  const candidateClasses = await smaliClassIndex(candidateRoot, schoolRoot);
+  assert.deepEqual([...candidateClasses.keys()].sort(), [...baselineClasses.keys()].sort(), 'no school client, anonymous class, or coroutine class is added or removed');
   const entries = [];
-  for (const relative of baseFiles) {
+  for (const [descriptor, relative] of baselineClasses) {
     const baselineText = await readFile(path.join(baselineRoot, relative), 'utf8');
-    const candidateText = await readFile(path.join(candidateRoot, relative), 'utf8');
+    const candidateText = await readSmaliClass(candidateRoot, candidateClasses.get(descriptor), descriptor);
     assert.equal(normalize(candidateText), normalize(baselineText), `${relative} preserves executable content`);
     const inventory = parseSmaliInventory(baselineText);
     assert.ok(inventory.classDescriptor, `${relative} declares a class`);
@@ -341,8 +378,9 @@ test('candidate keeps every school implementation, Cookie/session and public par
   assert.ok(candidateRoot, 'pass -DecodedRoot with the fresh built candidate for the preservation suite');
   const dependency = JSON.parse(await readFile(dependencyPath, 'utf8'));
   const encryptNetPath = 'smali_classes6/com/suda/yzune/wakeupschedule/aaa/utils/EncryptNet.smali';
-  assertPrivateInvokeAbi(await readFile(path.join(candidateRoot, encryptNetPath), 'utf8'), {
-    classDescriptor: 'Lcom/suda/yzune/wakeupschedule/aaa/utils/EncryptNet;',
+  const encryptNetClass = 'Lcom/suda/yzune/wakeupschedule/aaa/utils/EncryptNet;';
+  assertPrivateInvokeAbi(await readSmaliClass(candidateRoot, encryptNetPath, encryptNetClass), {
+    classDescriptor: encryptNetClass,
     targetMethodDescriptor: 'OooO0oV(Lo000oo0/OooO0o;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V',
     callers: [
       { methodDescriptor: 'public final OooO0o(Lo000oo0/OooO0o;Lkotlin/jvm/functions/Function1;)V' },
@@ -472,7 +510,7 @@ test('candidate keeps every school implementation, Cookie/session and public par
 
     for (const entry of inventory) {
       const expectedText = await readFile(path.join(fixtureRoot, entry.path), 'utf8');
-      const candidateText = await readFile(path.join(candidateRoot, entry.path), 'utf8');
+      const candidateText = await readSmaliClass(candidateRoot, entry.path, entry.classDescriptor);
       const baselineText = await readFile(path.join(baselineRoot, entry.path), 'utf8');
       const expectedMethods = methodMap(parseSmaliInventory(expectedText));
       const baselineMethods = methodMap(parseSmaliInventory(baselineText));
@@ -859,7 +897,8 @@ test('candidate preserves the complete official DEX 8 and installs referenced ru
   }
   for (const [descriptor, relative] of officialClasses) {
     const expected = await readFile(path.join(modified.has(relative) ? root : baselineRoot, relative), 'utf8');
-    assert.equal(normalizeSmaliClass(await readFile(path.join(candidateRoot, candidateClasses.get(descriptor)), 'utf8')), normalizeSmaliClass(expected), `${relative} equals official plus approved operations`);
+    const candidateText = await readSmaliClass(candidateRoot, candidateClasses.get(descriptor), descriptor);
+    assert.equal(normalizeSmaliClass(candidateText), normalizeSmaliClass(expected), `${relative} equals official plus approved operations`);
   }
   for (const reference of [dependency.cryptoLifecycle.versionCodeSeed.runtimeCheck, dependency.cryptoLifecycle.cacheInvalidation.implementation]) {
     assert.ok(reference.path.startsWith('smali_classes9/'), 'runtime references use the fixed ninth DEX');

@@ -685,8 +685,9 @@ try {
         (Get-Sha256 (Join-Path $publishOutput "$releaseName.apk")) -ne $signedHash) {
         throw 'Staged candidate and output APK hashes differ after successful preservation audit'
     }
+    $candidateParent = Split-Path -Parent $candidateRoot
     $outputParent = Split-Path -Parent $candidateOutput
-    New-Item -ItemType Directory -Path $outputParent -Force | Out-Null
+    New-Item -ItemType Directory -Path $candidateParent,$outputParent -Force | Out-Null
     if ((Test-Path -LiteralPath $candidateRoot) -or (Test-Path -LiteralPath $candidateOutput)) { throw 'Candidate destination appeared during staged publication' }
     Move-Item -LiteralPath $publishCandidate -Destination $candidateRoot
     Move-Item -LiteralPath (Join-Path $publishOutput "$releaseName.apk") -Destination $candidateOutput

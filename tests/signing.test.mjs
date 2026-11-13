@@ -70,6 +70,10 @@ test('release history is monotonic and an existing candidate can finish registra
   assert.doesNotMatch(build, /Read-Host|Long-term release keystore password/);
 });
 
+test('ReleaseSigned creates the candidate parent before moving the staged candidate', () => {
+  assert.match(build, /\$candidateParent = Split-Path -Parent \$candidateRoot\r?\n\s*\$outputParent = Split-Path -Parent \$candidateOutput\r?\n\s*New-Item -ItemType Directory -Path \$candidateParent,\$outputParent -Force \| Out-Null[\s\S]*?Move-Item -LiteralPath \$publishCandidate -Destination \$candidateRoot/);
+});
+
 const signingFixtureRoot = path.resolve('tools/_cache/slim-v1-signing-round4-tests');
 // Per-test roots are removed by each test; drop the shared root once it is empty.
 after(() => rmdir(signingFixtureRoot).catch(() => {}));

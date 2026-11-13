@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 
@@ -14,12 +14,52 @@ function withoutDefaultStaticValue(line) {
 }
 const LABEL_DECLARATION = /^\s*(:[A-Za-z0-9_$.-]+)\s*$/;
 
+export function declaredSmaliClassDescriptor(source) {
+  const declarations = source.match(/^\.class[ \t]+[^\r\n]*$/gm);
+  if (declarations?.length !== 1) return undefined;
+  return stripComment(declarations[0]).trim().split(/\s+/).find((token) => /^L[^;\s]+;$/.test(token));
+}
+
+export async function readSmaliClass(root, relativePath, classDescriptor) {
+  let originalError;
+  try {
+    const content = await readFile(path.join(root, relativePath), 'utf8');
+    if (declaredSmaliClassDescriptor(content) === classDescriptor) return content;
+    originalError = new Error(`Class descriptor mismatch in ${relativePath}`);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    originalError = error;
+  }
+
+  // Apktool may assign different numeric suffixes to case-colliding packages on each decode.
+  const directory = path.dirname(relativePath);
+  const directoryName = path.basename(directory);
+  const packageName = directoryName.replace(/\.\d+$/, '');
+  const parent = path.join(root, path.dirname(directory));
+  const siblings = await readdir(parent, { withFileTypes: true }).catch((error) => {
+    if (error.code === 'ENOENT') throw originalError;
+    throw error;
+  });
+  const matches = [];
+  for (const sibling of siblings) {
+    if (!sibling.isDirectory() || sibling.name === directoryName || sibling.name.replace(/\.\d+$/, '') !== packageName) continue;
+    const file = path.join(parent, sibling.name, path.basename(relativePath));
+    try {
+      const content = await readFile(file, 'utf8');
+      if (declaredSmaliClassDescriptor(content) === classDescriptor) matches.push({ file, content });
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+  }
+  if (matches.length > 1) {
+    throw new Error(`Ambiguous Smali class ${classDescriptor} for ${relativePath}: ${matches.map(({ file }) => file).join(', ')}`);
+  }
+  if (!matches.length) throw originalError;
+  return matches[0].content;
+}
+
 export async function readSmaliMethod(root, relativePath, classDescriptor, methodDescriptor) {
-  const file = path.join(root, relativePath);
-  const content = await readFile(file, 'utf8');
-  const classLine = content.match(/^\.class\s+[^\r\n]*$/m)?.[0] ?? '';
-  const actualClassDescriptor = classLine.trim().split(/\s+/).find((token) => /^L[^;\s]+;$/.test(token));
-  if (actualClassDescriptor !== classDescriptor) throw new Error(`Class descriptor mismatch in ${relativePath}`);
+  const content = await readSmaliClass(root, relativePath, classDescriptor);
   const inventory = parseSmaliClassStructure(content, relativePath);
   const requested = parseMethodHeader(`.method ${methodDescriptor}`, relativePath);
   const method = inventory.methods.find(({ methodDescriptor: descriptor, flags }) => descriptor === requested.methodDescriptor
