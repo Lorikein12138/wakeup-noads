@@ -135,11 +135,18 @@ public final class TeachingBootstrapTest {
         check(previous.lastRequestedVersionCode == 560, "bootstrap derives the key lookup from historical versionCode 560");
 
         SlimNetworkPolicy.clearForTest();
+        FakePlatform previousRelease = new FakePlatform();
+        previousRelease.versionCode = 562;
+        check(new TeachingBootstrap().ensureReady(parent(), previousRelease) == TeachingBootstrap.Result.READY,
+            "the historical 6.7.2 baseline version key is accepted");
+        check(previousRelease.lastRequestedVersionCode == 562, "bootstrap derives the key lookup from historical versionCode 562");
+
+        SlimNetworkPolicy.clearForTest();
         FakePlatform latest = new FakePlatform();
-        latest.versionCode = 562;
+        latest.versionCode = 563;
         check(new TeachingBootstrap().ensureReady(parent(), latest) == TeachingBootstrap.Result.READY,
-            "the 6.7.2 baseline version key is accepted");
-        check(latest.lastRequestedVersionCode == 562, "bootstrap derives the key lookup from baseline versionCode 562");
+            "the 6.7.4 baseline version key is accepted");
+        check(latest.lastRequestedVersionCode == 563, "bootstrap derives the key lookup from baseline versionCode 563");
 
         SlimNetworkPolicy.clearForTest();
         FakePlatform explicit = new FakePlatform();
@@ -291,7 +298,7 @@ public final class TeachingBootstrapTest {
         volatile boolean serviceOrFallback = true;
         volatile boolean netConfigFallback;
         volatile boolean nativeLibrary = true;
-        volatile int versionCode = 562;
+        volatile int versionCode = 563;
         volatile int lastRequestedVersionCode = -1;
         volatile boolean ready;
         volatile boolean keyValid = true;

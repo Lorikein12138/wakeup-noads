@@ -96,29 +96,29 @@ test('checked-in toolchain lock is portable and has no secret fields', async () 
   assert.equal(/PLACEHOLDER/.test(JSON.stringify(lock)), false);
 });
 
-test('the locked v6.7.2 APK, patch spec, and default decoded cache share exact identity', async (t) => {
+test('the locked v6.7.4 APK, patch spec, and default decoded cache share exact identity', async (t) => {
   const lock = JSON.parse(await readFile(lockPath, 'utf8'));
   const spec = JSON.parse(await readFile('patches/slim-v1/patch-spec.json', 'utf8'));
   const dependency = JSON.parse(await readFile('patches/slim-v1/teaching-dependencies.json', 'utf8'));
   const apkPath = path.resolve(lock.baseline.path);
   const apk = await readFile(apkPath);
-  assert.equal(lock.baseline.path, 'baseline/wakeup-v6.7.2.apk');
-  assert.equal(lock.baseline.versionName, '6.7.2');
-  assert.equal(lock.baseline.versionCode, 562);
+  assert.equal(lock.baseline.path, 'baseline/wakeup-v6.7.4.apk');
+  assert.equal(lock.baseline.versionName, '6.7.4');
+  assert.equal(lock.baseline.versionCode, 563);
   assert.equal(apk.length, 41656615);
-  assert.equal(sha256(apk), '39C9B9A35C19C4C7593EA34A7C5D93E099959DE350D0B433AE273AE1B2DA4F94');
+  assert.equal(sha256(apk), '393EB761842BD11FD004CD6E2A909B5E9F0372F45D32B26B7F098D1DFB26C283');
   assert.equal(spec.baselineSha256, lock.baseline.sha256);
   assert.deepEqual(dependency.baseline, lock.baseline);
   assert.equal(dependency.baselineMethodInventory.baselineSha256, lock.baseline.sha256);
   const yml = await readFile('tools/_cache/slim-v1-decoded/apktool.yml', 'utf8');
-  assert.match(yml, /^  versionCode: 562$/m);
-  assert.match(yml, /^  versionName: 6\.7\.2$/m);
+  assert.match(yml, /^  versionCode: 563$/m);
+  assert.match(yml, /^  versionName: 6\.7\.4$/m);
   const decodedEntries = await readdir('tools/_cache/slim-v1-decoded', { withFileTypes: true });
   assert.equal(decodedEntries.filter((entry) => entry.isDirectory() && /^smali(?:_classes\d+)?$/.test(entry.name)).length, 8,
     'the locked APK decodes to exactly eight DEX roots');
   const accepted = await verifyToolchain({ projectRoot, lockPath, verifyAndroidTools: false });
   assert.equal(accepted.baselineSha256, lock.baseline.sha256);
-  for (const oldApkPath of ['baseline/wakeup-v6.5.2.apk', 'baseline/wakeup-v6.5.4.apk', 'baseline/wakeup-v6.6.0.apk', 'baseline/wakeup-v6.6.2.apk', 'baseline/wakeup-v6.7.0.apk']) {
+  for (const oldApkPath of ['baseline/wakeup-v6.5.2.apk', 'baseline/wakeup-v6.5.4.apk', 'baseline/wakeup-v6.6.0.apk', 'baseline/wakeup-v6.6.2.apk', 'baseline/wakeup-v6.7.0.apk', 'baseline/wakeup-v6.7.2.apk']) {
     await assert.rejects(verifyToolchain({ projectRoot, inputApkPath: path.resolve(oldApkPath), lockPath, verifyAndroidTools: false }), /baseline APK hash mismatch/);
   }
 
@@ -128,7 +128,7 @@ test('the locked v6.7.2 APK, patch spec, and default decoded cache share exact i
   t.after(() => rm(root, { recursive: true, force: true }));
   const sentinel = path.join(root, 'sentinel.bin');
   await writeFile(sentinel, Buffer.from('must remain unchanged'));
-  for (const oldApkPath of ['baseline/wakeup-v6.5.2.apk', 'baseline/wakeup-v6.5.4.apk', 'baseline/wakeup-v6.6.0.apk', 'baseline/wakeup-v6.6.2.apk', 'baseline/wakeup-v6.7.0.apk']) {
+  for (const oldApkPath of ['baseline/wakeup-v6.5.2.apk', 'baseline/wakeup-v6.5.4.apk', 'baseline/wakeup-v6.6.0.apk', 'baseline/wakeup-v6.6.2.apk', 'baseline/wakeup-v6.7.0.apk', 'baseline/wakeup-v6.7.2.apk']) {
     await assert.rejects(applyPatchSpec({
       root,
       specPath: path.resolve('patches/slim-v1/patch-spec.json'),
@@ -139,7 +139,7 @@ test('the locked v6.7.2 APK, patch spec, and default decoded cache share exact i
   }
 });
 
-test('production T22 patches the locked 6.7.2 metadata exactly and rejects stale or ambiguous inputs', async (t) => {
+test('production T22 patches the locked 6.7.4 metadata exactly and rejects stale or ambiguous inputs', async (t) => {
   const lock = JSON.parse(await readFile(lockPath, 'utf8'));
   const productionSpec = JSON.parse(await readFile('patches/slim-v1/patch-spec.json', 'utf8'));
   const operation = productionSpec.operations.find((item) => item.id === 'T22-E01-version-metadata');
@@ -147,22 +147,22 @@ test('production T22 patches the locked 6.7.2 metadata exactly and rejects stale
   assert.equal(operation.relativePath, 'apktool.yml');
   assert.equal(operation.fileScope, true);
   assert.equal(operation.expectedHits, 1);
-  assert.equal(operation.expectedOriginal, '  versionCode: 562\n  versionName: 6.7.2');
+  assert.equal(operation.expectedOriginal, '  versionCode: 563\n  versionName: 6.7.4');
   assert.equal(operation.replacement, '  versionCode: {{versionCode}}\n  versionName: {{releaseName}}');
   assert.equal(operation.finalAssertions[0].text, operation.replacement);
 
   const cacheYmlPath = path.resolve('tools/_cache/slim-v1-decoded/apktool.yml');
   const cacheYmlBytes = await readFile(cacheYmlPath);
   const cacheYml = cacheYmlBytes.toString('utf8');
-  const anchor = '  versionCode: 562\n  versionName: 6.7.2';
+  const anchor = '  versionCode: 563\n  versionName: 6.7.4';
   const normalize = (value) => value.replace(/\r\n/g, '\n');
   const withEnding = (value, ending) => normalize(value).replace(/\n/g, ending);
   const sourceLf = normalize(cacheYml);
   assert.equal(sourceLf.split(anchor).length - 1, 1);
-  assert.match(sourceLf, /^  versionCode: 562$/m);
-  assert.match(sourceLf, /^  versionName: 6\.7\.2$/m);
-  assert.equal(lock.baseline.versionCode, 562);
-  assert.equal(lock.baseline.versionName, '6.7.2');
+  assert.match(sourceLf, /^  versionCode: 563$/m);
+  assert.match(sourceLf, /^  versionName: 6\.7\.4$/m);
+  assert.equal(lock.baseline.versionCode, 563);
+  assert.equal(lock.baseline.versionName, '6.7.4');
   assert.equal(productionSpec.baselineSha256, lock.baseline.sha256);
 
   const makeFixture = async (label, source, localOperation = operation) => {
@@ -184,10 +184,10 @@ test('production T22 patches the locked 6.7.2 metadata exactly and rejects stale
   };
 
   for (const { label, ending, versionCode, releaseName } of [
-    { label: 'lf-default', ending: '\n', versionCode: 562, releaseName: 'wakeup-noads-v6.7.2-r1' },
-    { label: 'crlf-default', ending: '\r\n', versionCode: 562, releaseName: 'wakeup-noads-v6.7.2-r1' },
-    { label: 'lf-explicit', ending: '\n', versionCode: 654, releaseName: 'wakeup-noads-v6.7.2-r2' },
-    { label: 'crlf-explicit', ending: '\r\n', versionCode: 654, releaseName: 'wakeup-noads-v6.7.2-r2' },
+    { label: 'lf-default', ending: '\n', versionCode: 563, releaseName: 'wakeup-noads-v6.7.4-r1' },
+    { label: 'crlf-default', ending: '\r\n', versionCode: 563, releaseName: 'wakeup-noads-v6.7.4-r1' },
+    { label: 'lf-explicit', ending: '\n', versionCode: 654, releaseName: 'wakeup-noads-v6.7.4-r2' },
+    { label: 'crlf-explicit', ending: '\r\n', versionCode: 654, releaseName: 'wakeup-noads-v6.7.4-r2' },
   ]) {
     const original = withEnding(sourceLf, ending);
     const fixture = await makeFixture(label, original);
@@ -219,8 +219,9 @@ test('production T22 patches the locked 6.7.2 metadata exactly and rejects stale
   const invalidCases = [
     { label: 'old-spec-anchor', source: withEnding(sourceLf, '\n'), op: oldAnchor },
     { label: 'old-source-metadata', source: withEnding(sourceLf.replace(anchor, '  versionCode: 560\n  versionName: 6.7.0'), '\n'), op: operation },
-    { label: 'wrong-source-code', source: withEnding(sourceLf.replace(anchor, '  versionCode: 561\n  versionName: 6.7.2'), '\n'), op: operation },
-    { label: 'wrong-source-name', source: withEnding(sourceLf.replace(anchor, '  versionCode: 562\n  versionName: 6.6.1'), '\n'), op: operation },
+    { label: 'previous-source-metadata', source: withEnding(sourceLf.replace(anchor, '  versionCode: 562\n  versionName: 6.7.2'), '\n'), op: operation },
+    { label: 'wrong-source-code', source: withEnding(sourceLf.replace(anchor, '  versionCode: 561\n  versionName: 6.7.4'), '\n'), op: operation },
+    { label: 'wrong-source-name', source: withEnding(sourceLf.replace(anchor, '  versionCode: 563\n  versionName: 6.6.1'), '\n'), op: operation },
     { label: 'duplicate-source-fragment', source: withEnding(sourceLf + anchor + '\n', '\n'), op: operation, expected: 2 },
   ];
   for (const { label, source, op, expected = 0 } of invalidCases) {
@@ -228,7 +229,7 @@ test('production T22 patches the locked 6.7.2 metadata exactly and rejects stale
     const targetBefore = await readFile(fixture.targetPath);
     const sentinelBefore = await readFile(fixture.sentinelPath);
     await assert.rejects(applyPatchSpec({
-      root: fixture.root, specPath: fixture.specPath, versionCode: 562, releaseName: 'wakeup-noads-v6.7.2-r1',
+      root: fixture.root, specPath: fixture.specPath, versionCode: 563, releaseName: 'wakeup-noads-v6.7.4-r1',
     }), new RegExp('expected 1 original fragment\\(s\\), found ' + expected));
     assert.deepEqual(await readFile(fixture.targetPath), targetBefore, label + ': target is unchanged');
     assert.deepEqual(await readFile(fixture.sentinelPath), sentinelBefore, label + ': sentinel is unchanged');
@@ -257,7 +258,7 @@ test('production T22 patches the locked 6.7.2 metadata exactly and rejects stale
   assert.deepEqual(await readFile(cacheYmlPath), cacheYmlBytes, 'production default decoded cache is never written');
 });
 
-test('the 6.7.2 teaching ledger is recomputed and independently covers every route and school class', async () => {
+test('the 6.7.4 teaching ledger is recomputed and independently covers every route and school class', async () => {
   const lock = JSON.parse(await readFile(lockPath, 'utf8'));
   const dependency = JSON.parse(await readFile('patches/slim-v1/teaching-dependencies.json', 'utf8'));
   const decodedRoot = path.resolve('tools/_cache/slim-v1-decoded');
@@ -319,7 +320,7 @@ test('the 6.7.2 teaching ledger is recomputed and independently covers every rou
   assert.equal(sha256(nativeBytes), native.sha256);
 });
 
-test('production main and identity specs apply every 6.7.2 operation atomically to copied baseline targets', async (t) => {
+test('production main and identity specs apply every 6.7.4 operation atomically to copied baseline targets', async (t) => {
   const lock = JSON.parse(await readFile(lockPath, 'utf8'));
   const patchSpec = JSON.parse(await readFile('patches/slim-v1/patch-spec.json', 'utf8'));
   const identitySpec = JSON.parse(await readFile('patches/slim-v1/package-identity-spec.json', 'utf8'));
@@ -364,8 +365,8 @@ test('production main and identity specs apply every 6.7.2 operation atomically 
     root: fixture.root,
     specPath: path.resolve('patches/slim-v1/patch-spec.json'),
     baselineApkPath,
-    versionCode: 562,
-    releaseName: 'wakeup-noads-v6.7.2-r1',
+    versionCode: 563,
+    releaseName: 'wakeup-noads-v6.7.4-r1',
   });
   assert.deepEqual(result.operations.map(({ id }) => id).sort(), allOperations.map(({ id }) => id).sort());
   for (const operation of allOperations) {
@@ -413,8 +414,8 @@ test('production main and identity specs apply every 6.7.2 operation atomically 
     root: fixture.root,
     specPath: path.resolve('patches/slim-v1/patch-spec.json'),
     baselineApkPath,
-    versionCode: 562,
-    releaseName: 'wakeup-noads-v6.7.2-r1',
+    versionCode: 563,
+    releaseName: 'wakeup-noads-v6.7.4-r1',
   }), /patch has already been applied/);
   for (const relative of targetPaths) assert.deepEqual(await readFile(path.join(fixture.root, relative)), afterSuccess.get(relative), `${relative} stays unchanged on repeat`);
 
@@ -423,8 +424,8 @@ test('production main and identity specs apply every 6.7.2 operation atomically 
     root: oldApkFixture.root,
     specPath: path.resolve('patches/slim-v1/patch-spec.json'),
     baselineApkPath: path.resolve('baseline/wakeup-v6.5.4.apk'),
-    versionCode: 562,
-    releaseName: 'wakeup-noads-v6.7.2-r1',
+    versionCode: 563,
+    releaseName: 'wakeup-noads-v6.7.4-r1',
   }), /baseline APK SHA-256 does not match patch spec/);
   for (const relative of targetPaths) assert.deepEqual(await readFile(path.join(oldApkFixture.root, relative)), oldApkFixture.snapshot.get(relative), `${relative} stays unchanged after wrong APK`);
 
@@ -441,8 +442,8 @@ test('production main and identity specs apply every 6.7.2 operation atomically 
     root: wrongAnchorFixture.root,
     specPath: wrongAnchorPath,
     baselineApkPath,
-    versionCode: 562,
-    releaseName: 'wakeup-noads-v6.7.2-r1',
+    versionCode: 563,
+    releaseName: 'wakeup-noads-v6.7.4-r1',
   }));
   for (const relative of targetPaths) assert.deepEqual(await readFile(path.join(wrongAnchorFixture.root, relative)), wrongAnchorFixture.snapshot.get(relative), `${relative} stays unchanged after wrong anchor`);
 });
@@ -456,6 +457,86 @@ test('all three build input readers bind the same actual version script and defa
   assert.equal(sha256(await readFile('scripts/version.mjs')), versionHash);
   assert.match(buildScript, /\[int\]\$VersionCode,?[\s\S]*?if \(-not \$PSBoundParameters\.ContainsKey\('VersionCode'\)\) \{ \$VersionCode = \[int\]\$Lock\.baseline\.versionCode \}/);
   assert.match(buildScript, /\[ValidateRange\(1, 2100000000\)\]\s+\[int\]\$VersionCode/);
+});
+
+test('Build Tools metadata uses a validated cache only when the HTTPS request throws', async (t) => {
+  await mkdir(cacheRoot, { recursive: true });
+  const root = await mkdtemp(path.join(cacheRoot, 'sdk-metadata-'));
+  assert.equal(path.dirname(root), cacheRoot);
+  t.after(() => rm(root, { recursive: true, force: true }));
+
+  const runner = path.join(root, 'metadata.ps1');
+  await writeFile(runner, `param($BuildScript, $Root, $LockPath, $Remote)
+$ErrorActionPreference = 'Stop'
+$Lock = Get-Content -LiteralPath $LockPath -Raw | ConvertFrom-Json
+$tokens = $null; $errors = $null
+$ast = [Management.Automation.Language.Parser]::ParseFile($BuildScript, [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw 'Build script has AST errors' }
+foreach ($name in @('Assert-WithinPath', 'Assert-OfficialBuildToolsMetadata')) {
+    $definition = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true)
+    if (-not $definition) { throw "Missing production function: $name" }
+    Invoke-Expression $definition.Extent.Text
+}
+function Invoke-WebRequest {
+    [CmdletBinding()]
+    param($Uri, $OutFile)
+    if ($Uri -cne 'https://dl.google.com/android/repository/repository2-1.xml') { throw 'Unexpected SDK metadata URL' }
+    Write-Output 'Fixture HTTPS request attempted'
+    if ($Remote -eq 'throw') {
+        Set-Content -LiteralPath $OutFile -Value 'partial download'
+        throw 'fixture TLS EOF'
+    }
+    Copy-Item -LiteralPath $Remote -Destination $OutFile
+}
+Assert-OfficialBuildToolsMetadata
+`);
+  const { androidBuildTools: locked } = JSON.parse(await readFile(lockPath, 'utf8'));
+  const archiveName = new URL(locked.packageUrl).pathname.split('/').at(-1);
+  const xml = `<sdk:sdk-repository xmlns:sdk="http://schemas.android.com/sdk/android/repo/repository2/01">
+  <remotePackage path="build-tools;35.0.0">
+    <archives><archive><complete>
+      <url>${archiveName}</url><checksum>${locked.officialSha1}</checksum><size>${locked.archiveSize}</size>
+    </complete><host-os>windows</host-os></archive></archives>
+  </remotePackage>
+</sdk:sdk-repository>`;
+  const goodCache = xml + '\n<!-- existing cache -->';
+  const cases = [
+    { name: 'request failure falls back', cached: goodCache, fallback: true },
+    { name: 'request failure without cache', error: /fixture TLS EOF/ },
+    { name: 'cached URL mismatch', cached: xml.replace(archiveName, 'other.zip'), error: /Build Tools|Windows archive/, fallback: true },
+    { name: 'cached SHA-1 mismatch', cached: xml.replace(locked.officialSha1, '0'.repeat(40)), error: /does not match the locked/, fallback: true },
+    { name: 'cached size mismatch', cached: xml.replace(String(locked.archiveSize), '1'), error: /does not match the locked/, fallback: true },
+    { name: 'malformed remote response', cached: goodCache, remote: xml + '<broken/>', error: /multiple root elements/i },
+    { name: 'remote lock mismatch', cached: goodCache, remote: xml.replace(String(locked.archiveSize), '1'), error: /does not match the locked/ },
+    { name: 'remote size must be an integer', cached: goodCache, remote: xml.replace(String(locked.archiveSize), String(locked.archiveSize - 0.4)), error: /does not match the locked/ },
+    { name: 'valid remote refreshes cache', cached: goodCache, remote: xml },
+  ];
+  for (const { name, cached, remote, error, fallback } of cases) {
+    const fixture = await mkdtemp(path.join(root, 'case-'));
+    const cache = path.join(fixture, 'tools', '_cache');
+    await mkdir(cache, { recursive: true });
+    const metadata = path.join(cache, 'android-repository2-1.xml');
+    const response = path.join(fixture, 'response.xml');
+    if (cached !== undefined) await writeFile(metadata, cached);
+    if (remote !== undefined) await writeFile(response, remote);
+
+    const result = spawnSync('pwsh', [
+      '-NoProfile', '-File', runner, path.resolve('scripts/build.ps1'), fixture, lockPath, remote === undefined ? 'throw' : response,
+    ], { encoding: 'utf8', timeout: 30_000 });
+    assert.ifError(result.error);
+    assert.match(result.stdout, /Fixture HTTPS request attempted/, name);
+    if (fallback) assert.match(result.stdout, /using cached Google SDK metadata/i, name);
+    else assert.doesNotMatch(result.stdout, /using cached Google SDK metadata/i, name);
+    if (error) {
+      assert.equal(result.status, 1, name);
+      assert.match(result.stderr, error, name);
+    } else {
+      assert.equal(result.status, 0, `${name}: ${result.stderr}`);
+      assert.equal(result.stderr, '', name);
+    }
+    assert.deepEqual(await readdir(cache), cached === undefined ? [] : [path.basename(metadata)], name);
+    if (cached !== undefined) assert.equal(await readFile(metadata, 'utf8'), !error && remote !== undefined ? remote : cached, name);
+  }
 });
 
 test('the real runtime installer preserves DEX 8 and validates every input before adding DEX 9', async (t) => {

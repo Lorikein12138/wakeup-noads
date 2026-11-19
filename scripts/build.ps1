@@ -143,31 +143,37 @@ function Assert-OfficialBuildToolsMetadata {
     $metadataPath = Join-Path $Root 'tools/_cache/android-repository2-1.xml'
     $metadataPath = Assert-WithinPath $metadataPath (Join-Path $Root 'tools/_cache') 'SDK repository metadata'
     $metadataUrl = 'https://dl.google.com/android/repository/repository2-1.xml'
-    $partPath = "$metadataPath.part"
+    $partPath = "$metadataPath.$([guid]::NewGuid().ToString('N')).part"
+    $sourcePath = $partPath
     try {
-        Invoke-WebRequest -Uri $metadataUrl -OutFile $partPath
-        Move-Item -LiteralPath $partPath -Destination $metadataPath -Force
+        try {
+            Invoke-WebRequest -Uri $metadataUrl -OutFile $partPath -ErrorAction Stop
+        } catch {
+            if (-not (Test-Path -LiteralPath $metadataPath -PathType Leaf)) { throw }
+            Write-Output "Google SDK metadata request failed; using cached Google SDK metadata for validation: $($_.Exception.Message)"
+            $sourcePath = $metadataPath
+        }
+
+        $metadata = [xml]::new()
+        $reader = [Xml.XmlReader]::Create($sourcePath)
+        try { $metadata.Load($reader) }
+        finally { $reader.Dispose() }
+        $archive = $metadata.SelectSingleNode('/*[local-name()="sdk-repository"]/remotePackage[@path="build-tools;35.0.0"]/archives/archive[host-os="windows"]/complete')
+        if (-not $archive) { throw 'Google repository metadata has no Windows archive entry for Build Tools 35.0.0' }
+
+        $archiveName = $archive.SelectSingleNode('url').InnerText
+        $sha1 = $archive.SelectSingleNode('checksum').InnerText
+        $size = $archive.SelectSingleNode('size').InnerText
+        $officialUrl = 'https://dl.google.com/android/repository/build-tools_r35_windows.zip'
+        if ($archiveName -cne 'build-tools_r35_windows.zip' -or $officialUrl -cne $Lock.androidBuildTools.packageUrl -or
+            $sha1 -notmatch '^[A-Fa-f0-9]{40}$' -or $sha1 -ne $Lock.androidBuildTools.officialSha1 -or
+            $size -notmatch '\A[0-9]+\z' -or ($size -as [long]) -ne [long]$Lock.androidBuildTools.archiveSize) {
+            throw 'Google repository metadata does not match the locked Windows Build Tools package'
+        }
+
+        if ($sourcePath -eq $partPath) { [IO.File]::Move($partPath, $metadataPath, $true) }
     } finally {
         if (Test-Path -LiteralPath $partPath) { Remove-Item -LiteralPath $partPath -Force }
-    }
-    $xmlText = Get-Content -LiteralPath $metadataPath -Raw
-    $packageMatch = [regex]::Match($xmlText, '(?s)<remotePackage\s+path="build-tools;35\.0\.0"\s*>(?<body>.*?)</remotePackage>')
-    if (-not $packageMatch.Success) { throw 'Google repository metadata has no Build Tools 35.0.0 package' }
-    $body = $packageMatch.Groups['body'].Value
-    $urlMatch = [regex]::Match($body, '<url>build-tools_r35_windows\.zip</url>')
-    $windowsArchive = [regex]::Matches($body, '(?s)<archive>(?<value>.*?)</archive>') | Where-Object { $_.Groups['value'].Value -match '<url>build-tools_r35_windows\.zip</url>' } | Select-Object -First 1
-    if (-not $windowsArchive) { throw 'Google repository metadata has no Windows archive entry' }
-    $archiveBody = $windowsArchive.Groups['value'].Value
-    $shaMatch = [regex]::Match($archiveBody, '<checksum[^>]*>(?<value>[A-Fa-f0-9]{40})</checksum>')
-    $sizeMatch = [regex]::Match($archiveBody, '<size>(?<value>\d+)</size>')
-    if (-not $urlMatch.Success -or -not $shaMatch.Success -or -not $sizeMatch.Success) {
-        throw 'Build Tools metadata is missing the Windows URL, official checksum, or size'
-    }
-    $officialUrl = 'https://dl.google.com/android/repository/build-tools_r35_windows.zip'
-    if ($officialUrl -ne $Lock.androidBuildTools.packageUrl -or
-        $shaMatch.Groups['value'].Value.ToUpperInvariant() -ne $Lock.androidBuildTools.officialSha1.ToUpperInvariant() -or
-        [long]$sizeMatch.Groups['value'].Value -ne [long]$Lock.androidBuildTools.archiveSize) {
-        throw 'Google repository metadata does not match the locked Windows Build Tools package'
     }
 }
 

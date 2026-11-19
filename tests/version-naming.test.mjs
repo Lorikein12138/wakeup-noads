@@ -126,6 +126,22 @@ test('6.7.2 is a confirmed baseline for release names, metadata, and the CLI', (
   const cli = spawnSync(process.execPath, ['scripts/version.mjs', '6.7.2', '1'], { encoding: 'utf8' });
   assert.equal(cli.status, 0, cli.stderr);
   assert.deepEqual(JSON.parse(cli.stdout), { releaseName: 'wakeup-noads-v6.7.2-r1' });
+});
+
+test('6.7.4 is a confirmed baseline for release names, metadata, and the CLI', () => {
+  const digest674 = '393EB761842BD11FD004CD6E2A909B5E9F0372F45D32B26B7F098D1DFB26C283';
+  assert.equal(releaseNameFor('6.7.4', 1), 'wakeup-noads-v6.7.4-r1');
+  assert.equal(releaseNameFor('6.7.4', 2), 'wakeup-noads-v6.7.4-r2');
+  const metadata = createReleaseMetadata({ baselineSha256: digest674, baselineVersion: '6.7.4', revision: 1, versionCode: 563 });
+  assert.equal(metadata.releaseName, 'wakeup-noads-v6.7.4-r1');
+  assert.equal(metadata.versionCode, 563);
+  assert.equal(metadata.baselineSha256, digest674);
+  assert.equal(assertReleaseMetadataMatches({ packageName: 'io.github.wakeupnoads', versionCode: 563, versionName: metadata.versionName }, {
+    ...metadata, packageName: 'io.github.wakeupnoads', releaseName: metadata.releaseName,
+  }), true);
+  const cli = spawnSync(process.execPath, ['scripts/version.mjs', '6.7.4', '1'], { encoding: 'utf8' });
+  assert.equal(cli.status, 0, cli.stderr);
+  assert.deepEqual(JSON.parse(cli.stdout), { releaseName: 'wakeup-noads-v6.7.4-r1' });
   const unknownCli = spawnSync(process.execPath, ['scripts/version.mjs', '6.7.3', '1'], { encoding: 'utf8' });
   assert.equal(unknownCli.status, 1);
   assert.match(unknownCli.stderr, /a changed official baseline requires explicit confirmation/);
